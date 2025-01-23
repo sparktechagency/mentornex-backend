@@ -4,17 +4,24 @@ import { model, Schema } from 'mongoose';
 import config from '../../../config';
 import { USER_ROLES } from '../../../enums/user';
 import ApiError from '../../../errors/ApiError';
-import { IUser, UserModal } from './user.interface';
+import { ISocial, IUser, UserModal } from './user.interface';
+
+
+const socialSchema = new Schema<ISocial>(
+  {
+    platform: {
+      type: String
+    },
+    username: {
+      type: String
+    }
+  }
+)
 
 const userSchema = new Schema<IUser, UserModal>(
   {
     name: {
       type: String,
-      required: true,
-    },
-    role: {
-      type: String,
-      enum: Object.values(USER_ROLES),
       required: true,
     },
     email: {
@@ -23,8 +30,18 @@ const userSchema = new Schema<IUser, UserModal>(
       unique: true,
       lowercase: true,
     },
-    contact: {
+    role: {
       type: String,
+      enum: Object.values(USER_ROLES),
+      required: true,
+    },
+    industry: {
+      type: String,
+      required: true
+    },
+    timeZone: {
+      type: String,
+      required: true
     },
     password: {
       type: String,
@@ -32,8 +49,38 @@ const userSchema = new Schema<IUser, UserModal>(
       select: 0,
       minlength: 8,
     },
-    location: {
+    phone: {
       type: String,
+    },
+    about: {
+      type: String,
+    },
+    expertise: {
+      type: [String],
+    },
+    focus_area: {
+      type: String,
+    },
+    language: {
+      type: [String],
+    },
+    job_title: {
+      type: String,
+    },
+    company_name: {
+      type: String,
+    },
+    education: {
+      type: String,
+    },
+    institution_name: {
+      type: String,
+    },
+    country: {
+      type: String,
+    },
+    social: {
+      type: [socialSchema]
     },
     image: {
       type: String,
@@ -41,8 +88,8 @@ const userSchema = new Schema<IUser, UserModal>(
     },
     status: {
       type: String,
-      enum: ['active', 'delete'],
-      default: 'active',
+      enum: ['active', 'inactive' , 'delete'],
+      default: 'inactive',
     },
     verified: {
       type: Boolean,

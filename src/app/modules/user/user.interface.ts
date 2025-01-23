@@ -1,15 +1,31 @@
 import { Model } from 'mongoose';
 import { USER_ROLES } from '../../../enums/user';
 
+export type ISocial = {
+  platform: string;
+  username: string;
+}
+
 export type IUser = {
   name: string;
   role: USER_ROLES;
-  contact: string;
   email: string;
+  industry: string;
+  timeZone: string;
   password: string;
-  location: string;
+  phone: string;
+  about: string;
+  expertise: string[];
+  focus_area: string;
+  language: string[];
+  job_title: string;
+  company_name: string;
+  education: string;
+  institution_name: string;
+  country: string;
+  social: ISocial[];
   image?: string;
-  status: 'active' | 'delete';
+  status: 'active' | 'inactive' |'delete';
   verified: boolean;
   authentication?: {
     isResetPassword: boolean;
