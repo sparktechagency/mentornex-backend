@@ -1,7 +1,6 @@
 import { model, Schema } from "mongoose";
 import { IReview, ReviewModal } from "./review.interface";
 
-
 const reviewSchema = new Schema<IReview, ReviewModal>(
     {
         mentee_id: {

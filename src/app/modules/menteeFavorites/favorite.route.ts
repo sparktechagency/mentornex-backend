@@ -1,7 +1,6 @@
 import express, { NextFunction, Request, Response } from 'express';
 import { USER_ROLES } from '../../../enums/user';
 import auth from '../../middlewares/auth';
-import validateRequest from '../../middlewares/validateRequest';
 import { FavoriteController } from './favorite.controller';
 
 const router = express.Router();

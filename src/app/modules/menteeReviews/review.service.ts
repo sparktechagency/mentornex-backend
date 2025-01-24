@@ -5,8 +5,6 @@ import { ReviewMentor } from "./review.model";
 
 
 const addReviewToDB = async (payload: IReview): Promise<IReview> => {
-    //set role
-    //payload.role = USER_ROLES.USER;
     const addReview = await ReviewMentor.create(payload);
     if (!addReview) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to add review');
@@ -14,12 +12,14 @@ const addReviewToDB = async (payload: IReview): Promise<IReview> => {
     return addReview;
 };
 
-const getFavoriteMentorsFromDB = async (mentee_id: string) => {
-    const favoriteMentors = await ReviewMentor.find({ mentee_id }).populate({
-        path: 'mentor_id'
-      })
-      .exec();
-    return favoriteMentors;
+const getAllMentorsReviewFromDB = async (mentor_id: string) => {
+    const allReviews = await ReviewMentor.find({ mentor_id })
+
+    if (!allReviews) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Mentors reviews not found');
+    }
+
+    return allReviews;
 };
 
 const deleteFavoriteMentorFromDB = async (mentee_id: string, mentor_id: string) => {
@@ -32,6 +32,6 @@ const deleteFavoriteMentorFromDB = async (mentee_id: string, mentor_id: string) 
 
 export const ReviewService = {
     addReviewToDB,
-    getFavoriteMentorsFromDB,
+    getAllMentorsReviewFromDB,
     deleteFavoriteMentorFromDB
 };

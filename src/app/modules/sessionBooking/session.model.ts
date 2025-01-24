@@ -22,7 +22,7 @@ const sessionSchema = new Schema<ISession, SessionModal>(
         type: String,
         required: true
       },
-      type: {
+      duration: {
         type: String,
         required: true
       },

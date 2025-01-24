@@ -5,7 +5,7 @@ const bookSessionZodSchema = z.object({
     mentee_id: z.string().optional(),
     mentor_id: z.string({ required_error: 'Mentor id is required' }),
     topic: z.string({ required_error: 'Topic is required' }),
-    type: z.string({ required_error: 'Type is required' }),
+    duration: z.string({ required_error: 'Type is required' }),
     expected_outcome: z.string({ required_error: 'Expected outcome is required' }),
     fee: z.string().optional(),
     status: z.string({ required_error: 'status is required' }),

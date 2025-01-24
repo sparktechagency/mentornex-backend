@@ -7,7 +7,7 @@ export type ISession = {
   mentee_id: string;
   date_time: string;
   topic: string;
-  type: string;
+  duration: string;
   expected_outcome: string;
   fee: string;
   status: 'pending' | 'accepted' | 'rejected' | 'completed';
