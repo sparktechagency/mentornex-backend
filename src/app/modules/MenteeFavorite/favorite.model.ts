@@ -9,8 +9,8 @@ const favoriteSchema = new Schema<IFavorite, FavoriteModal>(
             ref: 'User',
             required: true,
           },
-        mentor_id: {
-            type: String,
+        mentor: {
+            type: [String],
             ref: 'User',
             required: true,
       }

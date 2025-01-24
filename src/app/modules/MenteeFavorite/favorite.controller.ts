@@ -6,53 +6,43 @@ import { FavoriteService } from "./favorite.service";
 import ApiError from "../../../errors/ApiError";
 
 
-const addfavoriteMentor = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
-      const mentee_id = req.user.id;
-      const favoriteMentorData = {mentee_id, ...req.body};
-      const result = await FavoriteService.addFavoriteToDB(favoriteMentorData);
+const favoriteMentor = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const mentee_id = req.user.id;
+    const { mentor_ids }: { mentor_ids: string[] } = req.body;
+
+    if (!mentor_ids || !Array.isArray(mentor_ids)) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Mentor IDs must be an array');
+    }
+
+    const favoriteMentorData = { mentee_id, mentor: mentor_ids };
+    const result = await FavoriteService.addOrRemoveFavoriteToDB(favoriteMentorData);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Favorite mentors updated successfully',
+      data: result,
+    });
+  }
+);
+
+const getFavoriteMentorsController = catchAsync(
+  async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+      const menteeId = req.user.id;
+      const mentors = await FavoriteService.getFavoriteMentors(menteeId);
   
       sendResponse(res, {
         success: true,
         statusCode: StatusCodes.OK,
-        message: 'Favorite mentor added successfully',
-        data: result,
-      });
-    }
-  );
-
-const getFavoriteMentors = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
-      const mentee_id = req.user.id;
-      const result = await FavoriteService.getFavoriteMentorsFromDB(mentee_id);
-
-      sendResponse(res, {
-        success: true,
-        statusCode: StatusCodes.OK,
         message: 'Favorite mentors retrieved successfully',
-        data: result,
+        data: mentors,
       });
-    }
-)
+  }
+) 
 
-const deleteFavoriteMentor = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
-      const mentee_id = req.user.id;
-      const { mentor_id } = req.body;
-
-    if (!mentor_id) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Mentor ID is required');
-    }
-
-    const result = await FavoriteService.deleteFavoriteMentorFromDB(mentee_id, mentor_id);
-
-      sendResponse(res, {
-        success: true,
-        statusCode: StatusCodes.OK,
-        message: 'Favorite mentor deleted successfully',
-        data: result,
-      });
-    }
-)
-
-  export const FavoriteController = { addfavoriteMentor, getFavoriteMentors, deleteFavoriteMentor };
+export const FavoriteController = { favoriteMentor, getFavoriteMentorsController };

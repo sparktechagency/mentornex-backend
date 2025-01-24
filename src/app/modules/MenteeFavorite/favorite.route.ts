@@ -6,18 +6,14 @@ import { FavoriteController } from './favorite.controller';
 
 const router = express.Router();
 
-router.route('/favorite/add').post(
+router.route('/favorite-mentor').post(
   auth(USER_ROLES.MENTEE),
-  FavoriteController.addfavoriteMentor
-);
-router.route('/favorite/list').get(
-    auth(USER_ROLES.MENTEE),
-    FavoriteController.getFavoriteMentors
+  FavoriteController.favoriteMentor
 );
 
-router.route('/favorite/delete').delete(
-    auth(USER_ROLES.MENTEE),
-    FavoriteController.deleteFavoriteMentor
+router.route('/favorite-mentor-list').get(
+  auth(USER_ROLES.MENTEE),
+  FavoriteController.getFavoriteMentorsController
 );
 
 export const MenteeFavoriteRoutes = router;

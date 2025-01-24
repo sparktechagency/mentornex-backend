@@ -33,7 +33,7 @@ const getMenteeUpcomingSessions = async (mentee_id: string) => {
   };
 
 const getMenteeCompletedSessions = async (mentee_id: string) => {
-    const sessions = await Session.find({ mentee_id, status: 'completed' })
+    const sessions = await Session.find({ mentee_id, status: { $in: ['completed', 'rejected'] } })
       .populate({
         path: 'mentee_id',
         select: 'name',
@@ -91,12 +91,31 @@ const getMentorAcceptedSessions = async (mentor_id: string) => {
     return sessions;
   };
 
+  const updateSessionStatus = async (
+    sessionId: string,
+    mentor_id: string,
+    status: 'accepted' | 'rejected'
+  ) => {
+    const session = await Session.findOne({ _id: sessionId, mentor_id, status: 'pending' });
+  
+    if (!session) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Session not found or already updated');
+    }
+  
+    session.status = status;
+    await session.save();
+  
+    return session;
+  };
+  
+
 export const SessionService = {
     bookSessionToDB,
     getMentorPendingSessions,
     getMentorAcceptedSessions,
     getMentorCompletedSessions,
     getMenteeUpcomingSessions,
-    getMenteeCompletedSessions
+    getMenteeCompletedSessions,
+    updateSessionStatus
 };
 

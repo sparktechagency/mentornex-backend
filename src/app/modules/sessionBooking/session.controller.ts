@@ -85,6 +85,23 @@ const MentorRequestedSession = catchAsync(
       });
     }
   );
+
+  const MentorUpdateSessionStatus = catchAsync(
+    async (req: Request, res: Response, next: NextFunction) => {
+      const mentor_id = req.user.id;
+      const { sessionId, status } = req.body;
+  
+      const updatedSession = await SessionService.updateSessionStatus(sessionId, mentor_id, status);
+  
+      sendResponse(res, {
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: 'Session status updated successfully',
+        data: updatedSession,
+      });
+    }
+  );
+  
   
 
-export const SessionController = { bookSession, MentorRequestedSession, MentorAccepetedSession, MentorCompletedSession, MenteeUpcomingSession, MenteeCompletedSession };
+export const SessionController = { bookSession, MentorRequestedSession, MentorAccepetedSession, MentorCompletedSession, MentorUpdateSessionStatus, MenteeUpcomingSession, MenteeCompletedSession };

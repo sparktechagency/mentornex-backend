@@ -14,6 +14,16 @@ const bookSessionZodSchema = z.object({
   }),
 });
 
+
+const updateSessionStatusZodSchema = z.object({
+  body: z.object({
+    sessionId: z.string({ required_error: 'Session ID is required' }),
+    status: z.enum(['accepted', 'rejected'], {
+      required_error: 'Status is required',
+    }),
+  }),
+});
+
 const updateUserZodSchema = z.object({
   name: z.string().optional(),
   contact: z.string().optional(),
@@ -25,5 +35,6 @@ const updateUserZodSchema = z.object({
 
 export const SessionValidation = {
   bookSessionZodSchema,
+  updateSessionStatusZodSchema,
   updateUserZodSchema,
 };

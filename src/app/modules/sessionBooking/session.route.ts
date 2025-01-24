@@ -7,7 +7,7 @@ import { SessionValidation } from './session.validation';
 const router = express.Router();
 
 router
-  .route('/book')
+  .route('/mentee/book')
   .post(
     auth(USER_ROLES.MENTEE),
     validateRequest(SessionValidation.bookSessionZodSchema),
@@ -37,5 +37,12 @@ router.route('/mentor/completed-sessions').get(
   auth(USER_ROLES.MENTOR),
   SessionController.MentorCompletedSession
 );
+
+router.route('/mentor/update-session-status').patch(
+  auth(USER_ROLES.MENTOR),
+  validateRequest(SessionValidation.updateSessionStatusZodSchema),
+  SessionController.MentorUpdateSessionStatus
+);
+
 
 export const SessionRoutes = router;

@@ -3,7 +3,6 @@ import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import { StatusCodes } from "http-status-codes";
 import {  ReviewService } from "./review.service";
-import ApiError from "../../../errors/ApiError";
 
 
 const addReviewMentor = catchAsync(
