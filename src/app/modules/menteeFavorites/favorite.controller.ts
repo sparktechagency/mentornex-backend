@@ -11,6 +11,8 @@ const favoriteMentor = catchAsync(
     const mentee_id = req.user.id;
     const { mentor_ids }: { mentor_ids: string[] } = req.body;
 
+    //const mentor_ids = req.params.mentor_ids; //mentor_ids is an array  of strings
+
     if (!mentor_ids || !Array.isArray(mentor_ids)) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Mentor IDs must be an array');
     }

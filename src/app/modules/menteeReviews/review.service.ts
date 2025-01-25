@@ -22,16 +22,16 @@ const getAllMentorsReviewFromDB = async (mentor_id: string) => {
     return allReviews;
 };
 
-const deleteFavoriteMentorFromDB = async (mentee_id: string, mentor_id: string) => {
-    const favoriteMentor = await ReviewMentor.findOneAndDelete({ mentee_id, mentor_id });
-    if (!favoriteMentor) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Favorite mentor not found');
+const deleteReviewByMenteeFromDB = async (mentee_id: string, mentor_id: string) => {
+    const review = await ReviewMentor.findOneAndDelete({ mentee_id, mentor_id });
+    if (!review) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Review not found');
     }
-    return favoriteMentor;
+    return review;
 };
 
 export const ReviewService = {
     addReviewToDB,
     getAllMentorsReviewFromDB,
-    deleteFavoriteMentorFromDB
+    deleteReviewByMenteeFromDB
 };

@@ -18,6 +18,20 @@ const addReviewMentorbyMentee = catchAsync(
         data: result,
       });
     }
+      /*async (req: Request, res: Response, next: NextFunction) => {
+        const mentee_id = req.user.id;
+        const mentor_id = req.params.mentor_id;
+        const reviewMentor = {mentee_id, mentor_id, ...req.body};
+        const result = await ReviewService.addReviewToDB(reviewMentor);
+    
+        sendResponse(res, {
+          success: true,
+          statusCode: StatusCodes.OK,
+          message: 'Mentor review added successfully',
+          data: result,
+        });
+      }*/
+
   );
 
 const getAllReviewsByMentor = catchAsync(
@@ -41,5 +55,19 @@ const getAllReviewsByMentor = catchAsync(
   }
 )
 
+const deleteReviewByMentee = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const mentee_id = req.user.id;
+    const mentor_id = req.params.mentor_id;
+    const result = await ReviewService.deleteReviewByMenteeFromDB(mentee_id, mentor_id);
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Review deleted successfully',
+      data: result,
+    });
+  }
+)
 
-  export const ReviewController = { addReviewMentorbyMentee, getAllReviewsByMentor };
+
+  export const ReviewController = { addReviewMentorbyMentee, getAllReviewsByMentor , deleteReviewByMentee };

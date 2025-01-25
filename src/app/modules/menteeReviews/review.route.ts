@@ -16,4 +16,9 @@ router.route('/reviews').get(
   ReviewController.getAllReviewsByMentor
 );
 
+router.route('/review/delete').delete(
+  auth(USER_ROLES.MENTEE),
+  ReviewController.deleteReviewByMentee
+);
+
 export const MenteeReviewRoutes = router;

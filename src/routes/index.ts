@@ -5,6 +5,7 @@ import { SessionRoutes } from '../app/modules/sessionBooking/session.route';
 import { MenteeFavoriteRoutes } from '../app/modules/menteeFavorites/favorite.route';
 import { MenteeReviewRoutes } from '../app/modules/menteeReviews/review.route';
 import { MenteeDashboardRoutes } from '../app/modules/menteeDashboard/menteeDashboard.route';
+import { TaskRoutes } from '../app/modules/mentorTask/task.route';
 const router = express.Router();
 
 const apiRoutes = [
@@ -31,6 +32,10 @@ const apiRoutes = [
   {
     path: '/mentee',
     route: MenteeDashboardRoutes,
+  },
+  {
+    path: '/task',
+    route: TaskRoutes,
   }
 ];
 

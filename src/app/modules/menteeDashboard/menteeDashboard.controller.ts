@@ -10,21 +10,18 @@ import { MenteeDashboardService } from "./menteeDashboard.service";
 const totalCount = catchAsync(
     async (req: Request, res: Response, next: NextFunction) => {
     const mentee_id = req.user.id;
-    const totalActiveMentors = await MenteeDashboardService.getActiveMentorCountService();
-    const completedSession = await MenteeDashboardService.getTotalSessionCompleted(mentee_id);
-    const activeMentorsList = await MenteeDashboardService.getActiveMentorsList();
 
-    const result = {
-        totalActiveMentors: totalActiveMentors,
-        completedSession: completedSession,
-        activeMentorsList: activeMentorsList
-    }
+    const results = Promise.all([
+      MenteeDashboardService.getActiveMentorCountService(),
+      MenteeDashboardService.getTotalSessionCompleted(mentee_id),
+      MenteeDashboardService.getActiveMentorsList()
+    ])
   
       sendResponse(res, {
         success: true,
         statusCode: StatusCodes.OK,
         message: 'Received total active mentors successfully',
-        data: result,
+        data: results,
       });
     }
   );
