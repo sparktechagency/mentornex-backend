@@ -20,7 +20,7 @@ async function main() {
     logger.info(colors.green('🚀 Database connected successfully'));
 
     //Seed Super Admin after database connection is successful
-    // await seedSuperAdmin();
+    await seedSuperAdmin();
 
     const port =
       typeof config.port === 'number' ? config.port : Number(config.port);

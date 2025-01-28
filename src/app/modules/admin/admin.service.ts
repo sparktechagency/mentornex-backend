@@ -6,23 +6,23 @@ import { emailHelper } from '../../../helpers/emailHelper';
 import { emailTemplate } from '../../../shared/emailTemplate';
 import unlinkFile from '../../../shared/unlinkFile';
 import generateOTP from '../../../util/generateOTP';
-import { IUser } from './user.interface';
-import { User } from './user.model';
+import { IUser } from '../user/user.interface';
+import { User } from '../user/user.model';
 
-const createUserToDB = async (payload: Partial<IUser>): Promise<IUser> => {
+const createAdminToDB = async (payload: Partial<IUser>): Promise<IUser> => {
   //set role
-  //payload.role = USER_ROLES.MENTEE;
-  const createUser = await User.create(payload);
-  if (!createUser) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create user');
+  payload.role = USER_ROLES.ADMIN;
+  const createAdmin = await User.create(payload);
+  if (!createAdmin) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create admin');
   }
 
   //send email
   const otp = generateOTP();
   const values = {
-    name: createUser.name,
+    name: createAdmin.name,
     otp: otp,
-    email: createUser.email!,
+    email: createAdmin.email!,
   };
   const createAccountTemplate = emailTemplate.createAccount(values);
   emailHelper.sendEmail(createAccountTemplate);
@@ -33,14 +33,20 @@ const createUserToDB = async (payload: Partial<IUser>): Promise<IUser> => {
     expireAt: new Date(Date.now() + 3 * 60000),
   };
   await User.findOneAndUpdate(
-    { _id: createUser._id },
+    { _id: createAdmin._id },
     { $set: { authentication } }
   );
 
-  return createUser;
+  return createAdmin;
 };
 
-
+const getAllAdminFromDB = async (): Promise<Partial<IUser>[]> => {
+    const result = await User.find({ role: USER_ROLES.ADMIN });
+    if(!result){
+      throw new ApiError(StatusCodes.BAD_REQUEST, "No admin found!");
+    }
+    return result;
+  };
 
 const getUserProfileFromDB = async (
   user: JwtPayload
@@ -53,6 +59,21 @@ const getUserProfileFromDB = async (
 
   return isExistUser;
 };
+
+const updateAdminBySuperAdminToDB = async (
+    adminId: string,
+    payload: Partial<IUser>
+): Promise<Partial<IUser | null>> => {
+  const isExistUser = await User.isExistUserById(adminId);
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+  const updateDoc = await User.findOneAndUpdate({ _id: adminId }, payload, {
+    new: true,
+  });
+  return updateDoc;
+
+}
 
 const updateProfileToDB = async (
   user: JwtPayload,
@@ -76,8 +97,10 @@ const updateProfileToDB = async (
   return updateDoc;
 };
 
-export const UserService = {
-  createUserToDB,
+export const AdminService = {
+  createAdminToDB,
+  getAllAdminFromDB,
+  updateAdminBySuperAdminToDB,
   getUserProfileFromDB,
   updateProfileToDB,
 };

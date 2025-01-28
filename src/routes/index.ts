@@ -6,9 +6,18 @@ import { MenteeFavoriteRoutes } from '../app/modules/menteeFavorites/favorite.ro
 import { MenteeReviewRoutes } from '../app/modules/menteeReviews/review.route';
 import { MenteeDashboardRoutes } from '../app/modules/menteeDashboard/menteeDashboard.route';
 import { TaskRoutes } from '../app/modules/mentorTask/task.route';
+import { PaymentRoutes } from '../app/modules/payment/payment.route';
+import { NoteRoutes } from '../app/modules/mentorNotes/note.route';
+import { AdminRoutes } from '../app/modules/admin/admin.route';
 const router = express.Router();
 
+router.use('/payment/webhook', express.raw({ type: 'application/json' }));
+
 const apiRoutes = [
+  {
+    path: '/super-admin',
+    route: AdminRoutes,
+  },
   {
     path: '/user',
     route: UserRoutes,
@@ -36,6 +45,14 @@ const apiRoutes = [
   {
     path: '/task',
     route: TaskRoutes,
+  },
+  {
+    path: '/payment',
+    route: PaymentRoutes,
+  },
+  {
+    path: '/note',
+    route: NoteRoutes,
   }
 ];
 
