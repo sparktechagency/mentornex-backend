@@ -3,13 +3,14 @@ import catchAsync from "../../../shared/catchAsync";
 import { SessionService } from "./session.service";
 import sendResponse from "../../../shared/sendResponse";
 import { StatusCodes } from "http-status-codes";
+import { paginationHelper } from "../../../helpers/paginationHelper";
 
 
 const bookSession = catchAsync(
     async (req: Request, res: Response, next: NextFunction) => {
       const mentee_id = req.user.id;
       const sessionData = {mentee_id, ...req.body};
-      const result = await SessionService.bookSessionToDB(sessionData);
+      const result = await SessionService.bookSessionWithPayment(sessionData);
   
       sendResponse(res, {
         success: true,
@@ -20,18 +21,38 @@ const bookSession = catchAsync(
     }
   );
 
-const MenteeUpcomingSession = catchAsync(
+  const MenteeUpcomingSession = catchAsync(
     async (req: Request, res: Response, next: NextFunction) => {
       const mentee_id = req.user.id;
-      const sessions = await SessionService.getMenteeUpcomingSessions(mentee_id);
+  
+      // Get pagination parameters from the request query
+      const { page = 1, limit = 10 } = req.query;
+  
+      // Calculate pagination options using the helper
+      const paginationOptions = paginationHelper.calculatePagination({
+        page: Number(page),
+        limit: Number(limit),
+      });
+  
+      const sessions = await SessionService.getMenteeUpcomingSessions(mentee_id, paginationOptions);
+  
       sendResponse(res, {
         success: true,
         statusCode: StatusCodes.OK,
         message: 'Upcoming sessions retrieved successfully',
-        data: sessions,
+        data: {
+          sessions: sessions.sessions, // The current sessions on this page
+          pagination: {
+            totalSessions: sessions.totalSessions,
+            totalPages: sessions.totalPages,
+            currentPage: sessions.currentPage,
+            limit: paginationOptions.limit,
+          },
+        },
       });
     }
   );
+  
 
 const MenteeCompletedSession = catchAsync(
     async (req: Request, res: Response, next: NextFunction) => {

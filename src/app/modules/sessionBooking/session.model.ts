@@ -15,6 +15,10 @@ const sessionSchema = new Schema<ISession, SessionModal>(
         required: true,
       },
       date_time: {
+        type: Date,
+        required: true
+      },
+      session_type: {
         type: String,
         required: true
       },
@@ -38,10 +42,32 @@ const sessionSchema = new Schema<ISession, SessionModal>(
         enum: ['pending', 'accepted' , 'rejected', 'completed'],
         default: 'pending',
       },
-      payment_status: {
-        type: Boolean,
-        default: false
-      }
+      payment_type: {
+    type: String,
+    enum: ['subscription', 'per_session'],
+    required: true,
+  },
+  stripe_payment_intent_id: {
+    type: String,
+  },
+  payment_status: {
+    type: String,
+    enum: ['pending', 'held', 'released', 'refunded'],
+    default: 'pending',
+  },
+  amount: {
+    type: Number,
+    required: true,
+  },
+  platform_fee: {
+    type: Number,
+    required: true,
+  },
+  subscription_id: {
+    type: Schema.Types.ObjectId,
+    //type: String,
+    ref: 'Subscription',
+  }
     },
     { timestamps: true }
   );

@@ -20,6 +20,21 @@ const addTask = catchAsync(
 
   );
 
+const getAllTask = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const mentorId = req.user.id;
+      const result = await TaskService.getAllTaskFromDB(mentorId);
+
+      sendResponse(res, {
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: 'Task fetched successfully',
+        data: result,
+      });
+    }
+)
+
  export const TaskController = {
-    addTask
+    addTask,
+    getAllTask
  }

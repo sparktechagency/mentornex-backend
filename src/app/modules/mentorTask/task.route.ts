@@ -13,5 +13,5 @@ router
     validateRequest(TaskValidation.taskZodSchema),
     TaskController.addTask
   );
-
+router.route('/get-all-task').get(auth(USER_ROLES.MENTOR), TaskController.getAllTask);
 export const TaskRoutes = router;

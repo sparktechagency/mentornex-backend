@@ -75,6 +75,17 @@ const updateAdminBySuperAdminToDB = async (
 
 }
 
+const deleteAdminBySuperAdminToDB = async (
+  adminId: string
+): Promise<Partial<IUser | null>> => {
+  const isExistUser = await User.isExistUserById(adminId);
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+  const deleteDoc = await User.findOneAndDelete({ _id: adminId });
+  return deleteDoc;
+};
+
 const updateProfileToDB = async (
   user: JwtPayload,
   payload: Partial<IUser>
@@ -97,10 +108,105 @@ const updateProfileToDB = async (
   return updateDoc;
 };
 
+const getTotalMentorFromDB = async (): Promise<number> => {
+  const result = await User.aggregate([
+    {
+      $match: {
+        role: 'MENTOR'
+      },
+    },
+    {
+      $count: 'totalMentors',
+    },
+  ]);
+  return result[0]?.totalMentors || 0;
+}
+
+const getTotalActiveMentorFromDB = async (): Promise<number> => {
+  const result = await User.aggregate([
+    {
+      $match: {
+        role: 'MENTOR',
+        status: 'active',
+      },
+    },
+    {
+      $count: 'totalActiveMentors',
+    },
+  ]);
+  return result[0]?.totalActiveMentors || 0;
+}
+
+const getTotalInactiveMentorFromDB = async (): Promise<number> => {
+  const result = await User.aggregate([
+    {
+      $match: {
+        role: 'MENTOR',
+        status: 'inactive',
+      },
+    },
+    {
+      $count: 'totalInActiveMentors',
+    },
+  ]);
+  return result[0]?.totalInActiveMentors || 0;
+}
+
+const getTotalMenteeFromDB = async (): Promise<number> => {
+  const result = await User.aggregate([
+    {
+      $match: {
+        role: 'MENTEE'
+      },
+    },
+    {
+      $count: 'totalMentees',
+    },
+  ]);
+  return result[0]?.totalMentees || 0;
+}
+
+const getTotalActiveMenteeFromDB = async (): Promise<number> => {
+  const result = await User.aggregate([
+    {
+      $match: {
+        role: 'MENTEE',
+        status: 'active',
+      },
+    },
+    {
+      $count: 'totalActiveMentees',
+    },
+  ]);
+  return result[0]?.totalActiveMentees || 0;
+}
+
+const getTotalInactiveMenteeFromDB = async (): Promise<number> => {
+  const result = await User.aggregate([
+    {
+      $match: {
+        role: 'MENTEE',
+        status: 'inactive',
+      },
+    },
+    {
+      $count: 'totalInActiveMentees',
+    },
+  ]);
+  return result[0]?.totalInActiveMentees || 0;
+}
+
 export const AdminService = {
   createAdminToDB,
   getAllAdminFromDB,
   updateAdminBySuperAdminToDB,
   getUserProfileFromDB,
   updateProfileToDB,
+  deleteAdminBySuperAdminToDB,
+  getTotalMentorFromDB,
+  getTotalActiveMentorFromDB,
+  getTotalInactiveMentorFromDB,
+  getTotalMenteeFromDB,
+  getTotalActiveMenteeFromDB,
+  getTotalInactiveMenteeFromDB,
 };

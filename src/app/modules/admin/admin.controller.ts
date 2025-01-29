@@ -49,6 +49,58 @@ const getAllAdmin = catchAsync(async (req: Request, res: Response) => {
     }
   );
 
+  const deleteAdminBySuperAdmin = catchAsync(
+    async (req: Request, res: Response, next: NextFunction) => {
+      const adminId = req.params.id;
+      const result = await AdminService.deleteAdminBySuperAdminToDB(adminId);
+
+      sendResponse(res, {
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: 'Admin deleted successfully',
+        data: result,
+      });
+    }
+  );
+
+const getTotalMentor = catchAsync(async (req: Request, res: Response) => {
+  const [totalMentors, totalActiveMentors, totalInactiveMentors] = await Promise.all([
+    AdminService.getTotalMentorFromDB(),
+    AdminService.getTotalActiveMentorFromDB(),
+    AdminService.getTotalInactiveMentorFromDB()
+  ]);
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Total Mentor retrieved successfully',
+    data: {
+      totalMentors,
+      totalActiveMentors,
+      totalInactiveMentors
+    },
+  });
+});
+const getTotalMentee = catchAsync(async (req: Request, res: Response) => {
+  const [totalMentees, totalActiveMentees, totalInactiveMentees] = await Promise.all([
+    AdminService.getTotalMenteeFromDB(),
+    AdminService.getTotalActiveMenteeFromDB(),
+    AdminService.getTotalInactiveMenteeFromDB()
+  ]);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Total Mentee retrieved successfully',
+    data: {
+      totalMentees,
+      totalActiveMentees,
+      totalInactiveMentees,
+    },
+  });
+});
+
+
+
 const getUserProfile = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
   const result = await AdminService.getUserProfileFromDB(user);
@@ -82,4 +134,4 @@ const updateProfile = catchAsync(
   }
 );
 
-export const AdminController = { createAdmin, getAllAdmin, updateAdminBySuperAdmin, getUserProfile, updateProfile };
+export const AdminController = { createAdmin, getAllAdmin, updateAdminBySuperAdmin, getUserProfile, updateProfile,deleteAdminBySuperAdmin, getTotalMentor, getTotalMentee };

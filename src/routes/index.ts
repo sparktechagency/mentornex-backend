@@ -9,6 +9,7 @@ import { TaskRoutes } from '../app/modules/mentorTask/task.route';
 import { PaymentRoutes } from '../app/modules/payment/payment.route';
 import { NoteRoutes } from '../app/modules/mentorNotes/note.route';
 import { AdminRoutes } from '../app/modules/admin/admin.route';
+import { SubscriptionRoutes } from '../app/modules/subscription/subscription.route';
 const router = express.Router();
 
 router.use('/payment/webhook', express.raw({ type: 'application/json' }));
@@ -49,6 +50,10 @@ const apiRoutes = [
   {
     path: '/payment',
     route: PaymentRoutes,
+  },
+  {
+    path: '/subscription',
+    route: SubscriptionRoutes,
   },
   {
     path: '/note',

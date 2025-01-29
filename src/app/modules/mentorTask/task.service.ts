@@ -12,6 +12,22 @@ const addTaskToDB = async (payload: ITask): Promise<ITask> => {
     return addTask;
 };
 
+const getAllTaskFromDB = async (mentorId: string): Promise<ITask[]> => {
+  const result = await Task.find({ mentor_id: mentorId })
+    .populate({
+      path: 'mentee_id',
+      model: 'User',
+      select: 'name email',
+    });
+
+  if (!result || result.length === 0) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "No tasks found!");
+  }
+
+  return result;
+};
+
 export const TaskService = {
-    addTaskToDB
+    addTaskToDB,
+    getAllTaskFromDB
 };
