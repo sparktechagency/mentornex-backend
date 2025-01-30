@@ -6,7 +6,7 @@ import { PlanType } from '../../../types/subscription.types';
 export const SubscriptionController = {
   createSubscription: catchAsync(async (req: Request, res: Response) => {
     const { planType, stripePriceId } = req.body;
-    const mentor_id = req.params.id;
+    const mentor_id = req.params.mentor_id;
     const menteeId = req.user.id;
 
     const result = await SubscriptionService.createSubscription(

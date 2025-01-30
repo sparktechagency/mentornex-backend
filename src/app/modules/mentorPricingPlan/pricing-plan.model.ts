@@ -5,14 +5,14 @@ const planTierSchema = new Schema({
   name: { type: String, required: true },
   amount: { type: Number, required: true },
   total_sessions: { type: Number, required: true },
-  stripe_price_id: { type: String, required: true }
+  stripe_price_id: { type: String, required: true },
 });
 
 const payPerSessionSchema = new Schema({
   name: { type: String, required: true },
   amount: { type: Number, required: true },
   duration: { type: String, required: true },
-  stripe_price_id: { type: String, required: true }
+  stripe_price_id: { type: String, required: true },
 });
 
 const pricingPlanSchema = new Schema<IPricingPlan, PricingPlanModal>(
@@ -21,16 +21,19 @@ const pricingPlanSchema = new Schema<IPricingPlan, PricingPlanModal>(
       type: String,
       ref: 'User',
       required: true,
-      unique: true
+      unique: true,
     },
     lite: planTierSchema,
     standard: planTierSchema,
     pro: planTierSchema,
-    pay_per_sessions: [payPerSessionSchema]
+    pay_per_sessions: [payPerSessionSchema],
   },
   {
-    timestamps: true
+    timestamps: true,
   }
 );
 
-export const PricingPlan = model<IPricingPlan>('PricingPlan', pricingPlanSchema);
+export const PricingPlan = model<IPricingPlan>(
+  'PricingPlan',
+  pricingPlanSchema
+);

@@ -5,7 +5,7 @@ import { SubscriptionController } from './subscription.controller.';
 
 const router = express.Router();
 
-router.route('/create/:id').post(
+router.route('/create/:mentor_id').post(
   auth(USER_ROLES.MENTEE),
   SubscriptionController.createSubscription
 );
