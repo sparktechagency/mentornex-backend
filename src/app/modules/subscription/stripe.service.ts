@@ -7,6 +7,18 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2024-12-18.acacia',
 });
 
+interface PriceCreateParams {
+  amount: number;
+  nickname: string;
+  recurring?: {
+    interval: 'day' | 'week' | 'month' | 'year';
+  };
+  metadata?: {
+    total_sessions?: number;
+    duration?: string;
+  };
+}
+
 export const StripeService = {
   async createPaymentIntent(amount: number, menteeId: string, mentorId: string, sessionId: string) {
     return await stripe.paymentIntents.create({
@@ -17,7 +29,18 @@ export const StripeService = {
       capture_method: 'manual', // For holding the payment
     });
   },
-
+  async createPrice(params: PriceCreateParams) {
+    return await stripe.prices.create({
+      unit_amount: params.amount * 100, // Convert to cents
+      currency: 'usd',
+      product_data: {
+        name: params.nickname,
+      },
+      nickname: params.nickname,
+      recurring: params.recurring,
+      metadata: params.metadata,
+    });
+  },
   async capturePayment(paymentIntentId: string) {
     return await stripe.paymentIntents.capture(paymentIntentId);
   },

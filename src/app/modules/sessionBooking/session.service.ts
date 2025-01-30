@@ -180,6 +180,7 @@ export const SessionService = {
     getMentorCompletedSessions,
     getMenteeUpcomingSessions,
     getMenteeCompletedSessions,
-    updateSessionStatus
+    updateSessionStatus,
+    completeSession
 };
 
