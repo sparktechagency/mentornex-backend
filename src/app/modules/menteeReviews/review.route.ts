@@ -6,7 +6,7 @@ import { ReviewController } from './review.controller';
 
 const router = express.Router();
 
-router.route('/review/add').post(
+router.route('/review/add/:mentor_id').post(
   auth(USER_ROLES.MENTEE),
   ReviewController.addReviewMentorbyMentee
 );

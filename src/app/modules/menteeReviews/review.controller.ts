@@ -6,7 +6,7 @@ import {  ReviewService } from "./review.service";
 
 
 const addReviewMentorbyMentee = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
+    /*async (req: Request, res: Response, next: NextFunction) => {
       const mentee_id = req.user.id;
       const reviewMentor = {mentee_id, ...req.body};
       const result = await ReviewService.addReviewToDB(reviewMentor);
@@ -17,8 +17,8 @@ const addReviewMentorbyMentee = catchAsync(
         message: 'Mentor review added successfully',
         data: result,
       });
-    }
-      /*async (req: Request, res: Response, next: NextFunction) => {
+    }*/
+      async (req: Request, res: Response, next: NextFunction) => {
         const mentee_id = req.user.id;
         const mentor_id = req.params.mentor_id;
         const reviewMentor = {mentee_id, mentor_id, ...req.body};
@@ -30,7 +30,7 @@ const addReviewMentorbyMentee = catchAsync(
           message: 'Mentor review added successfully',
           data: result,
         });
-      }*/
+      }
 
   );
 

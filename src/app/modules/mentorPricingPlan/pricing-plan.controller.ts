@@ -14,11 +14,10 @@ const createSubscriptionPlan = catchAsync(
       success: true,
       statusCode: StatusCodes.CREATED,
       message: 'Subscription plans created successfully',
-      data: result
+      data: result,
     });
   }
 );
-
 const createPayPerSessionPlan = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const mentor_id = req.user.id;
@@ -29,11 +28,10 @@ const createPayPerSessionPlan = catchAsync(
       success: true,
       statusCode: StatusCodes.CREATED,
       message: 'Pay per session plan created successfully',
-      data: result
+      data: result,
     });
   }
 );
-
 const getMentorPricingPlan = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const mentor_id = req.params.mentorId;
@@ -43,13 +41,12 @@ const getMentorPricingPlan = catchAsync(
       success: true,
       statusCode: StatusCodes.OK,
       message: 'Pricing plan retrieved successfully',
-      data: result
+      data: result,
     });
   }
 );
-
 export const PricingPlanController = {
   createSubscriptionPlan,
   createPayPerSessionPlan,
-  getMentorPricingPlan
+  getMentorPricingPlan,
 };

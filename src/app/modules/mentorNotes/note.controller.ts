@@ -29,6 +29,21 @@ const addNote = catchAsync(
 
   );
 
+  const getAllNotes = catchAsync(
+    async (req: Request, res: Response, next: NextFunction) => {
+      const mentor_id = req.user.id;
+      const result = await NoteService.getAllNotesFromDB(mentor_id);
+
+      sendResponse(res, {
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: 'Notes retrieved successfully',
+        data: result,
+      });
+    }
+  );
+
  export const NoteController = {
-    addNote
+    addNote,
+    getAllNotes
  }

@@ -26,7 +26,7 @@ const pricingPlanSchema = new Schema<IPricingPlan, PricingPlanModal>(
     lite: planTierSchema,
     standard: planTierSchema,
     pro: planTierSchema,
-    pay_per_session: payPerSessionSchema
+    pay_per_sessions: [payPerSessionSchema]
   },
   {
     timestamps: true

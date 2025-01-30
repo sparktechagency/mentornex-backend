@@ -13,4 +13,6 @@ router
     NoteController.addNote
   );
 
+router.route('/all-notes-list').get(auth(USER_ROLES.MENTOR), NoteController.getAllNotes);
+
 export const NoteRoutes = router;

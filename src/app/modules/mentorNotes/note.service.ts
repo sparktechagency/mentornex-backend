@@ -12,6 +12,21 @@ const addNoteToDB = async (payload: INote): Promise<INote> => {
     return addNote;
 };
 
+const getAllNotesFromDB = async (mentorId: string): Promise<INote[]> => {
+  const result = await Note.find({ mentor_id: mentorId })
+    .populate({
+      path: 'mentee_id',
+      model: 'User',
+      select: 'name email',
+    });
+
+  if (!result || result.length === 0) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "No notes found!");
+  }
+
+  return result;
+};
 export const NoteService = {
-    addNoteToDB
+    addNoteToDB,
+    getAllNotesFromDB
 };
