@@ -11,6 +11,7 @@ import { NoteRoutes } from '../app/modules/mentorNotes/note.route';
 import { AdminRoutes } from '../app/modules/admin/admin.route';
 import { SubscriptionRoutes } from '../app/modules/subscription/subscription.route';
 import { PricingPlanRoutes } from '../app/modules/mentorPricingPlan/pricing-plan.route';
+import { ServiceReviewRoutes } from '../app/modules/serviceReviewByMentee/serviceReview.route';
 const router = express.Router();
 
 router.use('/payment/webhook', express.raw({ type: 'application/json' }));
@@ -63,6 +64,10 @@ const apiRoutes = [
   {
     path: '/mentor',
     route: PricingPlanRoutes
+  },
+  {
+    path: '/service',
+    route: ServiceReviewRoutes
   }
 ];
 
