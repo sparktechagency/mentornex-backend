@@ -1,24 +1,26 @@
 import { Model, Schema } from 'mongoose';
 
-export type PlanTier = {
-  name: string;
+export type Subscription = {
+  title: string;  // Instead of lite, pro, standard
   amount: number;
   total_sessions: number;
-  stripe_price_id?: string;
+  stripe_product_id: string;
+  stripe_price_id: string;
+  description?: string;
 };
 
 export type PayPerSession = {
-  name: string;
+  title: string;
   amount: number;
   duration: string;
-  stripe_price_id?: string;
+  stripe_product_id: string;
+  stripe_price_id: string;
+  description?: string;
 };
 
 export type IPricingPlan = {
   mentor_id: string;
-  lite?: PlanTier;
-  standard?: PlanTier;
-  pro?: PlanTier;
+  subscriptions?: Subscription[];
   pay_per_sessions?: PayPerSession[];
 };
 

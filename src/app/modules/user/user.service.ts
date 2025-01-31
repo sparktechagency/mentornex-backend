@@ -8,15 +8,24 @@ import unlinkFile from '../../../shared/unlinkFile';
 import generateOTP from '../../../util/generateOTP';
 import { IUser } from './user.interface';
 import { User } from './user.model';
+import stripe from '../../../config/stripe';
 
 const createUserToDB = async (payload: Partial<IUser>): Promise<IUser> => {
   //set role
   //payload.role = USER_ROLES.MENTEE;
+  const stripeCustomer = await stripe.customers.create({
+    email: payload.email || '',
+    name: payload.name || '',
+    metadata: { role: payload.role ? payload.role.toString() : '' },
+  });
+
+  // Add Stripe Customer ID to the user payload
+  payload.stripeCustomerId = stripeCustomer.id;
   const createUser = await User.create(payload);
   if (!createUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create user');
   }
-
+  
   //send email
   const otp = generateOTP();
   const values = {
@@ -39,7 +48,6 @@ const createUserToDB = async (payload: Partial<IUser>): Promise<IUser> => {
 
   return createUser;
 };
-
 
 
 const getUserProfileFromDB = async (

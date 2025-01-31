@@ -9,6 +9,7 @@ export type ISocial = {
 export type IUser = {
   name: string;
   role: USER_ROLES;
+  stripeCustomerId: string;
   email: string;
   industry: string;
   timeZone: string;

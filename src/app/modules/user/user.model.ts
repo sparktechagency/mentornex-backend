@@ -6,17 +6,14 @@ import { USER_ROLES } from '../../../enums/user';
 import ApiError from '../../../errors/ApiError';
 import { ISocial, IUser, UserModal } from './user.interface';
 
-
-const socialSchema = new Schema<ISocial>(
-  {
-    platform: {
-      type: String
-    },
-    username: {
-      type: String
-    }
-  }
-)
+const socialSchema = new Schema<ISocial>({
+  platform: {
+    type: String,
+  },
+  username: {
+    type: String,
+  },
+});
 
 const userSchema = new Schema<IUser, UserModal>(
   {
@@ -35,13 +32,14 @@ const userSchema = new Schema<IUser, UserModal>(
       enum: Object.values(USER_ROLES),
       required: true,
     },
+    stripeCustomerId: { type: String, required: false },
     industry: {
       type: String,
-      required: true
+      required: true,
     },
     timeZone: {
       type: String,
-      required: true
+      required: true,
     },
     password: {
       type: String,
@@ -80,7 +78,7 @@ const userSchema = new Schema<IUser, UserModal>(
       type: String,
     },
     social: {
-      type: [socialSchema]
+      type: [socialSchema],
     },
     image: {
       type: String,
@@ -88,7 +86,7 @@ const userSchema = new Schema<IUser, UserModal>(
     },
     status: {
       type: String,
-      enum: ['active', 'inactive' , 'delete'],
+      enum: ['active', 'inactive', 'delete'],
       default: 'inactive',
     },
     verified: {

@@ -7,15 +7,20 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2024-12-18.acacia',
 });
 
-interface PriceCreateParams {
-  amount: number;
-  nickname: string;
-  recurring?: {
-    interval: 'day' | 'week' | 'month' | 'year';
-  };
+interface ProductCreateParams {
+  title: string;
+  description?: string;
   metadata?: {
     total_sessions?: number;
     duration?: string;
+  };
+}
+
+interface PriceCreateParams {
+  productId: string;
+  amount: number;
+  recurring?: {
+    interval: 'day' | 'week' | 'month' | 'year';
   };
 }
 
@@ -29,16 +34,20 @@ export const StripeService = {
       capture_method: 'manual', // For holding the payment
     });
   },
+  async createProduct(params: ProductCreateParams) {
+    return await stripe.products.create({
+      name: params.title,
+      description: params.description,
+      metadata: params.metadata,
+    });
+  },
+
   async createPrice(params: PriceCreateParams) {
     return await stripe.prices.create({
+      product: params.productId,
       unit_amount: params.amount * 100, // Convert to cents
       currency: 'usd',
-      product_data: {
-        name: params.nickname,
-      },
-      nickname: params.nickname,
       recurring: params.recurring,
-      metadata: params.metadata,
     });
   },
   async capturePayment(paymentIntentId: string) {

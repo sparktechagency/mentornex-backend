@@ -3,6 +3,7 @@ import ApiError from '../../../errors/ApiError';
 import { StripeService } from './stripe.service';
 import { Subscription } from './subscription.model';
 import { PlanStructure, PlanType } from '../../../types/subscription.types';
+import { User } from '../user/user.model';
 
 export const SubscriptionService = {
   async createSubscription(
@@ -22,9 +23,14 @@ export const SubscriptionService = {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid plan type');
     }
 
+    const user = await User.findById(menteeId);
+  if (!user || !user.stripeCustomerId) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'User does not have a Stripe customer ID');
+  }
+
     // Create Stripe subscription
     const stripeSubscription = await StripeService.createSubscription(
-      menteeId,
+      user.stripeCustomerId,
       mentorId,
       stripePriceId
     );

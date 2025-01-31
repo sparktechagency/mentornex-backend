@@ -1,18 +1,22 @@
 import { model, Schema } from 'mongoose';
 import { IPricingPlan, PricingPlanModal } from './pricing-plan.interface';
 
-const planTierSchema = new Schema({
-  name: { type: String, required: true },
+const subscriptionSchema = new Schema({
+  title: { type: String, required: true },
   amount: { type: Number, required: true },
   total_sessions: { type: Number, required: true },
+  stripe_product_id: { type: String, required: true },
   stripe_price_id: { type: String, required: true },
+  description: { type: String },
 });
 
 const payPerSessionSchema = new Schema({
-  name: { type: String, required: true },
+  title: { type: String, required: true },
   amount: { type: Number, required: true },
   duration: { type: String, required: true },
+  stripe_product_id: { type: String, required: true },
   stripe_price_id: { type: String, required: true },
+  description: { type: String },
 });
 
 const pricingPlanSchema = new Schema<IPricingPlan, PricingPlanModal>(
@@ -23,9 +27,7 @@ const pricingPlanSchema = new Schema<IPricingPlan, PricingPlanModal>(
       required: true,
       unique: true,
     },
-    lite: planTierSchema,
-    standard: planTierSchema,
-    pro: planTierSchema,
+    subscriptions: [subscriptionSchema],
     pay_per_sessions: [payPerSessionSchema],
   },
   {
@@ -33,7 +35,4 @@ const pricingPlanSchema = new Schema<IPricingPlan, PricingPlanModal>(
   }
 );
 
-export const PricingPlan = model<IPricingPlan>(
-  'PricingPlan',
-  pricingPlanSchema
-);
+export const PricingPlan = model<IPricingPlan>('PricingPlan', pricingPlanSchema);

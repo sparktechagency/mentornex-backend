@@ -7,21 +7,28 @@ import { PricingPlanService } from './pricing-plan.service';
 const createSubscriptionPlan = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const mentor_id = req.user.id;
-    const planData = { mentor_id, ...req.body };
+    const planData = { 
+      mentor_id, 
+      subscriptions: req.body 
+    };
     const result = await PricingPlanService.createSubscriptionPlan(planData);
 
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.CREATED,
-      message: 'Subscription plans created successfully',
+      message: 'Subscription plan created successfully',
       data: result,
     });
   }
 );
+
 const createPayPerSessionPlan = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const mentor_id = req.user.id;
-    const planData = { mentor_id, ...req.body };
+    const planData = { 
+      mentor_id, 
+      pay_per_session: req.body 
+    };
     const result = await PricingPlanService.createPayPerSessionPlan(planData);
 
     sendResponse(res, {
@@ -32,6 +39,7 @@ const createPayPerSessionPlan = catchAsync(
     });
   }
 );
+
 const getMentorPricingPlan = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const mentor_id = req.params.mentorId;
@@ -45,6 +53,7 @@ const getMentorPricingPlan = catchAsync(
     });
   }
 );
+
 export const PricingPlanController = {
   createSubscriptionPlan,
   createPayPerSessionPlan,

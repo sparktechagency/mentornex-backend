@@ -1,88 +1,63 @@
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
-import { IPricingPlan, PayPerSession, PlanTier } from './pricing-plan.interface';
+import { IPricingPlan, PayPerSession, Subscription } from './pricing-plan.interface';
 import { PricingPlan } from './pricing-plan.model';
 import { StripeService } from '../subscription/stripe.service';
 
-const createSubscriptionPlan = async (planData: IPricingPlan) => {
+const createSubscriptionPlan = async (planData: { 
+  mentor_id: string, 
+  subscriptions: Subscription 
+}) => {
   // Get existing plan if any
   const existingPlan = await PricingPlan.findOne({ mentor_id: planData.mentor_id });
   
-  // Check for duplicate plan tiers
-  if (existingPlan) {
-    const newPlans = Object.entries(planData).filter(([key]) => 
-      ['lite', 'standard', 'pro'].includes(key)
+  // Check if a subscription with the same title already exists
+  if (existingPlan?.subscriptions?.some(
+    sub => sub.title === planData.subscriptions.title
+  )) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST, 
+      `Subscription plan with title "${planData.subscriptions.title}" already exists`
     );
+  }
 
-    for (const [tierName, tierData] of newPlans) {
-      if (existingPlan[tierName as keyof typeof existingPlan]) {
-        throw new ApiError(
-          StatusCodes.BAD_REQUEST, 
-          `${tierName.charAt(0).toUpperCase() + tierName.slice(1)} plan already exists for this mentor`
-        );
-      }
+  // Create Stripe product and price for subscription
+  const product = await StripeService.createProduct({
+    title: `${planData.subscriptions.title} Plan`,
+    description: planData.subscriptions.description,
+    metadata: {
+      total_sessions: Number(planData.subscriptions.total_sessions)
     }
-  }
+  });
 
-  // Create Stripe prices for new tiers
-  if (planData.lite) {
-    const litePrice = await StripeService.createPrice({
-      amount: planData.lite.amount,
-      nickname: `${planData.lite.name} Plan`,
-      recurring: {
-        interval: 'month'
-      },
-      metadata: {
-        total_sessions: planData.lite.total_sessions
-      }
-    });
-    planData.lite.stripe_price_id = litePrice.id;
-  }
+  const price = await StripeService.createPrice({
+    productId: product.id,
+    amount: Number(planData.subscriptions.amount),
+    recurring: {
+      interval: 'month'
+    }
+  });
 
-  if (planData.standard) {
-    const standardPrice = await StripeService.createPrice({
-      amount: planData.standard.amount,
-      nickname: `${planData.standard.name} Plan`,
-      recurring: {
-        interval: 'month'
-      },
-      metadata: {
-        total_sessions: planData.standard.total_sessions
-      }
-    });
-    planData.standard.stripe_price_id = standardPrice.id;
-  }
-
-  if (planData.pro) {
-    const proPrice = await StripeService.createPrice({
-      amount: planData.pro.amount,
-      nickname: `${planData.pro.name} Plan`,
-      recurring: {
-        interval: 'month'
-      },
-      metadata: {
-        total_sessions: planData.pro.total_sessions
-      }
-    });
-    planData.pro.stripe_price_id = proPrice.id;
-  }
+  const newSubscription = {
+    ...planData.subscriptions,
+    stripe_product_id: product.id,
+    stripe_price_id: price.id
+  };
 
   if (existingPlan) {
-    // Update existing plan with new tiers
-    const updateData: Partial<IPricingPlan> = {};
-    if (planData.lite) updateData.lite = planData.lite;
-    if (planData.standard) updateData.standard = planData.standard;
-    if (planData.pro) updateData.pro = planData.pro;
-
+    // Add new subscription plan to the array
     const updatedPlan = await PricingPlan.findOneAndUpdate(
       { mentor_id: planData.mentor_id },
-      { $set: updateData },
+      { $push: { subscriptions: newSubscription } },
       { new: true }
     );
     return updatedPlan;
   } else {
-    // Create new plan
-    const plan = await PricingPlan.create(planData);
+    // Create new plan with subscription array
+    const plan = await PricingPlan.create({
+      mentor_id: planData.mentor_id,
+      subscriptions: [newSubscription]
+    });
     return plan;
   }
 };
@@ -96,25 +71,31 @@ const createPayPerSessionPlan = async (planData: {
   
   // Check if a plan with the same name already exists
   if (existingPlan?.pay_per_sessions?.some(
-    plan => plan.name === planData.pay_per_session.name
+    plan => plan.title === planData.pay_per_session.title
   )) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST, 
-      `Pay per session plan with name "${planData.pay_per_session.name}" already exists`
+      `Pay per session plan with name "${planData.pay_per_session.title}" already exists`
     );
   }
 
-  // Create Stripe price for pay per session
-  const price = await StripeService.createPrice({
-    amount: planData.pay_per_session.amount,
-    nickname: `${planData.pay_per_session.name}`,
+  // Create Stripe product and price for pay per session
+  const product = await StripeService.createProduct({
+    title: planData.pay_per_session.title,
+    description: planData.pay_per_session.description,
     metadata: {
       duration: planData.pay_per_session.duration
     }
   });
+
+  const price = await StripeService.createPrice({
+    productId: product.id,
+    amount: planData.pay_per_session.amount
+  });
   
   const newPayPerSession = {
     ...planData.pay_per_session,
+    stripe_product_id: product.id,
     stripe_price_id: price.id
   };
 
@@ -136,11 +117,11 @@ const createPayPerSessionPlan = async (planData: {
   }
 };
 
-// Optional: Add method to delete a specific pay per session plan
-const deletePayPerSessionPlan = async (mentor_id: string, planName: string) => {
+// Optional: Add method to delete a specific subscription plan
+const deleteSubscriptionPlan = async (mentor_id: string, title: string) => {
   const plan = await PricingPlan.findOneAndUpdate(
     { mentor_id },
-    { $pull: { pay_per_sessions: { name: planName } } },
+    { $pull: { subscriptions: { title: title } } },
     { new: true }
   );
   
@@ -163,5 +144,5 @@ export const PricingPlanService = {
   createSubscriptionPlan,
   createPayPerSessionPlan,
   getMentorPricingPlan,
-  deletePayPerSessionPlan
+  deleteSubscriptionPlan,
 };
