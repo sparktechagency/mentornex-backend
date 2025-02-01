@@ -4,6 +4,8 @@ import { StatusCodes } from 'http-status-codes';
 import globalErrorHandler from './app/middlewares/globalErrorHandler';
 import router from './routes';
 import { Morgan } from './shared/morgen';
+import { SubscriptionRoutes } from './app/modules/subscription/subscription.route';
+import { SubscriptionController } from './app/modules/subscription/subscription.controller.';
 const app = express();
 
 //morgan
@@ -13,7 +15,7 @@ app.use(Morgan.errorHandler);
 //body parser
 app.use(cors());
 
-app.use('/api/v1/payment/webhook', express.raw({ type: 'application/json' }));
+app.use('/api/v1/subscription/webhook', express.raw({ type: 'application/json' }));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

@@ -5,9 +5,16 @@ import { SubscriptionController } from './subscription.controller.';
 
 const router = express.Router();
 
-router.route('/create/:mentor_id').post(
+router.post(
+  '/create-checkout-session/:mentor_id',
   auth(USER_ROLES.MENTEE),
-  SubscriptionController.createSubscription
+  SubscriptionController.createCheckoutSession
+);
+
+router.post(
+  '/webhook',
+  express.raw({ type: 'application/json' }), // This line is crucial
+  SubscriptionController.handleWebhook
 );
 
 export const SubscriptionRoutes = router;

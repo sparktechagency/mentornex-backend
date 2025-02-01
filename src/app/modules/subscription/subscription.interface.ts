@@ -1,6 +1,12 @@
 import { Model, Schema } from "mongoose";
 import { PlanType } from "../../../types/subscription.types";
 
+export interface CreateCheckoutSessionDto {
+  priceId: string;
+  productId: string;
+  planType: PlanType;
+}
+
 export type ISubscription = {
   mentee_id: string;
   mentor_id: string;
