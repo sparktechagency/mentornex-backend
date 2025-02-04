@@ -89,6 +89,10 @@ const userSchema = new Schema<IUser, UserModal>(
       enum: ['active', 'inactive', 'delete'],
       default: 'inactive',
     },
+    stripe_account_id: {
+      type: String,
+      default: null,
+    },
     verified: {
       type: Boolean,
       default: false,
@@ -110,7 +114,11 @@ const userSchema = new Schema<IUser, UserModal>(
       },
       select: 0,
     },
+    refreshToken: {
+      type: String,
+    },
   },
+  
   { timestamps: true }
 );
 

@@ -41,6 +41,14 @@ async function main() {
     socketHelper.socket(io);
     //@ts-ignore
     global.io = io;
+
+    io.on('connection', socket => {
+      console.log(`User connected: ${socket.id}`);
+
+      socket.on('disconnect', () => {
+        console.log(`User disconnected: ${socket.id}`);
+      });
+    });
   } catch (error) {
     errorLogger.error(colors.red('🤢 Failed to connect Database'));
   }

@@ -37,7 +37,7 @@ const loginUserFromDB = async (payload: ILoginData) => {
   if (isExistUser.status === 'delete') {
     throw new ApiError(
       StatusCodes.BAD_REQUEST,
-      'You don’t have permission to access this content.It looks like your account has been deactivated.'
+      "You don't have permission to access this content.It looks like your account has been deactivated."
     );
   }
 
@@ -56,9 +56,25 @@ const loginUserFromDB = async (payload: ILoginData) => {
     config.jwt.jwt_expire_in as string
   );
 
-  return { createToken };
-};
+   // Generate refresh token (expires in 1 days)
+   const refreshToken = jwtHelper.createToken(
+    { id: isExistUser._id },
+    config.jwt.jwt_refresh_secret as Secret,
+    config.jwt.jwt_refresh_expire_in as string
+  );
 
+  // Store refresh token in the database
+  await User.findByIdAndUpdate(isExistUser._id, { refreshToken });
+
+  await User.findByIdAndUpdate(isExistUser._id, { status: 'active' });
+
+  if (typeof global !== 'undefined' && 'io' in global && global.io) {
+    (global.io as any).emit('userStatusUpdated', { userId: isExistUser._id, status: 'active' });
+  }
+
+  return { createToken, refreshToken };
+
+};
 //forget password
 const forgetPasswordToDB = async (email: string) => {
   const isExistUser = await User.isExistUserByEmail(email);

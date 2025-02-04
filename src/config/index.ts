@@ -7,10 +7,13 @@ export default {
   database_url: process.env.DATABASE_URL,
   node_env: process.env.NODE_ENV,
   port: process.env.PORT,
+  frontend_url: process.env.FRONTEND_URL,
   bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS,
   jwt: {
     jwt_secret: process.env.JWT_SECRET,
     jwt_expire_in: process.env.JWT_EXPIRE_IN,
+    jwt_refresh_secret: process.env.JWT_REFRESH_SECRET,
+    jwt_refresh_expire_in: process.env.JWT_REFRESH_EXPIRE_IN
   },
   email: {
     from: process.env.EMAIL_FROM,

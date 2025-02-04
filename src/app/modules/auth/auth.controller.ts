@@ -3,6 +3,10 @@ import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { AuthService } from './auth.service';
+import ApiError from '../../../errors/ApiError';
+import { jwtHelper } from '../../../helpers/jwtHelper';
+import { User } from '../user/user.model';
+import config from '../../../config';
 
 const verifyEmail = catchAsync(async (req: Request, res: Response) => {
   const { ...verifyData } = req.body;
@@ -25,6 +29,63 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
     statusCode: StatusCodes.OK,
     message: 'User logged in successfully.',
     data: result.createToken,
+  });
+});
+
+const logoutUser = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user;  // User info comes from middleware
+
+  if (!user) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'User not found.');
+  }
+
+  // Remove refresh token from the database
+  await User.findByIdAndUpdate(user.id, { refreshToken: null });
+
+  // Update user status to inactive
+  await User.findByIdAndUpdate(user.id, { status: 'inactive' });
+
+  // Emit user status update event
+  if (typeof global !== 'undefined' && 'io' in global && global.io) {
+    (global as any).io.emit('userStatusUpdated', { userId: user.id, status: 'inactive' });
+  }
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'User logged out successfully.',
+  });
+});
+const refreshAccessToken = catchAsync(async (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Refresh token is required.');
+  }
+
+  // Verify the refresh token
+  const decoded = jwtHelper.verifyToken(refreshToken, config.jwt.jwt_refresh_secret as string);
+  if (!decoded) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Invalid refresh token.');
+  }
+
+  // Find user with this refresh token
+  const user = await User.findById(decoded.id);
+  if (!user || user.refreshToken !== refreshToken) {
+    throw new ApiError(StatusCodes.UNAUTHORIZED, 'Refresh token is not valid.');
+  }
+
+  // Generate a new access token
+  const accessToken = jwtHelper.createToken(
+    { id: user._id, role: user.role, email: user.email },
+    config.jwt.jwt_secret as string,
+    '15m'
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Access token refreshed successfully.',
+    data: { accessToken },
   });
 });
 
@@ -69,6 +130,8 @@ const changePassword = catchAsync(async (req: Request, res: Response) => {
 export const AuthController = {
   verifyEmail,
   loginUser,
+  logoutUser,
+  refreshAccessToken,
   forgetPassword,
   resetPassword,
   changePassword,

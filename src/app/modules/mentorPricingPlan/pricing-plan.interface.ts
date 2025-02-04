@@ -1,7 +1,7 @@
 import { Model, Schema } from 'mongoose';
 
 export type Subscription = {
-  title: string;  // Instead of lite, pro, standard
+  title: string;
   amount: number;
   total_sessions: number;
   stripe_product_id: string;
@@ -20,6 +20,7 @@ export type PayPerSession = {
 
 export type IPricingPlan = {
   mentor_id: string;
+  stripe_account_id: string;
   subscriptions?: Subscription[];
   pay_per_sessions?: PayPerSession[];
 };

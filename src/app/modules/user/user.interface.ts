@@ -27,12 +27,14 @@ export type IUser = {
   social: ISocial[];
   image?: string;
   status: 'active' | 'inactive' |'delete';
+  stripe_account_id?: string;
   verified: boolean;
   authentication?: {
     isResetPassword: boolean;
     oneTimeCode: number;
     expireAt: Date;
   };
+  refreshToken: string;
 };
 
 export type UserModal = {

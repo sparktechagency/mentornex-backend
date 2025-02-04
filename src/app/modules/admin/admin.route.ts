@@ -26,12 +26,13 @@ router
 router
   .route('/add-admin')
   .post(
+    auth(USER_ROLES.SUPER_ADMIN),
     validateRequest(AdminValidation.createAdminZodSchema),
     AdminController.createAdmin
   );
 
-router.route('/total-mentor-count').get(auth(USER_ROLES.SUPER_ADMIN), AdminController.getTotalMentor);
-router.route('/total-mentee-count').get(auth(USER_ROLES.SUPER_ADMIN), AdminController.getTotalMentee);
+router.route('/total-mentor-count').get(auth(USER_ROLES.SUPER_ADMIN ,USER_ROLES.ADMIN), AdminController.getTotalMentor);
+router.route('/total-mentee-count').get(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), AdminController.getTotalMentee);
 
 router.route('/all-admin').get(auth(USER_ROLES.SUPER_ADMIN), AdminController.getAllAdmin);
 router.route('/update-admin/:id').patch(auth(USER_ROLES.SUPER_ADMIN), AdminController.updateAdminBySuperAdmin);

@@ -1,4 +1,4 @@
-export type PlanType = 'lite' | 'standard' | 'pro';
+export type PlanType = 'Lite' | 'Standard' | 'Pro';
 
 export interface PlanDetails {
   sessions: number;

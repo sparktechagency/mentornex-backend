@@ -2,22 +2,19 @@ import express from 'express';
 import { PricingPlanController } from './pricing-plan.controller';
 import { USER_ROLES } from '../../../enums/user';
 import auth from '../../middlewares/auth';
-import validateRequest from '../../middlewares/validateRequest';
 
 const router = express.Router();
 
 router.post(
-  '/subscription',
+  '/setup-stripe',
   auth(USER_ROLES.MENTOR),
-  //validateRequest(PricingPlanValidation.createSubscriptionPlanZodSchema),
-  PricingPlanController.createSubscriptionPlan
+  PricingPlanController.setupStripeAccount
 );
 
 router.post(
-  '/pay-per-session',
+  '/subscription',
   auth(USER_ROLES.MENTOR),
-  //validateRequest(PricingPlanValidation.createPayPerSessionPlanZodSchema),
-  PricingPlanController.createPayPerSessionPlan
+  PricingPlanController.createSubscriptionPlan
 );
 
 router.get(

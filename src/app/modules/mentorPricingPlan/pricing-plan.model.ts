@@ -27,6 +27,10 @@ const pricingPlanSchema = new Schema<IPricingPlan, PricingPlanModal>(
       required: true,
       unique: true,
     },
+    stripe_account_id: {
+      type: String,
+      required: true,
+    },
     subscriptions: [subscriptionSchema],
     pay_per_sessions: [payPerSessionSchema],
   },
