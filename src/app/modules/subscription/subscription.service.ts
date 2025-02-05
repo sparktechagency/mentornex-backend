@@ -7,6 +7,7 @@ import { PricingPlan } from '../mentorPricingPlan/pricing-plan.model';
 interface CreateSubscriptionParams {
   menteeId: string;
   mentorId: string;
+  priceId: string;
   planType: PlanType;
   stripePriceId: string;
   stripeSubscriptionId: string;
@@ -47,6 +48,7 @@ export const SubscriptionService = {
       const subscription = await Subscription.create({
         mentee_id: params.menteeId,
         mentor_id: params.mentorId,
+        price_id: params.priceId,
         plan_type: params.planType,
         start_date: new Date(),
         end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
@@ -58,7 +60,6 @@ export const SubscriptionService = {
       });
   
       console.log('Created new subscription:', subscription._id);
-      await subscription.save(); // Explicitly save the document
       return subscription;
     } catch (error) {
       console.error('Error creating subscription:', error);

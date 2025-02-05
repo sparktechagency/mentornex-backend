@@ -8,7 +8,7 @@ const router = express.Router();
 router.post(
   '/create-checkout-session/:mentor_id',
   auth(USER_ROLES.MENTEE),
-  SubscriptionController.createCheckoutSession
+  SubscriptionController.createCheckoutSessions
 );
 
 router.post(

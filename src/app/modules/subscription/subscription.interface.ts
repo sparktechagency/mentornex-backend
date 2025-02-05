@@ -10,7 +10,8 @@ export interface CreateCheckoutSessionDto {
 export type ISubscription = {
   mentee_id: string;
   mentor_id: string;
-  plan_type: PlanType;
+  price_id: string;
+  plan_type: string;
   start_date: Date;
   end_date: Date;
   status: 'active' | 'cancelled' | 'expired';

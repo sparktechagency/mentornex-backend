@@ -13,9 +13,12 @@ const subscriptionSchema = new Schema<ISubscription, SubscriptionModal>(
         ref: 'User',
         required: true,
       },
+      price_id: {
+        type: String,
+        required: true,
+      },
       plan_type: {
         type: String,
-        enum: ['lite', 'standard', 'pro'],
         required: true,
       },
       start_date: {
