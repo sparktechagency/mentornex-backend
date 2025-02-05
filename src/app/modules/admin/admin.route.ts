@@ -34,6 +34,9 @@ router
 router.route('/total-mentor-count').get(auth(USER_ROLES.SUPER_ADMIN ,USER_ROLES.ADMIN), AdminController.getTotalMentor);
 router.route('/total-mentee-count').get(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN), AdminController.getTotalMentee);
 
+router.route('/all-transaction-mentor').get(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.MENTOR), AdminController.getAllTransactionForMentor);
+router.route('/all-transaction-mentee').get(auth(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.MENTEE), AdminController.getAllTransactionForMentee);
+
 router.route('/all-admin').get(auth(USER_ROLES.SUPER_ADMIN), AdminController.getAllAdmin);
 router.route('/update-admin/:id').patch(auth(USER_ROLES.SUPER_ADMIN), AdminController.updateAdminBySuperAdmin);
 router.route('/delete-admin/:id').delete(auth(USER_ROLES.SUPER_ADMIN), AdminController.deleteAdminBySuperAdmin);

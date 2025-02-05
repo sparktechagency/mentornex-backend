@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
-import { stripe, StripeService } from './stripe.service';
+import { StripeService } from './stripe.service';
 import { SubscriptionService } from './subscription.service';
 import { PlanType } from '../../../types/subscription.types';
 import ApiError from '../../../errors/ApiError';
@@ -9,6 +9,7 @@ import { PricingPlan } from '../mentorPricingPlan/pricing-plan.model';
 import Stripe from 'stripe';
 import { PaymentRecord } from '../payment-record/payment-record.model';
 import { Subscription } from './subscription.model';
+import stripe from '../../../config/stripe';
 
 export const SubscriptionController = {
   createCheckoutSessions: async (req: Request, res: Response) => {
@@ -90,7 +91,7 @@ export const SubscriptionController = {
         process.env.STRIPE_WEBHOOK_SECRET as string
       );
     } catch (err) {
-      console.error('⚠️ Webhook signature verification failed:', err);
+      console.error(' Webhook signature verification failed:', err);
       return res.status(400).json({ success: false });
     }
 
@@ -146,6 +147,8 @@ export const SubscriptionController = {
             await PaymentRecord.create({
               subscribed_plan_id: dbSubscription.stripe_subscription_id,
               payment_intent_id: session.payment_intent as string,
+              mentee_id: menteeId,
+              mentor_id: mentorId,
               amount: Number(amount || 0),
               status: 'succeeded',
             });
@@ -185,6 +188,8 @@ export const SubscriptionController = {
             await PaymentRecord.create({
               subscribed_plan_id: subscription.stripe_subscription_id,
               payment_intent_id: invoice.payment_intent as string,
+              mentee_id: existingSubscription.mentee_id,
+              mentor_id: existingSubscription.mentor_id,
               amount: invoice.amount_paid / 100,
               status: 'succeeded',
             });
@@ -212,6 +217,8 @@ export const SubscriptionController = {
               await PaymentRecord.create({
                 subscription_id: subscription._id,
                 payment_intent_id: invoice.payment_intent as string,
+                mentee_id: subscription.mentee_id,
+                mentor_id: subscription.mentor_id,
                 amount: invoice.amount_due / 100,
                 status: 'failed',
               });

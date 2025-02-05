@@ -1,5 +1,5 @@
-import { model, Schema } from "mongoose";
-import { IPaymentRecord, PaymentRecordModel } from "./payment-record.interface";
+import { model, Schema } from 'mongoose';
+import { IPaymentRecord, PaymentRecordModel } from './payment-record.interface';
 
 const paymentRecordSchema = new Schema<IPaymentRecord, PaymentRecordModel>(
   {
@@ -7,28 +7,43 @@ const paymentRecordSchema = new Schema<IPaymentRecord, PaymentRecordModel>(
       type: String,
       ref: 'Subscription',
       required: true,
-      index: true
+      index: true,
     },
     payment_intent_id: {
       type: String,
       required: true,
-      unique: true
+      unique: true,
+    },
+    mentee_id: {
+      type: String,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
+    mentor_id: {
+      type: String,
+      ref: 'User',
+      required: true,
+      index: true,
     },
     amount: {
       type: Number,
-      required: true
+      required: true,
     },
     status: {
       type: String,
       enum: ['succeeded', 'failed'],
-      required: true
+      required: true,
     },
     created_at: {
       type: Date,
-      default: Date.now
-    }
+      default: Date.now,
+    },
   },
   { timestamps: true }
 );
 
-export const PaymentRecord = model<IPaymentRecord>('PaymentRecord', paymentRecordSchema);
+export const PaymentRecord = model<IPaymentRecord>(
+  'PaymentRecord',
+  paymentRecordSchema
+);

@@ -4,6 +4,7 @@ import catchAsync from '../../../shared/catchAsync';
 import { getSingleFilePath } from '../../../shared/getFilePath';
 import sendResponse from '../../../shared/sendResponse';
 import { AdminService } from './admin.service';
+import ApiError from '../../../errors/ApiError';
 
 const createAdmin = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -20,55 +21,59 @@ const createAdmin = catchAsync(
 );
 
 const getAllAdmin = catchAsync(async (req: Request, res: Response) => {
-    const result = await AdminService.getAllAdminFromDB();
+  const result = await AdminService.getAllAdminFromDB();
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Admin retrieved successfully',
+    data: result,
+  });
+});
+
+const updateAdminBySuperAdmin = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const adminId = req.params.id;
+    let image = getSingleFilePath(req.files, 'image');
+
+    const data = {
+      image,
+      ...req.body,
+    };
+    const result = await AdminService.updateAdminBySuperAdminToDB(
+      adminId,
+      data
+    );
+
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: 'Admin retrieved successfully',
+      message: 'Admin updated successfully',
       data: result,
     });
-  });
+  }
+);
 
-  const updateAdminBySuperAdmin = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
-      const adminId = req.params.id;
-      let image = getSingleFilePath(req.files, 'image');
-  
-      const data = {
-        image,
-        ...req.body,
-      };
-      const result = await AdminService.updateAdminBySuperAdminToDB(adminId, data);
-  
-      sendResponse(res, {
-        success: true,
-        statusCode: StatusCodes.OK,
-        message: 'Admin updated successfully',
-        data: result,
-      });
-    }
-  );
+const deleteAdminBySuperAdmin = catchAsync(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const adminId = req.params.id;
+    const result = await AdminService.deleteAdminBySuperAdminToDB(adminId);
 
-  const deleteAdminBySuperAdmin = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
-      const adminId = req.params.id;
-      const result = await AdminService.deleteAdminBySuperAdminToDB(adminId);
-
-      sendResponse(res, {
-        success: true,
-        statusCode: StatusCodes.OK,
-        message: 'Admin deleted successfully',
-        data: result,
-      });
-    }
-  );
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Admin deleted successfully',
+      data: result,
+    });
+  }
+);
 
 const getTotalMentor = catchAsync(async (req: Request, res: Response) => {
-  const [totalMentors, totalActiveMentors, totalInactiveMentors] = await Promise.all([
-    AdminService.getTotalMentorFromDB(),
-    AdminService.getTotalActiveMentorFromDB(),
-    AdminService.getTotalInactiveMentorFromDB()
-  ]);
+  const [totalMentors, totalActiveMentors, totalInactiveMentors] =
+    await Promise.all([
+      AdminService.getTotalMentorFromDB(),
+      AdminService.getTotalActiveMentorFromDB(),
+      AdminService.getTotalInactiveMentorFromDB(),
+    ]);
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
@@ -76,16 +81,17 @@ const getTotalMentor = catchAsync(async (req: Request, res: Response) => {
     data: {
       totalMentors,
       totalActiveMentors,
-      totalInactiveMentors
+      totalInactiveMentors,
     },
   });
 });
 const getTotalMentee = catchAsync(async (req: Request, res: Response) => {
-  const [totalMentees, totalActiveMentees, totalInactiveMentees] = await Promise.all([
-    AdminService.getTotalMenteeFromDB(),
-    AdminService.getTotalActiveMenteeFromDB(),
-    AdminService.getTotalInactiveMenteeFromDB()
-  ]);
+  const [totalMentees, totalActiveMentees, totalInactiveMentees] =
+    await Promise.all([
+      AdminService.getTotalMenteeFromDB(),
+      AdminService.getTotalActiveMenteeFromDB(),
+      AdminService.getTotalInactiveMenteeFromDB(),
+    ]);
 
   sendResponse(res, {
     success: true,
@@ -99,12 +105,12 @@ const getTotalMentee = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-
-
 const getUserProfile = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
   const result = await AdminService.getUserProfileFromDB(user);
-
+  if (!user) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+  }
   sendResponse(res, {
     success: true,
     statusCode: StatusCodes.OK,
@@ -134,4 +140,51 @@ const updateProfile = catchAsync(
   }
 );
 
-export const AdminController = { createAdmin, getAllAdmin, updateAdminBySuperAdmin, getUserProfile, updateProfile,deleteAdminBySuperAdmin, getTotalMentor, getTotalMentee };
+const getAllTransactionForMentor = catchAsync(
+  async (req: Request, res: Response) => {
+    const mentorId = req.user.id;
+    const result = await AdminService.getAllTransactionForMentorFromDB(
+      mentorId
+    );
+    if (!result) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Transaction not found');
+    }
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Transaction retrieved successfully',
+      data: result,
+    });
+  }
+);
+
+const getAllTransactionForMentee = catchAsync(
+  async (req: Request, res: Response) => {
+    const menteeId = req.user.id;
+    const result = await AdminService.getAllTransactionForMenteeFromDB(
+      menteeId
+    );
+    if (!result) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Transaction not found');
+    }
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Transaction retrieved successfully',
+      data: result,
+    });
+  }
+);
+
+export const AdminController = {
+  createAdmin,
+  getAllAdmin,
+  updateAdminBySuperAdmin,
+  getUserProfile,
+  updateProfile,
+  deleteAdminBySuperAdmin,
+  getTotalMentor,
+  getTotalMentee,
+  getAllTransactionForMentor,
+  getAllTransactionForMentee
+};

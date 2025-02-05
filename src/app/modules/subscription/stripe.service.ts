@@ -1,12 +1,8 @@
 import Stripe from 'stripe';
-import dotenv from 'dotenv';
-import path from 'path';
 import { PlanType } from '../../../types/subscription.types';
-dotenv.config({ path: path.join(process.cwd(), '.env') });
+import stripe from '../../../config/stripe';
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: '2024-12-18.acacia',
-});
+
 
 interface ProductCreateParams {
   title: string;

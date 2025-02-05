@@ -8,6 +8,7 @@ import unlinkFile from '../../../shared/unlinkFile';
 import generateOTP from '../../../util/generateOTP';
 import { IUser } from '../user/user.interface';
 import { User } from '../user/user.model';
+import { PaymentRecord } from '../payment-record/payment-record.model';
 
 const createAdminToDB = async (payload: Partial<IUser>): Promise<IUser> => {
   //set role
@@ -41,12 +42,12 @@ const createAdminToDB = async (payload: Partial<IUser>): Promise<IUser> => {
 };
 
 const getAllAdminFromDB = async (): Promise<Partial<IUser>[]> => {
-    const result = await User.find({ role: USER_ROLES.ADMIN });
-    if(!result){
-      throw new ApiError(StatusCodes.BAD_REQUEST, "No admin found!");
-    }
-    return result;
-  };
+  const result = await User.find({ role: USER_ROLES.ADMIN });
+  if (!result) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'No admin found!');
+  }
+  return result;
+};
 
 const getUserProfileFromDB = async (
   user: JwtPayload
@@ -61,8 +62,8 @@ const getUserProfileFromDB = async (
 };
 
 const updateAdminBySuperAdminToDB = async (
-    adminId: string,
-    payload: Partial<IUser>
+  adminId: string,
+  payload: Partial<IUser>
 ): Promise<Partial<IUser | null>> => {
   const isExistUser = await User.isExistUserById(adminId);
   if (!isExistUser) {
@@ -72,8 +73,7 @@ const updateAdminBySuperAdminToDB = async (
     new: true,
   });
   return updateDoc;
-
-}
+};
 
 const deleteAdminBySuperAdminToDB = async (
   adminId: string
@@ -112,7 +112,7 @@ const getTotalMentorFromDB = async (): Promise<number> => {
   const result = await User.aggregate([
     {
       $match: {
-        role: 'MENTOR'
+        role: 'MENTOR',
       },
     },
     {
@@ -120,7 +120,7 @@ const getTotalMentorFromDB = async (): Promise<number> => {
     },
   ]);
   return result[0]?.totalMentors || 0;
-}
+};
 
 const getTotalActiveMentorFromDB = async (): Promise<number> => {
   const result = await User.aggregate([
@@ -135,7 +135,7 @@ const getTotalActiveMentorFromDB = async (): Promise<number> => {
     },
   ]);
   return result[0]?.totalActiveMentors || 0;
-}
+};
 
 const getTotalInactiveMentorFromDB = async (): Promise<number> => {
   const result = await User.aggregate([
@@ -150,13 +150,13 @@ const getTotalInactiveMentorFromDB = async (): Promise<number> => {
     },
   ]);
   return result[0]?.totalInActiveMentors || 0;
-}
+};
 
 const getTotalMenteeFromDB = async (): Promise<number> => {
   const result = await User.aggregate([
     {
       $match: {
-        role: 'MENTEE'
+        role: 'MENTEE',
       },
     },
     {
@@ -164,7 +164,7 @@ const getTotalMenteeFromDB = async (): Promise<number> => {
     },
   ]);
   return result[0]?.totalMentees || 0;
-}
+};
 
 const getTotalActiveMenteeFromDB = async (): Promise<number> => {
   const result = await User.aggregate([
@@ -179,7 +179,7 @@ const getTotalActiveMenteeFromDB = async (): Promise<number> => {
     },
   ]);
   return result[0]?.totalActiveMentees || 0;
-}
+};
 
 const getTotalInactiveMenteeFromDB = async (): Promise<number> => {
   const result = await User.aggregate([
@@ -194,7 +194,39 @@ const getTotalInactiveMenteeFromDB = async (): Promise<number> => {
     },
   ]);
   return result[0]?.totalInActiveMentees || 0;
-}
+};
+
+const getAllTransactionForMentorFromDB = async (mentor_id: string) => {
+  const result = await PaymentRecord.find({
+    mentor_id: mentor_id,
+    status: 'succeeded'
+  })
+  .populate('mentee_id', 'name email image')
+  .sort({ created_at: -1 })
+  .lean();
+
+  if (!result) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'No transactions found');
+  }
+
+  return result;
+};
+
+const getAllTransactionForMenteeFromDB = async (mentee_id: string) => {
+  const result = await PaymentRecord.find({
+    mentee_id: mentee_id,
+    status: 'succeeded'
+  })
+  .populate('mentor_id', 'name email image')
+  .sort({ created_at: -1 })
+  .lean();
+
+  if (!result) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'No transactions found');
+  }
+
+  return result;
+};
 
 export const AdminService = {
   createAdminToDB,
@@ -209,4 +241,6 @@ export const AdminService = {
   getTotalMenteeFromDB,
   getTotalActiveMenteeFromDB,
   getTotalInactiveMenteeFromDB,
+  getAllTransactionForMentorFromDB,
+  getAllTransactionForMenteeFromDB
 };

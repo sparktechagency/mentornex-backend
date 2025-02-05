@@ -12,6 +12,9 @@ import { AdminRoutes } from '../app/modules/admin/admin.route';
 import { SubscriptionRoutes } from '../app/modules/subscription/subscription.route';
 import { PricingPlanRoutes } from '../app/modules/mentorPricingPlan/pricing-plan.route';
 import { ServiceReviewRoutes } from '../app/modules/serviceReviewByMentee/serviceReview.route';
+import { FaqRoutes } from '../app/modules/faq/faq.route';
+import { RuleRoutes } from '../app/modules/rule/rule.route';
+import { ContactRoutes } from '../app/modules/contact/contact.routes';
 const router = express.Router();
 
 router.use('/payment/webhook', express.raw({ type: 'application/json' }));
@@ -63,12 +66,15 @@ const apiRoutes = [
   },
   {
     path: '/mentor',
-    route: PricingPlanRoutes
+    route: PricingPlanRoutes,
   },
   {
     path: '/service',
-    route: ServiceReviewRoutes
-  }
+    route: ServiceReviewRoutes,
+  },
+  { path: '/faq', route: FaqRoutes },
+  { path: '/rule', route: RuleRoutes },
+  { path: "/contact", route: ContactRoutes }
 ];
 
 apiRoutes.forEach(route => router.use(route.path, route.route));
