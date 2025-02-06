@@ -6,6 +6,7 @@ import config from './config';
 import { seedSuperAdmin } from './DB/seedAdmin';
 import { socketHelper } from './helpers/socketHelper';
 import { errorLogger, logger } from './shared/logger';
+import { jwtHelper } from './helpers/jwtHelper';
 
 //uncaught exception
 process.on('uncaughtException', error => {
@@ -14,6 +15,7 @@ process.on('uncaughtException', error => {
 });
 
 let server: any;
+const onlineUsers: { [key: string]: string } = {};
 async function main() {
   try {
     mongoose.connect(config.database_url as string);
@@ -45,6 +47,18 @@ async function main() {
     io.on('connection', socket => {
       console.log(`User connected: ${socket.id}`);
 
+      socket.on('authenticate', async (data: { token: string }) => {
+        try {
+          const { token } = data;
+          const { id } = jwtHelper.verifyToken(token, config.jwt.jwt_secret as string);
+      
+            onlineUsers[id] = socket.id;
+            console.log(`User ID ${id} authenticated with socket ID ${socket.id}`);
+        } catch (error) {
+          socket.emit('authenticated', { success: false });
+        }
+      });
+
       socket.on('disconnect', () => {
         console.log(`User disconnected: ${socket.id}`);
       });
@@ -75,3 +89,5 @@ process.on('SIGTERM', () => {
     server.close();
   }
 });
+
+export {onlineUsers}

@@ -15,6 +15,7 @@ import { ServiceReviewRoutes } from '../app/modules/serviceReviewByMentee/servic
 import { FaqRoutes } from '../app/modules/faq/faq.route';
 import { RuleRoutes } from '../app/modules/rule/rule.route';
 import { ContactRoutes } from '../app/modules/contact/contact.routes';
+import { MessageRoutes } from '../app/modules/message/message.route';
 const router = express.Router();
 
 router.use('/payment/webhook', express.raw({ type: 'application/json' }));
@@ -72,9 +73,11 @@ const apiRoutes = [
     path: '/service',
     route: ServiceReviewRoutes,
   },
+  { path: "/message", route: MessageRoutes },
   { path: '/faq', route: FaqRoutes },
   { path: '/rule', route: RuleRoutes },
   { path: "/contact", route: ContactRoutes }
+
 ];
 
 apiRoutes.forEach(route => router.use(route.path, route.route));
