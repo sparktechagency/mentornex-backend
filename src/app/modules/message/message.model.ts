@@ -16,7 +16,16 @@ const messageSchema = new Schema<IMessage, MessageModel>(
     content: {
       type: String,
       required: true,
-    }
+    },
+    isMessageRequest: {
+      type: Boolean,
+      required: true,
+      default: true,
+    },
+    file: {
+      type: String,
+      required: false,
+    },
   },
   {
     timestamps: true,
