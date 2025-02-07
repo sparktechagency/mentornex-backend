@@ -43,6 +43,24 @@ const createSubscriptionPlan = catchAsync(
   }
 );
 
+const createPayPerSessionPlan = catchAsync(
+  async (req: Request, res: Response) => {
+    const mentor_id = req.user.id;
+    const planData = { 
+      mentor_id, 
+      pay_per_sessions: req.body 
+    };
+    const result = await PricingPlanService.createPayPerSessionPlan(planData);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.CREATED,
+      message: 'Pay per session plan created successfully',
+      data: result,
+    });
+  }
+);
+
 const getMentorPricingPlan = catchAsync(
   async (req: Request, res: Response) => {
     const mentor_id = req.params.mentorId;
@@ -60,5 +78,6 @@ const getMentorPricingPlan = catchAsync(
 export const PricingPlanController = {
   setupStripeAccount,
   createSubscriptionPlan,
+  createPayPerSessionPlan,
   getMentorPricingPlan,
 };

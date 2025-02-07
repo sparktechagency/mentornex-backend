@@ -10,7 +10,7 @@ import { StripeService } from "../subscription/stripe.service";
 const bookSessionWithPayment = async (sessionData: any) => {
   //const platformFee = calculatePlatformFee(sessionData.amount);
 
-  const platformFee = (sessionData.amount * 10) / 100;
+  /*const platformFee = (sessionData.amount * 10) / 100;
   
   if (sessionData.payment_type === 'subscription') {
     const hasAvailableSessions = await SubscriptionService.checkSessionsAvailable(
@@ -41,11 +41,11 @@ const bookSessionWithPayment = async (sessionData: any) => {
     await SubscriptionService.deductSession(sessionData.subscription_id);
   }
 
-  return session;
+  return session;*/
 };
 
 const completeSession = async (sessionId: string) => {
-  const session = await Session.findById(sessionId);
+  /*const session = await Session.findById(sessionId);
   if (!session) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Session not found');
   }
@@ -58,7 +58,7 @@ const completeSession = async (sessionId: string) => {
   session.payment_status = 'released';
   await session.save();
 
-  return session;
+  return session;*/
 };
 
   const getMenteeUpcomingSessions = async (mentee_id: string, paginationOptions: any) => {

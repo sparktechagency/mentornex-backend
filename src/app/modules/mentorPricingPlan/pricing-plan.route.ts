@@ -16,7 +16,11 @@ router.post(
   auth(USER_ROLES.MENTOR),
   PricingPlanController.createSubscriptionPlan
 );
-
+router.post(
+  '/pay-per-session',
+  auth(USER_ROLES.MENTOR),
+  PricingPlanController.createPayPerSessionPlan
+);
 router.get(
   '/:mentorId',
   PricingPlanController.getMentorPricingPlan
