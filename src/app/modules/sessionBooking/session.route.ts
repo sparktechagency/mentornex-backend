@@ -7,11 +7,17 @@ import { SessionValidation } from './session.validation';
 const router = express.Router();
 
 router
-  .route('/mentee/book')
+  .route('/mentee/book/:mentor_id')
   .post(
     auth(USER_ROLES.MENTEE),
-    validateRequest(SessionValidation.bookSessionZodSchema),
+    //validateRequest(SessionValidation.bookSessionZodSchema),
     SessionController.bookSession
+  );
+
+  router.post(
+    '/webhook',
+    express.raw({ type: 'application/json' }), // Important: Keep raw body for signature verification
+    SessionController.handleWebhook
   );
 
 router.route('/mentee/upcoming-sessions').get(

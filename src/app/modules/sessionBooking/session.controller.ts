@@ -4,12 +4,16 @@ import { SessionService } from "./session.service";
 import sendResponse from "../../../shared/sendResponse";
 import { StatusCodes } from "http-status-codes";
 import { paginationHelper } from "../../../helpers/paginationHelper";
+import Stripe from "stripe";
+import { Session } from "./session.model";
+import stripe from "../../../config/stripe";
 
 
 const bookSession = catchAsync(
     async (req: Request, res: Response, next: NextFunction) => {
       const mentee_id = req.user.id;
-      const sessionData = {mentee_id, ...req.body};
+      const mentor_id = req.params.mentor_id;
+      const sessionData = {mentee_id, mentor_id, ...req.body};
       const result = await SessionService.bookSessionWithPayment(sessionData);
   
       sendResponse(res, {
@@ -20,7 +24,56 @@ const bookSession = catchAsync(
       });
     }
   );
-
+  const handleWebhook = async (req: Request, res: Response) => {
+    const signature = req.headers['stripe-signature'] as string;
+    
+    try {
+      const event = await stripe.webhooks.constructEvent(
+        req.body,
+        signature,
+        process.env.STRIPE_WEBHOOK_SECRET as string
+      );
+  
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          const session = event.data.object as Stripe.Checkout.Session;
+          
+          if (session.metadata?.session_id) {
+            const sessionRecord = await Session.findById(session.metadata.session_id);
+            
+            if (sessionRecord) {
+              // Update session with payment details
+              sessionRecord.stripe_payment_intent_id = session.payment_intent as string;
+              sessionRecord.payment_status = 'held';
+              await sessionRecord.save();
+            }
+          }
+          break;
+        }
+  
+        case 'payment_intent.canceled': {
+          const paymentIntent = event.data.object as Stripe.PaymentIntent;
+          
+          // Find and update session with this payment intent
+          const sessionRecord = await Session.findOne({
+            stripe_payment_intent_id: paymentIntent.id
+          });
+          
+          if (sessionRecord) {
+            sessionRecord.status = 'cancelled';
+            sessionRecord.payment_status = 'cancelled';
+            await sessionRecord.save();
+          }
+          break;
+        }
+      }
+  
+      res.json({ received: true });
+    } catch (err: unknown) {
+      console.error('Webhook Error:', err);
+      res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
   const MenteeUpcomingSession = catchAsync(
     async (req: Request, res: Response, next: NextFunction) => {
       const mentee_id = req.user.id;
@@ -125,4 +178,4 @@ const MentorRequestedSession = catchAsync(
   
   
 
-export const SessionController = { bookSession, MentorRequestedSession, MentorAccepetedSession, MentorCompletedSession, MentorUpdateSessionStatus, MenteeUpcomingSession, MenteeCompletedSession };
+export const SessionController = { bookSession, MentorRequestedSession, MentorAccepetedSession, MentorCompletedSession, MentorUpdateSessionStatus, MenteeUpcomingSession, MenteeCompletedSession, handleWebhook };

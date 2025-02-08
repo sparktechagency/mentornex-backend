@@ -118,7 +118,7 @@ const userSchema = new Schema<IUser, UserModal>(
       type: String,
     },
   },
-  
+
   { timestamps: true }
 );
 

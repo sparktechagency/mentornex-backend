@@ -4,61 +4,106 @@ import { ISession } from "./session.interface";
 import { Session } from "./session.model";
 import { SubscriptionService } from "../subscription/subscription.service";
 import { StripeService } from "../subscription/stripe.service";
-
-
+import stripe from "../../../config/stripe";
+import { User } from "../user/user.model";
+import { PricingPlan } from "../mentorPricingPlan/pricing-plan.model";
 
 const bookSessionWithPayment = async (sessionData: any) => {
-  //const platformFee = calculatePlatformFee(sessionData.amount);
-
-  /*const platformFee = (sessionData.amount * 10) / 100;
-  
-  if (sessionData.payment_type === 'subscription') {
-    const hasAvailableSessions = await SubscriptionService.checkSessionsAvailable(
-      sessionData.subscription_id
-    );
-    
-    if (!hasAvailableSessions) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'No sessions remaining in subscription');
+  try {
+    // Get mentor details
+    const mentor = await User.findById(sessionData.mentor_id);
+    if (!mentor?.stripe_account_id) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Mentor stripe account not found');
     }
-  } else {
-    // Create payment intent for pay-per-session
-    const paymentIntent = await StripeService.createPaymentIntent(
-      sessionData.amount,
-      sessionData.mentee_id,
-      sessionData.mentor_id,
-      sessionData._id
-    );
-    sessionData.stripe_payment_intent_id = paymentIntent.id;
+
+    // Get mentee details
+    const mentee = await User.findById(sessionData.mentee_id);
+    if (!mentee?.stripeCustomerId) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Mentee stripe customer not found');
+    }
+
+    // Verify price ID exists in mentor's pricing plans
+    const pricingPlan = await PricingPlan.findOne({ 
+      mentor_id: sessionData.mentor_id,
+      $or: [
+        { 'subscriptions.stripe_price_id': sessionData.stripe_price_id },
+        { 'pay_per_sessions.stripe_price_id': sessionData.stripe_price_id }
+      ]
+    });
+
+    if (!pricingPlan) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid price ID for this mentor');
+    }
+
+    // Find the specific pricing option
+    const priceOption = [
+      ...(pricingPlan.subscriptions || []),
+      ...(pricingPlan.pay_per_sessions || [])
+    ].find(option => option.stripe_price_id === sessionData.stripe_price_id);
+
+    if (!priceOption) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Price option not found');
+    }
+
+    // Calculate platform fee (10%)
+    const platformFee = Math.round(priceOption.amount * 0.1);
+
+    // Create initial session record
+    const pendingSession = await Session.create({
+      ...sessionData,
+      amount: priceOption.amount,
+      status: 'pending',
+      payment_status: 'pending',
+      platform_fee: platformFee,
+      payment_type: 'per_session'
+    });
+
+    // Create checkout session in platform account
+    const checkoutSession = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      customer: mentee.stripeCustomerId,
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            unit_amount: priceOption.amount * 100, // Convert to cents
+            product_data: {
+              name: `Mentoring Session with ${mentor.name}`,
+              description: `30 minutes session`,
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        session_id: pendingSession._id.toString(),
+        mentor_id: sessionData.mentor_id,
+        mentee_id: sessionData.mentee_id,
+        platform_fee: platformFee,
+      },
+      payment_intent_data: {
+        transfer_data: {
+          destination: mentor.stripe_account_id,
+          amount: (priceOption.amount * 100) - (platformFee * 100), // Amount after platform fee
+        },
+      },
+      success_url: `${process.env.FRONTEND_URL}/sessions/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/sessions/cancel`,
+    });
+
+    return {
+      sessionId: pendingSession._id,
+      checkoutUrl: checkoutSession.url,
+    };
+  } catch (error) {
+    console.error('Error in bookSessionWithPayment:', error);
+    throw error;
   }
-
-  const session = await Session.create({
-    ...sessionData,
-    payment_type: sessionData.payment_type,
-    platform_fee: platformFee,
-  });
-
-  if (sessionData.payment_type === 'subscription') {
-    await SubscriptionService.deductSession(sessionData.subscription_id);
-  }
-
-  return session;*/
 };
 
 const completeSession = async (sessionId: string) => {
-  /*const session = await Session.findById(sessionId);
-  if (!session) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Session not found');
-  }
-
-  if (session.payment_type === 'per_session') {
-    await StripeService.capturePayment(session.stripe_payment_intent_id);
-  }
-
-  session.status = 'completed';
-  session.payment_status = 'released';
-  await session.save();
-
-  return session;*/
+  
 };
 
   const getMenteeUpcomingSessions = async (mentee_id: string, paginationOptions: any) => {
@@ -158,7 +203,7 @@ const getMentorAcceptedSessions = async (mentor_id: string) => {
   const updateSessionStatus = async (
     sessionId: string,
     mentor_id: string,
-    status: 'accepted' | 'rejected'
+    status: 'accepted' | 'cancelled' | 'completed'
   ) => {
     const session = await Session.findOne({ _id: sessionId, mentor_id, status: 'pending' });
   

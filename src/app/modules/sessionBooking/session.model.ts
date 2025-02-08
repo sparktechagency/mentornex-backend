@@ -13,7 +13,7 @@ const sessionSchema = new Schema<ISession, SessionModal>(
       ref: 'User',
       required: true,
     },
-    date_time: {
+    scheduled_time: {
       type: Date,
       required: true,
     },
@@ -38,7 +38,7 @@ const sessionSchema = new Schema<ISession, SessionModal>(
     },
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'rejected', 'completed'],
+      enum: ['pending', 'accepted', 'cancelled', 'completed'],
       default: 'pending',
     },
     payment_type: {
@@ -51,7 +51,7 @@ const sessionSchema = new Schema<ISession, SessionModal>(
     },
     payment_status: {
       type: String,
-      enum: ['pending', 'held', 'released', 'refunded'],
+      enum: ['pending', 'held', 'released', 'refunded', 'cancelled'],
       default: 'pending',
     },
     amount: {
@@ -61,12 +61,7 @@ const sessionSchema = new Schema<ISession, SessionModal>(
     platform_fee: {
       type: Number,
       required: true,
-    },
-    subscription_id: {
-      type: Schema.Types.ObjectId,
-      //type: String,
-      ref: 'Subscription',
-    },
+    }
   },
   { timestamps: true }
 );
