@@ -29,8 +29,8 @@ const getAllServiceReviewFromDB = async () => {
   return allReviews;
 };
 
-const deleteReviewByMenteeFromDB = async (mentee_id: string) => {
-  const review = await ServiceReviewModel.findOneAndDelete({ mentee_id });
+const deleteReviewByMenteeFromDB = async (mentor_id: string) => {
+  const review = await ServiceReviewModel.findOneAndDelete({ mentor_id });
   if (!review) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Review not found');
   }

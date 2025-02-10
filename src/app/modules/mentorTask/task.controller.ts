@@ -1,11 +1,11 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import { StatusCodes } from "http-status-codes";
 import { TaskService } from "./task.service";
 
 const addTask = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response) => {
       const mentor_id = req.user.id;
       const task = {mentor_id, ...req.body};
       const result = await TaskService.addTaskToDB(task);
@@ -21,7 +21,7 @@ const addTask = catchAsync(
   );
 
 const getAllTask = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response) => {
     const mentorId = req.user.id;
       const result = await TaskService.getAllTaskFromDB(mentorId);
 

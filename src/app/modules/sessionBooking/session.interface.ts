@@ -1,6 +1,4 @@
-import { Model, Schema } from 'mongoose';
-//import { USER_ROLES } from '../../../enums/user';
-
+import { Model} from 'mongoose';
 
 export type ISession = {
   mentor_id: string;

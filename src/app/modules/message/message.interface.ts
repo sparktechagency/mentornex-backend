@@ -1,6 +1,6 @@
 import { Model } from 'mongoose';
 
-export interface IMessage {
+export type IMessage = {
   sender_id: string;
   receiver_id: string;
   content: string;
@@ -10,7 +10,7 @@ export interface IMessage {
   updatedAt?: Date;
 }
 
-export interface IMessageFilters {
+export type IMessageFilters = {
   sender_id?: string;
   receiver_id?: string;
 }

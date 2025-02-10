@@ -1,11 +1,11 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import { StatusCodes } from "http-status-codes";
 import { ServiceReview } from "./serviceReview.service";
 
 const addReviewMentorbyMentee = catchAsync(
-    /*async (req: Request, res: Response, next: NextFunction) => {
+    /*async (req: Request, res: Response) => {
       const mentee_id = req.user.id;
       const reviewMentor = {mentee_id, ...req.body};
       const result = await ReviewService.addReviewToDB(reviewMentor);
@@ -17,7 +17,7 @@ const addReviewMentorbyMentee = catchAsync(
         data: result,
       });
     }*/
-      async (req: Request, res: Response, next: NextFunction) => {
+      async (req: Request, res: Response) => {
         const mentee_id = req.user.id;
         const serviceReview = {mentee_id,  ...req.body};
         const result = await ServiceReview.addServiceReviewToDB(serviceReview);
@@ -33,7 +33,7 @@ const addReviewMentorbyMentee = catchAsync(
   );
 
   const getAllReviews = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response) => {
       const result = await ServiceReview.getAllServiceReviewFromDB();
       sendResponse(res, {
         success: true,
@@ -45,9 +45,8 @@ const addReviewMentorbyMentee = catchAsync(
   );
 
 const deleteReviewByMentee = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response) => {
     const mentee_id = req.user.id;
-    const mentor_id = req.params.mentor_id;
     const result = await ServiceReview.deleteReviewByMenteeFromDB(mentee_id);
     sendResponse(res, {
       success: true,

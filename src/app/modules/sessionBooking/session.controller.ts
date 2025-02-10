@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import catchAsync from "../../../shared/catchAsync";
 import { SessionService } from "./session.service";
 import sendResponse from "../../../shared/sendResponse";
@@ -10,7 +10,7 @@ import stripe from "../../../config/stripe";
 
 
 const bookSession = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response) => {
       const mentee_id = req.user.id;
       const mentor_id = req.params.mentor_id;
       const sessionData = {mentee_id, mentor_id, ...req.body};
@@ -70,12 +70,11 @@ const bookSession = catchAsync(
   
       res.json({ received: true });
     } catch (err: unknown) {
-      console.error('Webhook Error:', err);
       res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
   const MenteeUpcomingSession = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response) => {
       const mentee_id = req.user.id;
   
       // Get pagination parameters from the request query
@@ -108,7 +107,7 @@ const bookSession = catchAsync(
   
 
 const MenteeCompletedSession = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response) => {
       const mentee_id = req.user.id;
       const sessions = await SessionService.getMenteeCompletedSessions(mentee_id);
       sendResponse(res, {
@@ -121,7 +120,7 @@ const MenteeCompletedSession = catchAsync(
   );
 
 const MentorRequestedSession = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response) => {
       const mentor_id = req.user.id;
       const sessions = await SessionService.getMentorPendingSessions(mentor_id);
   
@@ -135,7 +134,7 @@ const MentorRequestedSession = catchAsync(
   );
 
   const MentorAccepetedSession = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response) => {
       const mentor_id = req.user.id;
       const sessions = await SessionService.getMentorAcceptedSessions(mentor_id);
 
@@ -148,7 +147,7 @@ const MentorRequestedSession = catchAsync(
     }
   );
   const MentorCompletedSession = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response) => {
       const mentor_id = req.user.id;
       const sessions = await SessionService.getMentorCompletedSessions(mentor_id);
       sendResponse(res, {
@@ -161,7 +160,7 @@ const MentorRequestedSession = catchAsync(
   );
 
   const MentorUpdateSessionStatus = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response) => {
       const mentor_id = req.user.id;
       const { sessionId, status } = req.body;
   

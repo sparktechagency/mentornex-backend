@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import { StatusCodes } from "http-status-codes";
@@ -7,7 +7,7 @@ import { FavoriteService } from "./favorite.service";
 
 
 const favoriteMentor = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response) => {
     const mentee_id = req.user.id;
     const { mentor_ids }: { mentor_ids: string[] } = req.body;
 
@@ -32,8 +32,7 @@ const favoriteMentor = catchAsync(
 const getFavoriteMentorsController = catchAsync(
   async (
     req: Request,
-    res: Response,
-    next: NextFunction
+    res: Response
   ) => {
       const menteeId = req.user.id;
       const mentors = await FavoriteService.getFavoriteMentors(menteeId);

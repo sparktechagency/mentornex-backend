@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import { getSingleFilePath } from '../../../shared/getFilePath';
@@ -7,7 +7,7 @@ import { AdminService } from './admin.service';
 import ApiError from '../../../errors/ApiError';
 
 const createAdmin = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response) => {
     const { ...adminData } = req.body;
     const result = await AdminService.createAdminToDB(adminData);
 
@@ -31,9 +31,9 @@ const getAllAdmin = catchAsync(async (req: Request, res: Response) => {
 });
 
 const updateAdminBySuperAdmin = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response) => {
     const adminId = req.params.id;
-    let image = getSingleFilePath(req.files, 'image');
+    const image = getSingleFilePath(req.files, 'image');
 
     const data = {
       image,
@@ -54,7 +54,7 @@ const updateAdminBySuperAdmin = catchAsync(
 );
 
 const deleteAdminBySuperAdmin = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response) => {
     const adminId = req.params.id;
     const result = await AdminService.deleteAdminBySuperAdminToDB(adminId);
 
@@ -121,9 +121,9 @@ const getUserProfile = catchAsync(async (req: Request, res: Response) => {
 
 //update profile
 const updateProfile = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response) => {
     const user = req.user;
-    let image = getSingleFilePath(req.files, 'image');
+    const image = getSingleFilePath(req.files, 'image');
 
     const data = {
       image,

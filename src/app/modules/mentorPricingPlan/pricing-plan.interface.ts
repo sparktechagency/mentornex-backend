@@ -1,4 +1,4 @@
-import { Model, Schema } from 'mongoose';
+import { Model} from 'mongoose';
 
 export type Subscription = {
   title: string;

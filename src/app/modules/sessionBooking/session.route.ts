@@ -1,4 +1,4 @@
-import express, { NextFunction, Request, Response } from 'express';
+import express from 'express';
 import { SessionController } from './session.controller';
 import { USER_ROLES } from '../../../enums/user';
 import auth from '../../middlewares/auth';

@@ -1,4 +1,3 @@
-import e from 'cors';
 import { z } from 'zod';
 
 const createAdminZodSchema = z.object({

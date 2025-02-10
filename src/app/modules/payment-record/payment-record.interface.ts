@@ -1,6 +1,6 @@
 import { Model } from "mongoose";
 
-export interface IPaymentRecord {
+export type IPaymentRecord = {
     subscribed_plan_id: string;
     payment_intent_id: string;
     mentee_id: string;

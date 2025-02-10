@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
@@ -7,7 +7,7 @@ import { MessageService } from './message.service';
 import { getSingleFilePath } from '../../../shared/getFilePath';
 
 const sendMessage = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response) => {
     const { content } = req.body;
     const sender_id = req.user.id;
     const receiver_id = req.params.receiver_id;
@@ -34,7 +34,7 @@ const sendMessage = catchAsync(
 );
 
 const getRegularConversations = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response) => {
       const userId = req.user.id;
       const conversations = await MessageService.getRegularConversations(userId);
   
@@ -48,7 +48,7 @@ const getRegularConversations = catchAsync(
   );
 
 const getOneRegularMessage= catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response) => {
     const { receiver_id } = req.params;
     const sender_id = req.user.id;
 
@@ -67,7 +67,7 @@ const getOneRegularMessage= catchAsync(
 );
 
 const getSenderMessages = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response) => {
       const userId = req.user.id;  // Current user's ID
       const senderId = req.params.sender_id;  // Sender's ID from URL parameter
   
@@ -83,7 +83,7 @@ const getSenderMessages = catchAsync(
   );
 
 const getMessageRequests = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response) => {
       const userId = req.user.id;
       const requests = await MessageService.getMessageRequests(userId);
   

@@ -1,4 +1,4 @@
-import { IMessage, IMessageFilters } from './message.interface';
+import { IMessage } from './message.interface';
 import { Message } from './message.model';
 import ApiError from '../../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
@@ -61,6 +61,7 @@ const sendMessage = async (payload: IMessage): Promise<IMessage> => {
     }
 
     const receiverSocketId = onlineUsers[payload.receiver_id];
+    
     if (receiverSocketId) {
       (global as any).io
         .to(receiverSocketId)
@@ -147,7 +148,7 @@ const getOneRegularMessage = async (
     receiver_id: otherUserId,
   });
 
-  let query = {
+  const query = {
     $or: [
       { sender_id: userId, receiver_id: otherUserId },
       { sender_id: otherUserId, receiver_id: userId },

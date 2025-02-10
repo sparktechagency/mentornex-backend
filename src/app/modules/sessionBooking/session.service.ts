@@ -1,9 +1,8 @@
 import { StatusCodes } from "http-status-codes";
 import ApiError from "../../../errors/ApiError";
-import { ISession } from "./session.interface";
+
 import { Session } from "./session.model";
-import { SubscriptionService } from "../subscription/subscription.service";
-import { StripeService } from "../subscription/stripe.service";
+
 import stripe from "../../../config/stripe";
 import { User } from "../user/user.model";
 import { PricingPlan } from "../mentorPricingPlan/pricing-plan.model";
