@@ -1,11 +1,11 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import { StatusCodes } from "http-status-codes";
 import { ScheduleService } from "./schedule.service";
 
 const createSchedule = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response) => {
     const mentor_id = req.user.id;
     const scheduleData = { mentor_id, ...req.body };
     
@@ -21,7 +21,7 @@ const createSchedule = catchAsync(
 );
 
 const getSchedule = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response) => {
     const mentor_id = req.user.id;
     const result = await ScheduleService.getScheduleFromDB(mentor_id);
 
@@ -35,7 +35,7 @@ const getSchedule = catchAsync(
 );
 
 const updateSchedule = catchAsync(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response) => {
     const mentor_id = req.user.id;
     const result = await ScheduleService.updateScheduleInDB(mentor_id, req.body);
 

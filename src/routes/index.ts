@@ -12,10 +12,10 @@ import { SubscriptionRoutes } from '../app/modules/subscription/subscription.rou
 import { PricingPlanRoutes } from '../app/modules/mentorPricingPlan/pricing-plan.route';
 import { FaqRoutes } from '../app/modules/faq/faq.route';
 import { RuleRoutes } from '../app/modules/rule/rule.route';
-import { ContactRoutes } from '../app/modules/contact/contact.routes';
 import { MessageRoutes } from '../app/modules/message/message.route';
 import { PlatformReviewRoutes } from '../app/modules/platformReviewByMentee/platformReview.route';
 import { ScheduleRoutes } from '../app/modules/mentorSchedule/schedule.route';
+import { ContactRoutes } from '../app/modules/contact-us/contact.route';
 const router = express.Router();
 
 router.use('/payment/webhook', express.raw({ type: 'application/json' }));
