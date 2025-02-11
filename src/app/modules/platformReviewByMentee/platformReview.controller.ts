@@ -2,9 +2,9 @@ import { Request, Response } from "express";
 import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import { StatusCodes } from "http-status-codes";
-import { ServiceReview } from "./serviceReview.service";
+import { PlatformReview } from "./platformReview.service";
 
-const addReviewMentorbyMentee = catchAsync(
+const addReviewbyMentee = catchAsync(
     /*async (req: Request, res: Response) => {
       const mentee_id = req.user.id;
       const reviewMentor = {mentee_id, ...req.body};
@@ -19,8 +19,8 @@ const addReviewMentorbyMentee = catchAsync(
     }*/
       async (req: Request, res: Response) => {
         const mentee_id = req.user.id;
-        const serviceReview = {mentee_id,  ...req.body};
-        const result = await ServiceReview.addServiceReviewToDB(serviceReview);
+        const platformReview = {mentee_id,  ...req.body};
+        const result = await PlatformReview.addPlatformReviewToDB(platformReview);
     
         sendResponse(res, {
           success: true,
@@ -34,11 +34,11 @@ const addReviewMentorbyMentee = catchAsync(
 
   const getAllReviews = catchAsync(
     async (req: Request, res: Response) => {
-      const result = await ServiceReview.getAllServiceReviewFromDB();
+      const result = await PlatformReview.getAllPlatformReviewFromDB();
       sendResponse(res, {
         success: true,
         statusCode: StatusCodes.OK,
-        message: 'Mentor reviews retrieved successfully',
+        message: 'Platform reviews retrieved successfully',
         data: result,
       });
     }
@@ -47,7 +47,7 @@ const addReviewMentorbyMentee = catchAsync(
 const deleteReviewByMentee = catchAsync(
   async (req: Request, res: Response) => {
     const mentee_id = req.user.id;
-    const result = await ServiceReview.deleteReviewByMenteeFromDB(mentee_id);
+    const result = await PlatformReview.deleteReviewByMenteeFromDB(mentee_id);
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
@@ -58,4 +58,4 @@ const deleteReviewByMentee = catchAsync(
 )
 
 
-  export const ServiceReviewController = { addReviewMentorbyMentee , getAllReviews, deleteReviewByMentee };
+  export const PlatformReviewController = { addReviewbyMentee , getAllReviews, deleteReviewByMentee };

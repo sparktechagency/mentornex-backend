@@ -6,16 +6,16 @@ import { MenteeFavoriteRoutes } from '../app/modules/menteeFavorites/favorite.ro
 import { MenteeReviewRoutes } from '../app/modules/menteeReviews/review.route';
 import { MenteeDashboardRoutes } from '../app/modules/menteeDashboard/menteeDashboard.route';
 import { TaskRoutes } from '../app/modules/mentorTask/task.route';
-import { PaymentRoutes } from '../app/modules/payment/payment.route';
 import { NoteRoutes } from '../app/modules/mentorNotes/note.route';
 import { AdminRoutes } from '../app/modules/admin/admin.route';
 import { SubscriptionRoutes } from '../app/modules/subscription/subscription.route';
 import { PricingPlanRoutes } from '../app/modules/mentorPricingPlan/pricing-plan.route';
-import { ServiceReviewRoutes } from '../app/modules/serviceReviewByMentee/serviceReview.route';
 import { FaqRoutes } from '../app/modules/faq/faq.route';
 import { RuleRoutes } from '../app/modules/rule/rule.route';
 import { ContactRoutes } from '../app/modules/contact/contact.routes';
 import { MessageRoutes } from '../app/modules/message/message.route';
+import { PlatformReviewRoutes } from '../app/modules/platformReviewByMentee/platformReview.route';
+import { ScheduleRoutes } from '../app/modules/mentorSchedule/schedule.route';
 const router = express.Router();
 
 router.use('/payment/webhook', express.raw({ type: 'application/json' }));
@@ -54,10 +54,6 @@ const apiRoutes = [
     route: TaskRoutes,
   },
   {
-    path: '/payment',
-    route: PaymentRoutes,
-  },
-  {
     path: '/subscription',
     route: SubscriptionRoutes,
   },
@@ -70,8 +66,12 @@ const apiRoutes = [
     route: PricingPlanRoutes,
   },
   {
-    path: '/service',
-    route: ServiceReviewRoutes,
+    path: '/platform',
+    route: PlatformReviewRoutes,
+  },
+  {
+    path: '/schedule',
+    route: ScheduleRoutes,
   },
   { path: "/message", route: MessageRoutes },
   { path: '/faq', route: FaqRoutes },

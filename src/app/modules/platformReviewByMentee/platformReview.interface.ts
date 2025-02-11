@@ -2,10 +2,10 @@ import { Model } from 'mongoose';
 //import { USER_ROLES } from '../../../enums/user';
 
 
-export type IServiceReview = {
+export type IPlatformReview = {
     mentee_id: string;
     rate: number;
     review: string;
 };
 
-export type ServiceReviewModal = Model<IServiceReview>;
+export type PlatformReviewModal = Model<IPlatformReview>;

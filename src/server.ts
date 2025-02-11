@@ -15,7 +15,7 @@ process.on('uncaughtException', error => {
 });
 
 let server: any;
-const onlineUsers: { [key: string]: string } = {};
+export const onlineUsers: { [key: string]: string } = {};
 async function main() {
   try {
     mongoose.connect(config.database_url as string);
@@ -90,4 +90,4 @@ process.on('SIGTERM', () => {
   }
 });
 
-export {onlineUsers}
+//export {onlineUsers}
