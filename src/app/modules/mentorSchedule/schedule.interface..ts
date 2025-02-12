@@ -12,6 +12,7 @@ export type DaySchedule = {
 
 export type ISchedule = {
   mentor_id: string;
+  timeZone: string;
   schedule: DaySchedule[];
 };
 

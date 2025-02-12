@@ -13,7 +13,7 @@ import { PricingPlanRoutes } from '../app/modules/mentorPricingPlan/pricing-plan
 import { FaqRoutes } from '../app/modules/faq/faq.route';
 import { RuleRoutes } from '../app/modules/rule/rule.route';
 import { MessageRoutes } from '../app/modules/message/message.route';
-import { PlatformReviewRoutes } from '../app/modules/platformReviewByMentee/platformReview.route';
+import { PlatformReviewRoutes } from '../app/modules/platformReview/platformReview.route';
 import { ScheduleRoutes } from '../app/modules/mentorSchedule/schedule.route';
 import { ContactRoutes } from '../app/modules/contact-us/contact.route';
 const router = express.Router();

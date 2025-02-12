@@ -28,6 +28,10 @@ const ScheduleSchema = new Schema<ISchedule, ScheduleModel>(
       ref: 'User',
       required: true,
     },
+    timeZone: {
+      type: String,
+      required: true,
+    },
     schedule: [DayScheduleSchema],
   },
   { timestamps: true }

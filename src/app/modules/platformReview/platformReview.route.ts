@@ -7,7 +7,7 @@ import { PlatformReviewController } from './platformReview.controller';
 const router = express.Router();
 
 router.route('/review/add').post(
-  auth(USER_ROLES.MENTEE),
+  auth(USER_ROLES.MENTEE, USER_ROLES.MENTOR),
   PlatformReviewController.addReviewbyMentee
 );
 

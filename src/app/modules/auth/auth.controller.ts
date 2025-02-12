@@ -46,9 +46,8 @@ const logoutUser = catchAsync(async (req: Request, res: Response) => {
   await User.findByIdAndUpdate(user.id, { status: 'inactive' });
 
   // Emit user status update event
-  if (typeof global !== 'undefined' && 'io' in global && global.io) {
+  
     (global as any).io.emit('userStatusUpdated', { userId: user.id, status: 'inactive' });
-  }
 
   sendResponse(res, {
     success: true,

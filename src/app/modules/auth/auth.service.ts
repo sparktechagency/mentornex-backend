@@ -68,9 +68,7 @@ const loginUserFromDB = async (payload: ILoginData) => {
 
   await User.findByIdAndUpdate(isExistUser._id, { status: 'active' });
 
-  if (typeof global !== 'undefined' && 'io' in global && global.io) {
-    (global.io as any).emit('userStatusUpdated', { userId: isExistUser._id, status: 'active' });
-  }
+  (global as any).io.emit('userStatusUpdated', { userId: isExistUser._id, status: 'active' });
 
   return { createToken, refreshToken };
 
