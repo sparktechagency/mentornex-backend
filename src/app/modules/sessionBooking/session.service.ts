@@ -6,22 +6,19 @@ import { Session } from "./session.model";
 import stripe from "../../../config/stripe";
 import { User } from "../user/user.model";
 import { PricingPlan } from "../mentorPricingPlan/pricing-plan.model";
+import { createZoomMeeting } from "../../../helpers/zoomHelper";
 
 const bookSessionWithPayment = async (sessionData: any) => {
   try {
-    // Get mentor details
     const mentor = await User.findById(sessionData.mentor_id);
     if (!mentor?.stripe_account_id) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Mentor stripe account not found');
     }
-
-    // Get mentee details
     const mentee = await User.findById(sessionData.mentee_id);
     if (!mentee?.stripeCustomerId) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Mentee stripe customer not found');
     }
 
-    // Verify price ID exists in mentor's pricing plans
     const pricingPlan = await PricingPlan.findOne({ 
       mentor_id: sessionData.mentor_id,
       $or: [
@@ -44,7 +41,6 @@ const bookSessionWithPayment = async (sessionData: any) => {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Price option not found');
     }
 
-    // Calculate platform fee (10%)
     const platformFee = Math.round(priceOption.amount * 0.1);
 
     // Create initial session record
@@ -80,12 +76,6 @@ const bookSessionWithPayment = async (sessionData: any) => {
         mentor_id: sessionData.mentor_id,
         mentee_id: sessionData.mentee_id,
         platform_fee: platformFee,
-      },
-      payment_intent_data: {
-        transfer_data: {
-          destination: mentor.stripe_account_id,
-          amount: (priceOption.amount * 100) - (platformFee * 100), // Amount after platform fee
-        },
       },
       success_url: `${process.env.FRONTEND_URL}/sessions/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/sessions/cancel`,

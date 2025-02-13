@@ -11,10 +11,15 @@ router.route('/create-schedule')
     ScheduleController.createSchedule
   );
 
-router.route('/get-schedule')
+router.route('/get-schedule-by-mentor')
   .get(
     auth(USER_ROLES.MENTOR),
-    ScheduleController.getSchedule
+    ScheduleController.getScheduleByMentor
+  );
+  router.route('/get-schedule-by-mentee/:mentor_id')
+  .get(
+    auth(USER_ROLES.MENTEE),
+    ScheduleController.getScheduleByMentee
   );
 
 router.route('/update-schedule')

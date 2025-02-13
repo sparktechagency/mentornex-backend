@@ -20,9 +20,24 @@ const createSchedule = catchAsync(
   }
 );
 
-const getSchedule = catchAsync(
+const getScheduleByMentor = catchAsync(
   async (req: Request, res: Response) => {
     const mentor_id = req.user.id;
+    const result = await ScheduleService.getScheduleFromDB(mentor_id);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Schedule retrieved successfully',
+      data: result,
+    });
+  }
+);
+
+
+const getScheduleByMentee = catchAsync(
+  async (req: Request, res: Response) => {
+    const mentor_id = req.params.mentor_id;
     const result = await ScheduleService.getScheduleFromDB(mentor_id);
 
     sendResponse(res, {
@@ -50,6 +65,7 @@ const updateSchedule = catchAsync(
 
 export const ScheduleController = {
   createSchedule,
-  getSchedule,
+  getScheduleByMentor,
+  getScheduleByMentee,
   updateSchedule,
 };

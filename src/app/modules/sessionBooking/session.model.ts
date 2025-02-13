@@ -61,6 +61,9 @@ const sessionSchema = new Schema<ISession, SessionModal>(
     platform_fee: {
       type: Number,
       required: true,
+    },
+    zoom_meeting_link: {
+      type: String,
     }
   },
   { timestamps: true }

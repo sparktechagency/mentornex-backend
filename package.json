@@ -15,6 +15,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/base-64": "^1.0.2",
     "@types/bcrypt": "^5.0.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
@@ -27,6 +28,8 @@
     "typescript": "^5.5.3"
   },
   "dependencies": {
+    "axios": "^1.7.9",
+    "base-64": "^1.0.0",
     "bcrypt": "^5.1.1",
     "colors": "^1.4.0",
     "cors": "^2.8.5",

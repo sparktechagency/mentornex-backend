@@ -7,8 +7,10 @@ import { paginationHelper } from "../../../helpers/paginationHelper";
 import Stripe from "stripe";
 import { Session } from "./session.model";
 import stripe from "../../../config/stripe";
-
-
+import dotenv from 'dotenv';
+import path from 'path';
+import { createZoomMeeting } from "../../../helpers/zoomHelper";
+dotenv.config({ path: path.join(process.cwd(), '.env') });
 const bookSession = catchAsync(
     async (req: Request, res: Response) => {
       const mentee_id = req.user.id;
@@ -39,13 +41,56 @@ const bookSession = catchAsync(
           const session = event.data.object as Stripe.Checkout.Session;
           
           if (session.metadata?.session_id) {
-            const sessionRecord = await Session.findById(session.metadata.session_id);
-            
-            if (sessionRecord) {
-              // Update session with payment details
-              sessionRecord.stripe_payment_intent_id = session.payment_intent as string;
-              sessionRecord.payment_status = 'held';
-              await sessionRecord.save();
+            const sessionRecord = await Session.findById(session.metadata.session_id)
+              .populate('mentor_id', 'name email')
+              .populate('mentee_id', 'name email') as any;
+  
+            if (!sessionRecord) {
+              console.error('Session record not found');
+              break;
+            }
+  
+            if (!sessionRecord.mentor_id || !('email' in sessionRecord.mentor_id) || !('name' in sessionRecord.mentor_id)) {
+              console.error('Mentor information not found');
+              break;
+            }
+            if (!sessionRecord.mentee_id || !('email' in sessionRecord.mentee_id) || !('name' in sessionRecord.mentee_id)) {
+              console.error('Mentee information not found');
+              break;
+            }
+  
+            // Only create Zoom meeting if payment is successful
+            if (session.payment_status === 'paid') {
+              try {
+                const mentorEmail = "apusutradhar77@gmail.com";
+              const mentorName = sessionRecord.mentor_id.name;
+
+              const menteeEmail = sessionRecord.mentee_id.email;
+              const menteeName = sessionRecord.mentor_id.name;
+
+              const meetingTitle = `Mentoring Session with ${mentorName}`;
+              
+              const zoomMeetingLink = await createZoomMeeting(
+                meetingTitle,
+                new Date(sessionRecord.scheduled_time),
+                parseInt(sessionRecord.duration),
+                mentorEmail,
+                menteeEmail
+              );
+                
+                // Update session with payment details and zoom link
+                sessionRecord.stripe_payment_intent_id = session.payment_intent as string;
+                sessionRecord.payment_status = 'held';
+                sessionRecord.zoom_meeting_link = zoomMeetingLink.join_url;
+                console.log("Start URL: ",zoomMeetingLink.start_url);
+                await sessionRecord.save();
+              } catch (error) {
+                console.error('Error creating Zoom meeting:', error);
+                // Still mark payment as successful but log the Zoom creation error
+                sessionRecord.payment_status = 'held';
+                sessionRecord.stripe_payment_intent_id = session.payment_intent as string;
+                await sessionRecord.save();
+              }
             }
           }
           break;
@@ -72,8 +117,7 @@ const bookSession = catchAsync(
     } catch (err: unknown) {
       res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
-  };
-  const MenteeUpcomingSession = catchAsync(
+}; const MenteeUpcomingSession = catchAsync(
     async (req: Request, res: Response) => {
       const mentee_id = req.user.id;
   

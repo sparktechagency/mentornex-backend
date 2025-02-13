@@ -22,6 +22,11 @@ export default {
     host: process.env.EMAIL_HOST,
     pass: process.env.EMAIL_PASS,
   },
+  zoom: {
+    account_id: process.env.ACCOUNT_ID,
+    client_id: process.env.CLIENT_ID,
+    client_secret: process.env.CLIENT_SECRET
+  },
   super_admin: {
     email: process.env.SUPER_ADMIN_EMAIL,
     password: process.env.SUPER_ADMIN_PASSWORD,
