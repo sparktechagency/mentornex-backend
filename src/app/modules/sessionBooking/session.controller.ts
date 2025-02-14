@@ -9,8 +9,20 @@ import { Session } from "./session.model";
 import stripe from "../../../config/stripe";
 import dotenv from 'dotenv';
 import path from 'path';
-import { createZoomMeeting } from "../../../helpers/zoomHelper";
+import { createZoomMeeting, getZoomAuthUrl, processZoomCallback } from "../../../helpers/zoomHelper";
 dotenv.config({ path: path.join(process.cwd(), '.env') });
+
+const initiateZoomAuth = catchAsync(async (req: Request, res: Response) => {
+  const authUrl = getZoomAuthUrl(req.user.id);
+  res.redirect(authUrl);
+});
+
+const handleZoomCallback = catchAsync(async (req: Request, res: Response) => {
+  const { code, state: userId } = req.query;
+  await processZoomCallback(code as string, userId as string);
+  res.redirect(`${process.env.FRONTEND_URL}/profile/settings?zoom=success`);
+});
+
 const bookSession = catchAsync(
     async (req: Request, res: Response) => {
       const mentee_id = req.user.id;
@@ -59,10 +71,9 @@ const bookSession = catchAsync(
               break;
             }
   
-            // Only create Zoom meeting if payment is successful
             if (session.payment_status === 'paid') {
               try {
-                const mentorEmail = "apusutradhar77@gmail.com";
+                const mentorEmail = "leonprofessional819@gmail.com";
               const mentorName = sessionRecord.mentor_id.name;
 
               const menteeEmail = sessionRecord.mentee_id.email;
@@ -72,10 +83,9 @@ const bookSession = catchAsync(
               
               const zoomMeetingLink = await createZoomMeeting(
                 meetingTitle,
+                sessionRecord.topic,
                 new Date(sessionRecord.scheduled_time),
                 parseInt(sessionRecord.duration),
-                mentorEmail,
-                menteeEmail
               );
                 
                 // Update session with payment details and zoom link
@@ -99,7 +109,6 @@ const bookSession = catchAsync(
         case 'payment_intent.canceled': {
           const paymentIntent = event.data.object as Stripe.PaymentIntent;
           
-          // Find and update session with this payment intent
           const sessionRecord = await Session.findOne({
             stripe_payment_intent_id: paymentIntent.id
           });
@@ -137,7 +146,7 @@ const bookSession = catchAsync(
         statusCode: StatusCodes.OK,
         message: 'Upcoming sessions retrieved successfully',
         data: {
-          sessions: sessions.sessions, // The current sessions on this page
+          sessions: sessions.sessions,
           pagination: {
             totalSessions: sessions.totalSessions,
             totalPages: sessions.totalPages,
@@ -221,4 +230,4 @@ const MentorRequestedSession = catchAsync(
   
   
 
-export const SessionController = { bookSession, MentorRequestedSession, MentorAccepetedSession, MentorCompletedSession, MentorUpdateSessionStatus, MenteeUpcomingSession, MenteeCompletedSession, handleWebhook };
+export const SessionController = { initiateZoomAuth, handleZoomCallback, bookSession, MentorRequestedSession, MentorAccepetedSession, MentorCompletedSession, MentorUpdateSessionStatus, MenteeUpcomingSession, MenteeCompletedSession, handleWebhook };

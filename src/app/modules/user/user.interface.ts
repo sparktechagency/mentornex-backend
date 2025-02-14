@@ -6,6 +6,12 @@ export type ISocial = {
   username: string;
 }
 
+export type IZoomToken = {
+  access_token: string;
+  refresh_token: string;
+  expires_at: Date;
+}
+
 export type IUser = {
   name: string;
   role: USER_ROLES;
@@ -29,6 +35,7 @@ export type IUser = {
   status: 'active' | 'inactive' |'delete';
   stripe_account_id?: string;
   verified: boolean;
+  zoom_tokens?: IZoomToken;
   authentication?: {
     isResetPassword: boolean;
     oneTimeCode: number;

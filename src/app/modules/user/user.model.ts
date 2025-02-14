@@ -4,7 +4,7 @@ import { model, Schema } from 'mongoose';
 import config from '../../../config';
 import { USER_ROLES } from '../../../enums/user';
 import ApiError from '../../../errors/ApiError';
-import { ISocial, IUser, UserModal } from './user.interface';
+import { ISocial, IUser, IZoomToken, UserModal } from './user.interface';
 
 const socialSchema = new Schema<ISocial>({
   platform: {
@@ -12,6 +12,18 @@ const socialSchema = new Schema<ISocial>({
   },
   username: {
     type: String,
+  },
+});
+
+const zoomTokenSchema = new Schema<IZoomToken>({
+  access_token: {
+    type: String,
+  },
+  refresh_token: {
+    type: String,
+  },
+  expires_at: {
+    type: Date,
   },
 });
 
@@ -96,6 +108,9 @@ const userSchema = new Schema<IUser, UserModal>(
     verified: {
       type: Boolean,
       default: false,
+    },
+    zoom_tokens: {
+      type: zoomTokenSchema,
     },
     authentication: {
       type: {
