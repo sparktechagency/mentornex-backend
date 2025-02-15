@@ -11,9 +11,9 @@ import { createZoomMeeting } from "../../../helpers/zoomHelper";
 const bookSessionWithPayment = async (sessionData: any) => {
   try {
     const mentor = await User.findById(sessionData.mentor_id);
-    if (!mentor?.zoom_tokens) {
+    /*if (!mentor?.zoom_tokens) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Mentor has not connected their Zoom account');
-    }
+    }*/
     if (!mentor?.stripe_account_id) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Mentor stripe account not found');
     }

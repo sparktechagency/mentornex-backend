@@ -50,8 +50,8 @@ router.route('/mentor/update-session-status').patch(
   SessionController.MentorUpdateSessionStatus
 );
 
-router.get('/zoom/auth', auth(USER_ROLES.MENTOR), SessionController.initiateZoomAuth);
-router.get('/zoom/callback', SessionController.handleZoomCallback);
+//router.get('/zoom/auth', auth(USER_ROLES.MENTOR), SessionController.initiateZoomAuth);
+//router.get('/zoom/callback', SessionController.handleZoomCallback);
 
 
 export const SessionRoutes = router;

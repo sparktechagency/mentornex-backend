@@ -46,13 +46,13 @@ const generateZoomAccessToken = async () => {
 };
 
 export const getZoomAuthUrl = (userId: string) => {
-    const redirectUri = `${process.env.BACKEND_URL}/api/v1/zoom/callback`;
+    const redirectUri = `http://10.0.70.50:5000/api/v1/session/zoom/callback`;
     return `https://zoom.us/oauth/authorize?response_type=code&client_id=${config.zoom.client_id}&redirect_uri=${redirectUri}&state=${userId}`;
   };
   
   export const processZoomCallback = async (code: string, userId: string) => {
     try {
-      const redirectUri = `${process.env.BACKEND_URL}/api/v1/zoom/callback`;
+      const redirectUri = `http://10.0.70.50:5000/api/v1/session/zoom/callback`;
       const tokenResponse = await axios.post<ZoomTokenResponse>(
         'https://zoom.us/oauth/token',
         null,
@@ -130,55 +130,73 @@ export const getZoomAuthUrl = (userId: string) => {
     }
   };
 
-  export const createZoomMeeting = async (
-    userId: string,
-    topic: string,
-    startTime: Date,
-    duration: number,
-  ) => {
+  export const createZoomMeeting = async (topic: string, startTime: Date, duration: number, mentor_email: string | undefined, mentee_email: string | undefined) => {
     try {
-      const user = await User.findById(userId);
-      if (!user?.zoom_tokens) {
-        throw new Error('User has not authorized Zoom access');
-      }
-  
-      let accessToken = user.zoom_tokens.access_token;
-      
-      // Check if token is expired and refresh if needed
-      if (new Date() >= user.zoom_tokens.expires_at) {
-        const newTokens = await refreshZoomToken(userId, user.zoom_tokens.refresh_token);
-        accessToken = newTokens.accessToken;
-      }
-  
-      const response = await axios.post(
-        'https://api.zoom.us/v2/users/me/meetings',
-        {
-          topic,
-          type: 2, // Scheduled meeting
-          start_time: startTime.toISOString(),
-          duration,
-          settings: {
-            host_video: true,
-            participant_video: true,
-            join_before_host: true,
-            mute_upon_entry: true,
-            waiting_room: false,
-          },
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-          },
-        }
-      );
-  
-      return {
-        join_url: response.data.join_url,
-        start_url: response.data.start_url,
-      };
+        const zoomAccessToken = await generateZoomAccessToken();
+
+        const response = await axios.post(
+            'https://api.zoom.us/v2/users/me/meetings',
+            {
+                topic: topic,
+                type: 2, // Scheduled meeting
+                start_time: startTime.toISOString(),
+                duration: duration,
+                settings: {
+                    host_video: true,
+                    participant_video: true,
+                    join_before_host: true,
+                    mute_upon_entry: true,
+                    waiting_room: false,
+                    auto_recording: "none",
+                    duration: duration, // Set duration in settings as well
+                    meeting_invitees: [
+                      { email: mentor_email },
+                      { email: mentee_email }
+                  ],
+                  close_registration: true,
+                  enable_auto_terminate: true,
+                  auto_terminate_minutes: duration,
+                  enforce_meeting_duration: true // End after specified duration
+                    //meeting_authentication: true, // Enable meeting authentication
+                    //authentication_option: 'signIn_D8cJuqWVQ623CI4Q8zQ60Q', // Use your custom authentication profile ID
+                    //authentication_domains: [mentor_email?.split('@')[1], mentee_email?.split('@')[1]], // Restrict to mentor and mentee domains
+                },
+            },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${zoomAccessToken}`,
+                },
+            }
+        );
+
+        return { ...response.data, hostKey: response.data.h323_password, meeting_id: response.data.id};
     } catch (error) {
-      console.error('Error creating Zoom meeting:', error);
-      throw error;
+        console.log("createZoomMeeting Error --> ", error);
+        throw error;
     }
-  };
+};
+
+export const endZoomMeeting = async (meetingId: string) => {
+  try {
+      const zoomAccessToken = await generateZoomAccessToken();
+      
+      await axios.put(
+          `https://api.zoom.us/v2/meetings/${meetingId}/status`,
+          {
+              action: 'end'
+          },
+          {
+              headers: {
+                  Authorization: `Bearer ${zoomAccessToken}`,
+                  'Content-Type': 'application/json'
+              }
+          }
+      );
+      
+      return true;
+  } catch (error) {
+      console.error('Error ending Zoom meeting:', error);
+      throw error;
+  }
+};
