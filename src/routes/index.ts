@@ -16,6 +16,7 @@ import { MessageRoutes } from '../app/modules/message/message.route';
 import { PlatformReviewRoutes } from '../app/modules/platformReview/platformReview.route';
 import { ScheduleRoutes } from '../app/modules/mentorSchedule/schedule.route';
 import { ContactRoutes } from '../app/modules/contact-us/contact.route';
+import { MentorDashboardRoutes } from '../app/modules/mentorDashboard/mentorDashboard.route.';
 const router = express.Router();
 
 router.use('/payment/webhook', express.raw({ type: 'application/json' }));
@@ -48,6 +49,10 @@ const apiRoutes = [
   {
     path: '/mentee',
     route: MenteeDashboardRoutes,
+  },
+  {
+    path: '/mentor',
+    route: MentorDashboardRoutes,
   },
   {
     path: '/task',

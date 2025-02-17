@@ -6,7 +6,7 @@ export type ISession = {
   scheduled_time: Date;
   session_type: string;
   topic: string;
-  duration: string;
+  duration: number;
   expected_outcome: string;
   fee: string;
   status: 'pending' | 'accepted' | 'cancelled' | 'completed';

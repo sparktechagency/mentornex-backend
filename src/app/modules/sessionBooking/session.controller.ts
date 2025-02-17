@@ -10,12 +10,9 @@ import stripe from '../../../config/stripe';
 import dotenv from 'dotenv';
 import path from 'path';
 import {
-  createZoomMeeting,
-  endZoomMeeting,
-  getZoomAuthUrl,
-  processZoomCallback,
+  createZoomMeeting
 } from '../../../helpers/zoomHelper';
-import schedule from 'node-schedule';
+
 dotenv.config({ path: path.join(process.cwd(), '.env') });
 
 const bookSession = catchAsync(async (req: Request, res: Response) => {
@@ -76,18 +73,21 @@ const handleWebhook = async (req: Request, res: Response) => {
 
           if (session.payment_status === 'paid') {
             try {
-              const mentorEmail = 'leonprofessional819@gmail.com';
+              const mentorEmail = 'khanrafsan25@gmail.com';
               const mentorName = sessionRecord.mentor_id.name;
 
-              const menteeEmail = sessionRecord.mentee_id.email;
+              const menteeEmail = 'targariyendaemon@gmail.com';
+              //const menteeEmail = sessionRecord.mentee_id.email;
               const menteeName = sessionRecord.mentor_id.name;
+
+              const startTime = new Date(sessionRecord.scheduled_time);
 
               const meetingTitle = `Mentoring Session with ${mentorName}`;
 
               const zoomMeetingLink = await createZoomMeeting(
                 meetingTitle,
-                new Date('2025-02-15T18:10:21.000+0600'),
-                parseInt(sessionRecord.duration),
+                startTime,
+                sessionRecord.duration,
                 mentorEmail,
                 menteeEmail
               );
@@ -100,20 +100,6 @@ const handleWebhook = async (req: Request, res: Response) => {
               console.log('Start URL: ', zoomMeetingLink.start_url);
               console.log('host key: ', zoomMeetingLink.hostKey);
 
-              const endTime = new Date(sessionRecord.scheduled_time);
-              endTime.setMinutes(
-                endTime.getMinutes() + parseInt(sessionRecord.duration)
-              );
-
-              schedule.scheduleJob(endTime, async () => {
-                try {
-                  await endZoomMeeting(zoomMeetingLink.meeting_id);
-                  sessionRecord.status = 'completed';
-                  await sessionRecord.save();
-                } catch (error) {
-                  console.error('Failed to end Zoom meeting:', error);
-                }
-              });
               await sessionRecord.save();
             } catch (error) {
               console.error('Error creating Zoom meeting:', error);

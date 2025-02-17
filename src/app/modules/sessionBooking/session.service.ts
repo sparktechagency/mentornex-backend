@@ -6,7 +6,6 @@ import { Session } from "./session.model";
 import stripe from "../../../config/stripe";
 import { User } from "../user/user.model";
 import { PricingPlan } from "../mentorPricingPlan/pricing-plan.model";
-import { createZoomMeeting } from "../../../helpers/zoomHelper";
 
 const bookSessionWithPayment = async (sessionData: any) => {
   try {
