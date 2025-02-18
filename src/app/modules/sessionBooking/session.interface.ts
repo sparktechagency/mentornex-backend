@@ -15,9 +15,9 @@ export type ISession = {
   payment_status: 'pending'| 'held'| 'released'| 'refunded' | 'cancelled';
   amount: number;
   platform_fee: number;
-  hostKey?:string;
-  zoom_meeting_id?: string;
-  zoom_meeting_link?: string;
+  meeting_id?: string;
+  host_token?: string;
+  participant_token?: string;
 };
 
 export type SessionModal = Model<ISession>;

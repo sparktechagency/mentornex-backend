@@ -62,15 +62,15 @@ const sessionSchema = new Schema<ISession, SessionModal>(
       type: Number,
       required: true,
     },
-    hostKey: { 
+    meeting_id: {
       type: String
     },
-    zoom_meeting_id: {
+    host_token: {
       type: String
-  },
-    zoom_meeting_link: {
-      type: String,
     },
+    participant_token: {
+      type: String
+    }
   },
   { timestamps: true }
 );

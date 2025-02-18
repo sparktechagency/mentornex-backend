@@ -10,7 +10,7 @@ import stripe from '../../../config/stripe';
 import dotenv from 'dotenv';
 import path from 'path';
 import {
-  createZoomMeeting
+  setupZoomVideoMeeting
 } from '../../../helpers/zoomHelper';
 
 dotenv.config({ path: path.join(process.cwd(), '.env') });
@@ -70,6 +70,7 @@ const handleWebhook = async (req: Request, res: Response) => {
             console.error('Mentee information not found');
             break;
           }
+          
 
           if (session.payment_status === 'paid') {
             try {
@@ -82,23 +83,18 @@ const handleWebhook = async (req: Request, res: Response) => {
 
               const startTime = new Date(sessionRecord.scheduled_time);
 
-              const meetingTitle = `Mentoring Session with ${mentorName}`;
-
-              const zoomMeetingLink = await createZoomMeeting(
-                meetingTitle,
-                startTime,
-                sessionRecord.duration,
+              //const meetingTitle = `Mentoring Session with ${mentorName}`;
+              const meetingTitle = `Mentoring Session`;
+              const videoMeeting = await setupZoomVideoMeeting(
                 mentorEmail,
-                menteeEmail
+                menteeEmail,
+                meetingTitle
               );
-              sessionRecord.zoom_meeting_id = zoomMeetingLink.meeting_id;
-              sessionRecord.stripe_payment_intent_id =
-                session.payment_intent as string;
+              sessionRecord.meeting_id = videoMeeting.sessionId;
+              sessionRecord.host_token = videoMeeting.hostToken;
+              sessionRecord.participant_token = videoMeeting.participantToken;
+              sessionRecord.stripe_payment_intent_id = session.payment_intent as string;
               sessionRecord.payment_status = 'held';
-              sessionRecord.hostKey = zoomMeetingLink.hostKey;
-              sessionRecord.zoom_meeting_link = zoomMeetingLink.join_url;
-              console.log('Start URL: ', zoomMeetingLink.start_url);
-              console.log('host key: ', zoomMeetingLink.hostKey);
 
               await sessionRecord.save();
             } catch (error) {

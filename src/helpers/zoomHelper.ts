@@ -1,193 +1,138 @@
 import axios from 'axios';
-import base64 from 'base-64';
+import jwt from 'jsonwebtoken';
 import config from '../config';
-import { User } from '../app/modules/user/user.model';
 
-interface ZoomTokenResponse {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
+interface CreateZoomSessionResponse {
+  sessionId: string;
+  hostToken: string;
+  participantToken: string;
+  sessionKey: string;
+  password?: string;
+  userId?: string;
 }
 
-interface ZoomUserTokens {
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: Date;
-}
-
-const zoomAccountId = config.zoom.account_id;
-const zoomClientId = config.zoom.client_id;
-const zoomClientSecret = config.zoom.client_secret;
-
-const getAuthHeaders = () => {
-  return {
-    Authorization: `Basic ${base64.encode(
-      `${zoomClientId}:${zoomClientSecret}`
-    )}`,
-    'Content-Type': 'application/json',
-  };
-};
-
-const generateZoomAccessToken = async () => {
+const generateVideoSDKToken = (sessionName: string, role: 0 | 1, userId: string) => {
   try {
-    const response = await axios.post(
-      `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${zoomAccountId}`,
-      {},
-      {
-        headers: getAuthHeaders(),
-      }
-    );
-
-    return response.data.access_token;
-  } catch (error) {
-    console.log('generateZoomAccessToken Error --> ', error);
-    throw error;
-  }
-};
-
-export const getZoomAuthUrl = (userId: string) => {
-  const redirectUri = `http://10.0.70.50:5000/api/v1/session/zoom/callback`;
-  return `https://zoom.us/oauth/authorize?response_type=code&client_id=${config.zoom.client_id}&redirect_uri=${redirectUri}&state=${userId}`;
-};
-
-export const processZoomCallback = async (code: string, userId: string) => {
-  try {
-    const redirectUri = `http://10.0.70.50:5000/api/v1/session/zoom/callback`;
-    const tokenResponse = await axios.post<ZoomTokenResponse>(
-      'https://zoom.us/oauth/token',
-      null,
-      {
-        params: {
-          grant_type: 'authorization_code',
-          code,
-          redirect_uri: redirectUri,
-        },
-        auth: {
-          username: config.zoom.client_id!,
-          password: config.zoom.client_secret!,
-        },
-      }
-    );
-
-    const expiresAt = new Date();
-    expiresAt.setSeconds(
-      expiresAt.getSeconds() + tokenResponse.data.expires_in
-    );
-
-    // Save tokens to user record
-    await User.findByIdAndUpdate(userId, {
-      zoom_tokens: {
-        access_token: tokenResponse.data.access_token,
-        refresh_token: tokenResponse.data.refresh_token,
-        expires_at: expiresAt,
-      },
-    });
-
-    return true;
-  } catch (error) {
-    console.error('Error handling Zoom callback:', error);
-    throw error;
-  }
-};
-
-export const refreshZoomToken = async (
-  userId: string,
-  refreshToken: string
-): Promise<ZoomUserTokens> => {
-  try {
-    const response = await axios.post<ZoomTokenResponse>(
-      'https://zoom.us/oauth/token',
-      null,
-      {
-        params: {
-          grant_type: 'refresh_token',
-          refresh_token: refreshToken,
-        },
-        auth: {
-          username: config.zoom.client_id!,
-          password: config.zoom.client_secret!,
-        },
-      }
-    );
-
-    const expiresAt = new Date();
-    expiresAt.setSeconds(expiresAt.getSeconds() + response.data.expires_in);
-
-    const tokens = {
-      accessToken: response.data.access_token,
-      refreshToken: response.data.refresh_token,
-      expiresAt,
-    };
-
-    // Update tokens in database
-    await User.findByIdAndUpdate(userId, {
-      zoom_tokens: {
-        access_token: tokens.accessToken,
-        refresh_token: tokens.refreshToken,
-        expires_at: tokens.expiresAt,
-      },
-    });
-
-    return tokens;
-  } catch (error) {
-    console.error('Error refreshing Zoom token:', error);
-    throw error;
-  }
-};
-
-export const createZoomMeeting = async (
-  topic: string,
-  startTime: Date,
-  duration: number,
-  mentor_email: string | undefined,
-  mentee_email: string | undefined
-) => {
-  try {
-    const zoomAccessToken = await generateZoomAccessToken();
-
-    if (!mentor_email || !mentee_email) {
-      throw new Error('Both mentor and mentee emails are required');
+    if (!config.videoSdk.sdkKey || !config.videoSdk.sdkSecret) {
+      throw new Error('Zoom Video SDK credentials are missing');
     }
 
+    const iat = Math.round(new Date().getTime() / 1000) - 30;
+    const exp = iat + 60 * 60 * 24; // 24 hours expiration
+
+    const oPayload = {
+      app_key: config.videoSdk.sdkKey,
+      role_type: role, // 0 for host, 1 for participant
+      session_key: sessionName,
+      user_identity: userId,
+      version: 1,
+      iat: iat,
+      exp: exp
+    };
+
+    // Create the JWT token
+    const token = jwt.sign(oPayload, config.videoSdk.sdkSecret, { algorithm: 'HS256' });
+
+    return token;
+  } catch (error) {
+    console.error('Error generating Zoom Video SDK token:', error);
+    throw new Error('Failed to generate Zoom Video SDK token');
+  }
+};
+
+const generateJWTToken = () => {
+  try {
+    if (!config.videoSdk.apiKey || !config.videoSdk.apiSecret) {
+      throw new Error('Zoom API credentials are missing');
+    }
+
+    const payload = {
+      iss: config.videoSdk.apiKey,
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 // 1 hour expiry
+    };
+
+    const token = jwt.sign(payload, config.videoSdk.apiSecret, {
+      algorithm: 'HS256'
+    });
+
+    return token;
+  } catch (error) {
+    console.error('Error generating Zoom JWT token:', error);
+    throw new Error('Failed to generate Zoom JWT token');
+  }
+};
+
+const createZoomSession = async (
+  sessionTopic: string,
+  hostEmail: string
+): Promise<CreateZoomSessionResponse> => {
+  try {
+    // Generate JWT token for API authorization
+    const jwtToken = generateJWTToken();
+    
+    // Create session using Zoom's Video SDK API
     const response = await axios.post(
-      'https://api.zoom.us/v2/users/me/meetings',
+      'https://api.zoom.us/v2/videosdk/sessions',
       {
-        topic: topic,
-        type: 2, // Scheduled meeting
-        start_time: startTime.toISOString(),
-        duration: duration,
+        session_name: sessionTopic,
         settings: {
-          host_video: true,
-          participant_video: true,
-          join_before_host: false,
-          mute_upon_entry: true,
-          waiting_room: true,
-          auto_recording: 'none',
-          duration: duration,
-          meeting_invitees: [{ email: mentor_email }, { email: mentee_email }],
-          close_registration: true,
-          enable_auto_terminate: true,
-          /*meeting_authentication: true,
-          authentication_option: 'signIn',
-          authentication_name: 'Verified Users',
-          only_authenticated_users: true,*/
-        },
+          waiting_room: false,
+          join_before_host: true
+        }
       },
       {
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${zoomAccessToken}`,
-        },
+          'Authorization': `Bearer ${jwtToken}`,
+          'Content-Type': 'application/json'
+        }
       }
     );
 
+    if (!response.data || !response.data.session_id) {
+      throw new Error('Invalid response from Zoom Video SDK API');
+    }
+
+    // Generate tokens for host and participants
+    const sessionKey = response.data.session_id;
+    const hostToken = generateVideoSDKToken(sessionKey, 0, hostEmail);
+    
     return {
-      ...response.data,
-      hostKey: response.data.h323_password,
-      meeting_id: response.data.id,
+      sessionId: response.data.session_id,
+      sessionKey: sessionKey,
+      password: response.data.passcode,
+      userId: hostEmail,
+      hostToken: hostToken,
+      participantToken: '', // This will be generated when needed with participant info
     };
   } catch (error) {
-    console.log('createZoomMeeting Error --> ', error);
+    console.error('createZoomSession Error -->', error);
+    throw error;
+  }
+};
+
+export const setupZoomVideoMeeting = async (
+  mentorEmail: string,
+  menteeEmail: string,
+  sessionTopic: string
+): Promise<{ sessionId: string; hostToken: string; participantToken: string }> => {
+  try {
+    // Create Zoom session with host (mentor) info
+    const session = await createZoomSession(sessionTopic, mentorEmail);
+    
+    if (!session || !session.sessionId) {
+      throw new Error('Failed to create Zoom session');
+    }
+    
+    // Generate participant token for mentee
+    const participantToken = generateVideoSDKToken(session.sessionKey, 1, menteeEmail);
+    
+    return {
+      sessionId: session.sessionId,
+      hostToken: session.hostToken,
+      participantToken: participantToken,
+    };
+  } catch (error) {
+    console.error('setupZoomVideoMeeting Error -->', error);
     throw error;
   }
 };
