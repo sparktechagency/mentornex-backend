@@ -65,10 +65,7 @@ const sessionSchema = new Schema<ISession, SessionModal>(
     meeting_id: {
       type: String
     },
-    host_token: {
-      type: String
-    },
-    participant_token: {
+    meeting_url: {
       type: String
     }
   },

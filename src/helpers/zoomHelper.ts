@@ -4,14 +4,13 @@ import config from '../config';
 
 interface CreateZoomSessionResponse {
   sessionId: string;
-  hostToken: string;
-  participantToken: string;
   sessionKey: string;
   password?: string;
   userId?: string;
+  meeting_url: string;
 }
 
-const generateVideoSDKToken = (sessionName: string, role: 0 | 1, userId: string) => {
+export const generateVideoSDKToken = (sessionName: string, role: 0 | 1, userId: string) => {
   try {
     if (!config.videoSdk.sdkKey || !config.videoSdk.sdkSecret) {
       throw new Error('Zoom Video SDK credentials are missing');
@@ -94,15 +93,14 @@ const createZoomSession = async (
 
     // Generate tokens for host and participants
     const sessionKey = response.data.session_id;
-    const hostToken = generateVideoSDKToken(sessionKey, 0, hostEmail);
+    const meetingLink = `${config.frontend_url}?session=${response.data.session_id}`;
     
     return {
       sessionId: response.data.session_id,
       sessionKey: sessionKey,
-      password: response.data.passcode,
+      password: response.data.session_password,
       userId: hostEmail,
-      hostToken: hostToken,
-      participantToken: '', // This will be generated when needed with participant info
+      meeting_url: meetingLink
     };
   } catch (error) {
     console.error('createZoomSession Error -->', error);
@@ -114,7 +112,7 @@ export const setupZoomVideoMeeting = async (
   mentorEmail: string,
   menteeEmail: string,
   sessionTopic: string
-): Promise<{ sessionId: string; hostToken: string; participantToken: string }> => {
+): Promise<{ sessionId: string; meeting_url: string }> => {
   try {
     // Create Zoom session with host (mentor) info
     const session = await createZoomSession(sessionTopic, mentorEmail);
@@ -123,13 +121,9 @@ export const setupZoomVideoMeeting = async (
       throw new Error('Failed to create Zoom session');
     }
     
-    // Generate participant token for mentee
-    const participantToken = generateVideoSDKToken(session.sessionKey, 1, menteeEmail);
-    
     return {
       sessionId: session.sessionId,
-      hostToken: session.hostToken,
-      participantToken: participantToken,
+      meeting_url: session.meeting_url
     };
   } catch (error) {
     console.error('setupZoomVideoMeeting Error -->', error);

@@ -10,8 +10,10 @@ import stripe from '../../../config/stripe';
 import dotenv from 'dotenv';
 import path from 'path';
 import {
+  generateVideoSDKToken,
   setupZoomVideoMeeting
 } from '../../../helpers/zoomHelper';
+import config from '../../../config';
 
 dotenv.config({ path: path.join(process.cwd(), '.env') });
 
@@ -28,6 +30,56 @@ const bookSession = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+
+const getMeetingJoinInfo = async (req: Request, res: Response) => {
+  try {
+    const meeting_id = req.params.meeting_id;
+    const userId = req.user.id;
+    
+    // Fetch session from database
+    const session = await Session.findOne({meeting_id})
+      .populate('mentor_id', 'email')
+      .populate('mentee_id', 'email');
+    
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Session not found' });
+    }
+    
+    // Verify this user is authorized to join this meeting
+    const isAuthorized = 
+      userId === (session.mentor_id as any)._id.toString() || 
+      userId === (session.mentee_id as any)._id.toString();
+      
+    if (!isAuthorized) {
+      return res.status(403).json({ success: false, message: 'Not authorized to join this meeting' });
+    }
+    
+    // Determine user role
+    const isHost = userId === (session.mentor_id as any)._id.toString();
+    const userEmail = isHost ? (session.mentor_id as any).email : (session.mentee_id as any).email;
+    
+    const token = generateVideoSDKToken(
+      session.topic,
+      isHost ? 0 : 1,
+      userEmail
+    );
+    
+    const joinUrl = `${config.frontend_url}/video-meeting?session=${session.meeting_id}&token=${token}&role=${isHost ? 'host' : 'participant'}`;
+    
+    return res.json({
+      success: true,
+      data: {
+        joinUrl,
+        meetingId: session.meeting_id,
+        token,
+        role: isHost ? 'host' : 'participant'
+      }
+    });
+  } catch (error) {
+    console.error('Error generating meeting join information:', error);
+    return res.status(500).json({ success: false, message: 'Failed to generate meeting join information' });
+  }
+};
 const handleWebhook = async (req: Request, res: Response) => {
   const signature = req.headers['stripe-signature'] as string;
 
@@ -84,17 +136,16 @@ const handleWebhook = async (req: Request, res: Response) => {
               const startTime = new Date(sessionRecord.scheduled_time);
 
               //const meetingTitle = `Mentoring Session with ${mentorName}`;
-              const meetingTitle = `Mentoring Session`;
+              const meetingTitle = `Mentoring Session mentee`;
               const videoMeeting = await setupZoomVideoMeeting(
                 mentorEmail,
                 menteeEmail,
                 meetingTitle
               );
               sessionRecord.meeting_id = videoMeeting.sessionId;
-              sessionRecord.host_token = videoMeeting.hostToken;
-              sessionRecord.participant_token = videoMeeting.participantToken;
               sessionRecord.stripe_payment_intent_id = session.payment_intent as string;
               sessionRecord.payment_status = 'held';
+              sessionRecord.meeting_url = videoMeeting.meeting_url;
 
               await sessionRecord.save();
             } catch (error) {
@@ -245,6 +296,7 @@ const MentorUpdateSessionStatus = catchAsync(
 
 export const SessionController = {
   bookSession,
+  getMeetingJoinInfo,
   MentorRequestedSession,
   MentorAccepetedSession,
   MentorCompletedSession,

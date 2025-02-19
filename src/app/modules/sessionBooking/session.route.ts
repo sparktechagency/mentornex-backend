@@ -13,12 +13,15 @@ router
     //validateRequest(SessionValidation.bookSessionZodSchema),
     SessionController.bookSession
   );
+  
 
-  router.post(
-    '/webhook',
-    express.raw({ type: 'application/json' }), // Important: Keep raw body for signature verification
-    SessionController.handleWebhook
+  router.route('/join-session/:meeting_id').get(
+    auth(USER_ROLES.MENTOR,USER_ROLES.MENTEE),
+    SessionController.getMeetingJoinInfo
   );
+  
+
+  
 
 router.route('/mentee/upcoming-sessions').get(
   auth(USER_ROLES.MENTEE),

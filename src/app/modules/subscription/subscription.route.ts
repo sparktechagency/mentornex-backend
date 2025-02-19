@@ -11,10 +11,4 @@ router.post(
   SubscriptionController.createCheckoutSessions
 );
 
-router.post(
-  '/webhook',
-  express.raw({ type: 'application/json' }), // This line is crucial
-  SubscriptionController.handleWebhook
-);
-
 export const SubscriptionRoutes = router;

@@ -16,8 +16,9 @@ export type ISession = {
   amount: number;
   platform_fee: number;
   meeting_id?: string;
-  host_token?: string;
-  participant_token?: string;
+  meeting_url?: string;
+  //host_token?: string;
+  //participant_token?: string;
 };
 
 export type SessionModal = Model<ISession>;
