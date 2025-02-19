@@ -36,7 +36,30 @@ const totalCount = catchAsync(
       data: balance,
     });
   });
+
+  /*const sessionCompletedAsSubscripstion = catchAsync(async (req: Request, res: Response) => {
+    const mentor_id = req.user.id;
+    const results = await MentorDashboardService.sessionCompletedAsSubscripstionFromDB(mentor_id);
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Received total active mentees successfully',
+      data: results,
+    });
+  });*/
+  const sessionCompletedAsPayPerSession = catchAsync(async (req: Request, res: Response) => {
+    const mentor_id = req.user.id;
+    const results = await MentorDashboardService.getCompletedPayPerSessionsByMonth(mentor_id);
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Received Monthly completed sessions successfully',
+      data: results,
+    });
+  });
+
 export const MentorDashboardController = {
     totalCount,
-    getMentorBalance
+    getMentorBalance,
+    sessionCompletedAsPayPerSession
 }

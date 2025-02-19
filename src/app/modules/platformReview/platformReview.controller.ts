@@ -21,6 +21,15 @@ const addReviewbyMentee = catchAsync(
         const mentee_id = req.user.id;
         const platformReview = {mentee_id,  ...req.body};
         const result = await PlatformReview.addPlatformReviewToDB(platformReview);
+
+        if(!result){
+          sendResponse(res, {
+            success: false,
+            statusCode: StatusCodes.NOT_FOUND,
+            message: 'Failed to add review',
+            data: null,
+          });
+        }
     
         sendResponse(res, {
           success: true,
@@ -35,6 +44,15 @@ const addReviewbyMentee = catchAsync(
   const getAllReviews = catchAsync(
     async (req: Request, res: Response) => {
       const result = await PlatformReview.getAllPlatformReviewFromDB();
+
+      if(!result){
+        sendResponse(res, {
+          success: false,
+          statusCode: StatusCodes.NOT_FOUND,
+          message: 'Failed to retrieve reviews',
+          data: null,
+        });
+      }
       sendResponse(res, {
         success: true,
         statusCode: StatusCodes.OK,

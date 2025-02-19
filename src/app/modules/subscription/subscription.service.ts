@@ -18,32 +18,37 @@ export const SubscriptionService = {
     try {
       // Check if subscription already exists
       const existingSubscription = await Subscription.findOne({
-        stripe_subscription_id: params.stripeSubscriptionId
+        stripe_subscription_id: params.stripeSubscriptionId,
       });
-  
+
       if (existingSubscription) {
-        console.log('Subscription already exists:', params.stripeSubscriptionId);
+        console.log(
+          'Subscription already exists:',
+          params.stripeSubscriptionId
+        );
         return existingSubscription;
       }
-  
+
       // Get pricing plan details
-      const pricingPlan = await PricingPlan.findOne({ 
+      const pricingPlan = await PricingPlan.findOne({
         mentor_id: params.mentorId,
-        'subscriptions.stripe_price_id': params.stripePriceId 
+        'subscriptions.stripe_price_id': params.stripePriceId,
       });
-  
+
       if (!pricingPlan?.subscriptions) {
         throw new ApiError(StatusCodes.NOT_FOUND, 'Pricing plan not found');
       }
-  
-      const subscriptionPlan = pricingPlan.subscriptions.find(
-        sub => sub.stripe_price_id === params.stripePriceId
-      );
-  
+
+      const subscriptionPlan =
+        pricingPlan.subscriptions?.stripe_price_id === params.stripePriceId? pricingPlan.subscriptions : null;
+
       if (!subscriptionPlan) {
-        throw new ApiError(StatusCodes.NOT_FOUND, 'Subscription plan not found');
+        throw new ApiError(
+          StatusCodes.NOT_FOUND,
+          'Subscription plan not found'
+        );
       }
-  
+
       // Create new subscription
       const subscription = await Subscription.create({
         mentee_id: params.menteeId,
@@ -56,9 +61,9 @@ export const SubscriptionService = {
         amount: subscriptionPlan.amount,
         sessions_remaining: subscriptionPlan.total_sessions,
         sessions_per_month: subscriptionPlan.total_sessions,
-        status: 'active'
+        status: 'active',
       });
-  
+
       console.log('Created new subscription:', subscription._id);
       return subscription;
     } catch (error) {
@@ -74,12 +79,14 @@ export const SubscriptionService = {
     try {
       const subscription = await Subscription.findOneAndUpdate(
         { stripe_subscription_id: stripeSubscriptionId },
-        { 
+        {
           status,
-          ...(status === 'active' ? {
-            start_date: new Date(),
-            end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          } : {})
+          ...(status === 'active'
+            ? {
+                start_date: new Date(),
+                end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+              }
+            : {}),
         },
         { new: true }
       );
@@ -98,4 +105,5 @@ export const SubscriptionService = {
       console.error('Error updating subscription status:', error);
       throw error;
     }
-  }};
+  },
+};

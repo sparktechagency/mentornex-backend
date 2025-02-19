@@ -18,6 +18,15 @@ const addNote = catchAsync(
 
       const note = {mentor_id, file: files, ...req.body};
       const result = await NoteService.addNoteToDB(note);
+
+      if(!result){
+        sendResponse(res, {
+          success: false,
+          statusCode: StatusCodes.BAD_REQUEST,
+          message: 'Note not added',
+          data: result,
+        });
+      }
   
       sendResponse(res, {
         success: true,
@@ -33,6 +42,15 @@ const addNote = catchAsync(
     async (req: Request, res: Response, next: NextFunction) => {
       const mentor_id = req.user.id;
       const result = await NoteService.getAllNotesFromDB(mentor_id);
+
+      if(!result){
+        sendResponse(res, {
+          success: false,
+          statusCode: StatusCodes.BAD_REQUEST,
+          message: 'Notes not found',
+          data: result,
+        });
+      }
 
       sendResponse(res, {
         success: true,

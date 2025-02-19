@@ -21,7 +21,8 @@ export type PayPerSession = {
 export type IPricingPlan = {
   mentor_id: string;
   stripe_account_id: string;
-  subscriptions?: Subscription[];
+  //subscriptions?: Subscription[];
+  subscriptions?: Subscription;
   pay_per_sessions?: PayPerSession[];
 };
 

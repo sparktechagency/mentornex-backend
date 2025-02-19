@@ -38,9 +38,7 @@ const createSubscriptionPlan = async (planData: {
     );
   }
 
-  if (existingPlan?.subscriptions?.some(
-    sub => sub.title === planData.subscriptions.title
-  )) {
+  if (existingPlan.subscriptions?.title === planData.subscriptions.title) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST, 
       `Subscription plan with title "${planData.subscriptions.title}" already exists`

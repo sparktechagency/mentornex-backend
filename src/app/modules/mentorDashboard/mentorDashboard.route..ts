@@ -5,14 +5,19 @@ import { MentorDashboardController } from './mentorDashboard.controller';
 
 const router = express.Router();
 
-router.route('/total-count').get(
-  auth(USER_ROLES.MENTOR),
-  MentorDashboardController.totalCount
-);
+router
+  .route('/total-count')
+  .get(auth(USER_ROLES.MENTOR), MentorDashboardController.totalCount);
 
-router.route('/mentor/balance').get(
+router
+  .route('/mentor/balance')
+  .get(auth(USER_ROLES.MENTOR), MentorDashboardController.getMentorBalance);
+
+router
+  .route('/completed-pay-per-sessions')
+  .get(
     auth(USER_ROLES.MENTOR),
-    MentorDashboardController.getMentorBalance
+    MentorDashboardController.sessionCompletedAsPayPerSession
   );
 
 export const MentorDashboardRoutes = router;

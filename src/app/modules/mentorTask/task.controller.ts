@@ -9,6 +9,14 @@ const addTask = catchAsync(
       const mentor_id = req.user.id;
       const task = {mentor_id, ...req.body};
       const result = await TaskService.addTaskToDB(task);
+
+      if(!result) {
+        sendResponse(res, {
+          success: false,
+          statusCode: StatusCodes.NOT_FOUND,
+          message: 'Task not added',
+        });
+      }
   
       sendResponse(res, {
         success: true,
@@ -25,10 +33,18 @@ const getAllTask = catchAsync(
     const mentorId = req.user.id;
       const result = await TaskService.getAllTaskFromDB(mentorId);
 
+      if(!result) {
+        sendResponse(res, {
+          success: false,
+          statusCode: StatusCodes.NOT_FOUND,
+          message: 'Tasks not found',
+        });
+      }
+
       sendResponse(res, {
         success: true,
         statusCode: StatusCodes.OK,
-        message: 'Task fetched successfully',
+        message: 'Tasks fetched successfully',
         data: result,
       });
     }
@@ -39,6 +55,14 @@ const getTaskByMentee = catchAsync(
     const menteeId = req.user.id;
     const mentorId = req.params.mentor_id;
     const result = await TaskService.getTaskByMenteeFromDB(mentorId, menteeId);
+
+    if(!result) {
+      sendResponse(res, {
+        success: false,
+        statusCode: StatusCodes.NOT_FOUND,
+        message: 'Task not found',
+      });
+    }
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,

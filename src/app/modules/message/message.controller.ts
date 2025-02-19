@@ -24,6 +24,14 @@ const sendMessage = catchAsync(
       isMessageRequest: true,
     });
 
+    if(!message) {
+      sendResponse<IMessage>(res, {
+        statusCode: StatusCodes.BAD_REQUEST,
+        success: false,
+        message: 'Message not sent',
+      });
+    }
+
     sendResponse<IMessage>(res, {
       statusCode: StatusCodes.OK,
       success: true,
@@ -37,6 +45,14 @@ const getRegularConversations = catchAsync(
     async (req: Request, res: Response) => {
       const userId = req.user.id;
       const conversations = await MessageService.getRegularConversations(userId);
+
+      if (!conversations) {
+        sendResponse<IMessage[]>(res, {
+          statusCode: StatusCodes.NOT_FOUND,
+          success: false,
+          message: 'No regular conversations found',
+        });
+      }
   
       sendResponse<IMessage[]>(res, {
         statusCode: StatusCodes.OK,
@@ -57,6 +73,14 @@ const getOneRegularMessage= catchAsync(
       receiver_id
     );
 
+    if(!messages) {
+      sendResponse<IMessage[]>(res, {
+        statusCode: StatusCodes.NOT_FOUND,
+        success: false,
+        message: 'No message found',
+      });
+    }
+
     sendResponse<IMessage[]>(res, {
       statusCode: StatusCodes.OK,
       success: true,
@@ -72,6 +96,14 @@ const getSenderMessages = catchAsync(
       const senderId = req.params.sender_id;  // Sender's ID from URL parameter
   
       const messages = await MessageService.getSenderMessagesFromDB(userId, senderId);
+
+      if (!messages) {
+        sendResponse<IMessage[]>(res, {
+          statusCode: StatusCodes.NOT_FOUND,
+          success: false,
+          message: 'Sender messages retrieval failed',
+        });
+      }
   
       sendResponse<IMessage[]>(res, {
         statusCode: StatusCodes.OK,
@@ -86,6 +118,14 @@ const getMessageRequests = catchAsync(
     async (req: Request, res: Response) => {
       const userId = req.user.id;
       const requests = await MessageService.getMessageRequests(userId);
+
+      if (!requests) {
+        sendResponse<IMessage[]>(res, {
+          statusCode: StatusCodes.NOT_FOUND,
+          success: false,
+          message: 'Message requests retrieval failed',
+        });
+      }
   
       sendResponse<IMessage[]>(res, {
         statusCode: StatusCodes.OK,

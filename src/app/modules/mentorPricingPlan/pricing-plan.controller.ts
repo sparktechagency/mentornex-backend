@@ -12,9 +12,25 @@ const setupStripeAccount = catchAsync(
     
     const result = await PricingPlanService.setupMentorStripeAccount(mentor_id, email);
 
-    await User.findByIdAndUpdate(mentor_id, {
+    if(!result) {
+      sendResponse(res, {
+        success: false,
+        statusCode: StatusCodes.BAD_REQUEST,
+        message: 'Stripe account setup failed',
+      });
+    }
+
+    const updateAccountID = await User.findByIdAndUpdate(mentor_id, {
       stripe_account_id: result.accountId
     });
+
+    if(!updateAccountID) {
+      sendResponse(res, {
+        success: false,
+        statusCode: StatusCodes.BAD_REQUEST,
+        message: 'Could not update account ID',
+      });
+    }
 
     sendResponse(res, {
       success: true,
@@ -34,6 +50,14 @@ const createSubscriptionPlan = catchAsync(
     };
     const result = await PricingPlanService.createSubscriptionPlan(planData);
 
+    if(!result) {
+      sendResponse(res, {
+        success: false,
+        statusCode: StatusCodes.BAD_REQUEST,
+        message: 'Subscription plan creation failed',
+      });
+    }
+
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.CREATED,
@@ -52,6 +76,14 @@ const createPayPerSessionPlan = catchAsync(
     };
     const result = await PricingPlanService.createPayPerSessionPlan(planData);
 
+    if(!result) {
+      sendResponse(res, {
+        success: false,
+        statusCode: StatusCodes.BAD_REQUEST,
+        message: 'Pay per session plan creation failed',
+      });
+    }
+
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.CREATED,
@@ -65,6 +97,14 @@ const getMentorPricingPlan = catchAsync(
   async (req: Request, res: Response) => {
     const mentor_id = req.params.mentorId;
     const result = await PricingPlanService.getMentorPricingPlan(mentor_id);
+
+    if(!result) {
+      sendResponse(res, {
+        success: false,
+        statusCode: StatusCodes.BAD_REQUEST,
+        message: 'Pricing plan retrieval failed',
+      });
+    }
 
     sendResponse(res, {
       success: true,

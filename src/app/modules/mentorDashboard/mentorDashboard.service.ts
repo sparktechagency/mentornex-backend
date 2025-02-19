@@ -80,10 +80,44 @@ const getActiveMenteeCountService = async (): Promise<number> => {
       throw error;
     }
   };
-
+  const getCompletedPayPerSessionsByMonth = async (mentor_id: string) => {
+    try {
+      const results = await Session.aggregate([
+        {
+          $match: {
+            mentor_id: mentor_id,
+            status: 'pending',
+          },
+        },
+        {
+          $project: {
+            month: { $dateToString: { format: "%B", date: { $toDate: "$scheduled_time" } } },
+          },
+        },
+        {
+          $group: {
+            _id: "$month",
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $sort: { _id: 1 },
+        },
+      ]);
+      
+      return results.map(item => ({ month: item._id, count: item.count }));
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Error fetching completed sessions by month: ${error.message}`);
+      } else {
+        throw new Error('Error fetching completed sessions by month: Unknown error');
+      }
+    }
+  };  
 
 export const MentorDashboardService = {
     getActiveMenteeCountService,
     getTotalSessionCompleted,
-    getMentorBalance
+    getMentorBalance,
+    getCompletedPayPerSessionsByMonth
 }

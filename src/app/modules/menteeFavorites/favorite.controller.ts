@@ -36,6 +36,10 @@ const getFavoriteMentorsController = catchAsync(
   ) => {
       const menteeId = req.user.id;
       const mentors = await FavoriteService.getFavoriteMentors(menteeId);
+
+      if(!mentors){
+        throw new ApiError(StatusCodes.NOT_FOUND, 'Favorite Mentors not found');
+      }
   
       sendResponse(res, {
         success: true,

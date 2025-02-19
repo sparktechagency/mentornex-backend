@@ -31,7 +31,7 @@ const pricingPlanSchema = new Schema<IPricingPlan, PricingPlanModal>(
       type: String,
       required: true,
     },
-    subscriptions: [subscriptionSchema],
+    subscriptions: subscriptionSchema,
     pay_per_sessions: [payPerSessionSchema],
   },
   {

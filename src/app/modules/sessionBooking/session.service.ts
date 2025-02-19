@@ -35,9 +35,9 @@ const bookSessionWithPayment = async (sessionData: any) => {
 
     // Find the specific pricing option
     const priceOption = [
-      ...(pricingPlan.subscriptions || []),
+      (pricingPlan.subscriptions),
       ...(pricingPlan.pay_per_sessions || [])
-    ].find(option => option.stripe_price_id === sessionData.stripe_price_id);
+    ].find(option => option?.stripe_price_id === sessionData.stripe_price_id);
 
     if (!priceOption) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Price option not found');

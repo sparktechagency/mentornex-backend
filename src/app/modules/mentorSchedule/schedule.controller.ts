@@ -11,6 +11,16 @@ const createSchedule = catchAsync(
     
     const result = await ScheduleService.createScheduleInDB(scheduleData);
 
+    if(!result){
+      sendResponse(res, {
+        success: false,
+        statusCode: StatusCodes.BAD_REQUEST,
+        message: 'Schedule creation failed',
+        data: null,
+      });
+      return;
+    }
+
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
@@ -24,6 +34,16 @@ const getScheduleByMentor = catchAsync(
   async (req: Request, res: Response) => {
     const mentor_id = req.user.id;
     const result = await ScheduleService.getScheduleFromDB(mentor_id);
+
+    if(!result){
+      sendResponse(res, {
+        success: false,
+        statusCode: StatusCodes.BAD_REQUEST,
+        message: 'Schedule retrieval failed',
+        data: null,
+      });
+      return;
+    }
 
     sendResponse(res, {
       success: true,
@@ -40,6 +60,16 @@ const getScheduleByMentee = catchAsync(
     const mentor_id = req.params.mentor_id;
     const result = await ScheduleService.getScheduleFromDB(mentor_id);
 
+    if(!result){
+      sendResponse(res, {
+        success: false,
+        statusCode: StatusCodes.BAD_REQUEST,
+        message: 'Schedule retrieval failed',
+        data: null,
+      });
+      return;
+    }
+
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
@@ -53,6 +83,16 @@ const updateSchedule = catchAsync(
   async (req: Request, res: Response) => {
     const mentor_id = req.user.id;
     const result = await ScheduleService.updateScheduleInDB(mentor_id, req.body);
+
+    if(!result){
+      sendResponse(res, {
+        success: false,
+        statusCode: StatusCodes.BAD_REQUEST,
+        message: 'Schedule update failed',
+        data: null,
+      });
+      return;
+    }
 
     sendResponse(res, {
       success: true,
