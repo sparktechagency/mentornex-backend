@@ -132,19 +132,28 @@ const completeSession = async (sessionId: string) => {
     };
   };
   
-const getMenteeCompletedSessions = async (mentee_id: string) => {
+const getMenteeCompletedSessions = async (mentee_id: string, paginationOptions: any) => {
+  const { skip, limit, sortBy, sortOrder } = paginationOptions;
     const sessions = await Session.find({ mentee_id, status: { $in: ['completed', 'rejected'] } })
+    
       .populate({
         path: 'mentee_id',
         select: 'name',
       })
+      .populate({
+        path: 'mentee_id',
+        select: 'name',
+      })
+      .sort({ [sortBy]: sortOrder }) // Sort the sessions by the given sort order
+      .skip(skip) // Skip to the right page
+      .limit(limit) // Limit to the number of sessions per page
       .exec();
   
     if (!sessions || sessions.length === 0) {
       throw new ApiError(StatusCodes.NOT_FOUND, 'No completed sessions found');
     }
   
-    return sessions;
+    return {sessions, currentPage: paginationOptions.page};
   };
 
 const getMentorPendingSessions = async (mentor_id: string) => {

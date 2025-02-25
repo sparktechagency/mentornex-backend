@@ -5,6 +5,7 @@ export type ITask = {
     mentee_id: string;
     title: string;
     description: string;
+    file: string;
     status: 'incomplete' | 'complete';
     assigned_date: Date;
     deadline: Date;

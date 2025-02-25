@@ -136,7 +136,7 @@ const handleWebhook = async (req: Request, res: Response) => {
               const startTime = new Date(sessionRecord.scheduled_time);
 
               //const meetingTitle = `Mentoring Session with ${mentorName}`;
-              const meetingTitle = `Mentoring Session mentee`;
+              const meetingTitle = `Mentoring Session mentee session`;
               const videoMeeting = await setupZoomVideoMeeting(
                 mentorEmail,
                 menteeEmail,
@@ -224,12 +224,25 @@ const MenteeUpcomingSession = catchAsync(
 const MenteeCompletedSession = catchAsync(
   async (req: Request, res: Response) => {
     const mentee_id = req.user.id;
-    const sessions = await SessionService.getMenteeCompletedSessions(mentee_id);
+    const { page = 1, limit = 10 } = req.query;
+
+    // Calculate pagination options using the helper
+    const paginationOptions = paginationHelper.calculatePagination({
+      page: Number(page),
+      limit: Number(limit),
+    });
+    const sessions = await SessionService.getMenteeCompletedSessions(mentee_id,paginationOptions);
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
       message: 'Completed sessions retrieved successfully',
-      data: sessions,
+      data: {
+        sessions: sessions.sessions,
+        pagination: {
+          currentPage: sessions.currentPage,
+          limit: paginationOptions.limit,
+        },
+      },
     });
   }
 );

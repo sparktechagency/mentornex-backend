@@ -2,12 +2,15 @@ import express from 'express';
 import { USER_ROLES } from '../../../enums/user';
 import auth from '../../middlewares/auth';
 import { ReviewController } from './review.controller';
+import validateRequest from '../../middlewares/validateRequest';
+import { ReviewValidation } from './review.validation';
 
 
 const router = express.Router();
 
 router.route('/review/add/:mentor_id').post(
   auth(USER_ROLES.MENTEE),
+  validateRequest(ReviewValidation.addReviewSchema),
   ReviewController.addReviewMentorbyMentee
 );
 
@@ -18,6 +21,7 @@ router.route('/reviews').get(
 
 router.route('/review/delete').delete(
   auth(USER_ROLES.MENTEE),
+  validateRequest(ReviewValidation.deleteReviewSchema),
   ReviewController.deleteReviewByMentee
 );
 

@@ -20,6 +20,9 @@ const TaskSchema = new Schema<ITask, TaskModal>(
         description: {
             type: String,
         },
+        file: {
+            type: String,
+        },
         status: {
             type: String,
             enum: ['incomplete', 'complete'],
