@@ -3,24 +3,77 @@ import ApiError from "../../../errors/ApiError";
 import { Session } from "../sessionBooking/session.model";
 import { User } from "../user/user.model";
 import stripe from "../../../config/stripe";
+import { Subscription } from "../subscription/subscription.model";
+import { IPaginationOptions } from "../../../types/pagination";
+import { paginationHelper } from "../../../helpers/paginationHelper";
 
-
-
-const getActiveMenteeCountService = async (): Promise<number> => {
-    const result = await User.aggregate([
-      {
-        $match: {
-          role: 'MENTEE',
-          status: 'active',
-        },
-      },
-      {
-        $count: 'totalActiveMentees',
-      },
-    ]);
-  
-    return result[0]?.totalActiveMentees || 0;
+const getActiveMenteeService = async (
+  mentor_id: string,
+  paginationOptions: IPaginationOptions = {}
+): Promise<{
+  count: number;
+  mentees: any[];
+  totalMentees: number;
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
   };
+}> => {
+  try {
+    // Calculate pagination parameters
+    const { page, limit, skip, sortBy, sortOrder } = paginationHelper.calculatePagination(paginationOptions);
+
+    // Step 1: Find all subscriptions for this mentor
+    const subscriptions = await Subscription.find({
+      mentor_id: mentor_id,
+      status: 'active' // Only consider active subscriptions
+    });
+    
+    // Step 2: Extract all mentee IDs from these subscriptions
+    const menteeIds = subscriptions.map(sub => sub.mentee_id);
+    
+    // Step 3: Find total active mentees count
+    const total = await User.countDocuments({
+      _id: { $in: menteeIds },
+      role: 'MENTEE',
+      status: 'active'
+    });
+    
+    // Step 4: Find active mentees with pagination
+    const activeMentees = await User.find({
+      _id: { $in: menteeIds },
+      role: 'MENTEE',
+      status: 'active'
+    })
+    .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
+    .skip(skip)
+    .limit(limit);
+    
+    // Calculate total pages
+    const totalPages = Math.ceil(total / limit);
+    
+    // Step 5: Return the count, list, and pagination metadata
+    return {
+      count: total,
+      mentees: activeMentees,
+      totalMentees: activeMentees.length,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages
+      }
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Error fetching active mentees: ${error.message}`);
+    } else {
+      throw new Error('Error fetching active mentees: Unknown error');
+    }
+  }
+};
 
   const getTotalSessionCompleted = async (mentor_id: string): Promise<number> => {
     const result = await Session.aggregate([
@@ -116,7 +169,7 @@ const getActiveMenteeCountService = async (): Promise<number> => {
   };  
 
 export const MentorDashboardService = {
-    getActiveMenteeCountService,
+    getActiveMenteeService,
     getTotalSessionCompleted,
     getMentorBalance,
     getCompletedPayPerSessionsByMonth

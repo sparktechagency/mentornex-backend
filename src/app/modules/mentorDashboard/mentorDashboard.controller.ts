@@ -3,15 +3,22 @@ import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import { StatusCodes } from "http-status-codes";
 import { MentorDashboardService } from "./mentorDashboard.service";
+import { IPaginationOptions } from "../../../types/pagination";
 
 
 
 const totalCount = catchAsync(
     async (req: Request, res: Response) => {
     const mentor_id = req.user.id;
+    const paginationOptions: IPaginationOptions = {
+      page: Number(req.query.page || 1),
+      limit: Number(req.query.limit || 10),
+      sortBy: req.query.sortBy?.toString(),
+      sortOrder: req.query.sortOrder?.toString() as 'asc' | 'desc'
+    };
 
-    const results = Promise.all([
-      MentorDashboardService.getActiveMenteeCountService(),
+    const results = await Promise.all([
+      MentorDashboardService.getActiveMenteeService(mentor_id,paginationOptions),
       MentorDashboardService.getTotalSessionCompleted(mentor_id),
       //MentorDashboardService.getMentorBalance(mentor_id)
     ])
@@ -20,7 +27,13 @@ const totalCount = catchAsync(
         success: true,
         statusCode: StatusCodes.OK,
         message: 'Received total active mentees successfully',
-        data: results,
+        data: {
+          activeMentees: results[0].mentees,
+          totalMenteeCount: results[0].totalMentees,
+          count: results[0].count,
+          meta: results[0].meta,
+          completedSessions: results[1]
+        },
       });
     }
   );

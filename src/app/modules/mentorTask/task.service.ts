@@ -35,18 +35,18 @@ const getAllTaskFromDB = async (mentorId: string): Promise<ITask[]> => {
 };
 
 const getTaskByMenteeFromDB = async (
-  mentorId: string,
+  taskId: string,
   menteeId: string
 ): Promise<ITask[]> => {
   const result = await Task.find({
-    mentor_id: mentorId,
-    mentee_id: menteeId,
+    _id: taskId,
+    mentee_id: menteeId
   }).populate({
     path: 'mentor_id',
     model: 'User',
     select: 'name email',
   });
-  if (!result || result.length === 0) {
+  if (!result) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'No tasks found!');
   }
   return result;

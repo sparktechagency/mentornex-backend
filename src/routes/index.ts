@@ -17,6 +17,7 @@ import { PlatformReviewRoutes } from '../app/modules/platformReview/platformRevi
 import { ScheduleRoutes } from '../app/modules/mentorSchedule/schedule.route';
 import { ContactRoutes } from '../app/modules/contact-us/contact.route';
 import { MentorDashboardRoutes } from '../app/modules/mentorDashboard/mentorDashboard.route.';
+import { SubmitRoutes } from '../app/modules/submit-task/submit.route';
 const router = express.Router();
 
 router.use('/payment/webhook', express.raw({ type: 'application/json' }));
@@ -77,6 +78,10 @@ const apiRoutes = [
   {
     path: '/schedule',
     route: ScheduleRoutes,
+  },
+  {
+    path: '/task',
+    route: SubmitRoutes,
   },
   { path: "/message", route: MessageRoutes },
   { path: '/faq', route: FaqRoutes },
