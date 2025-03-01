@@ -36,9 +36,11 @@ const updateProfile = catchAsync(
   async (req: Request, res: Response, next: NextFunction) => {
     const user = req.user;
     let image = getSingleFilePath(req.files, 'image');
+    let banner = getSingleFilePath(req.files, 'banner');
 
     const data = {
       image,
+      banner,
       ...req.body,
     };
     const result = await UserService.updateProfileToDB(user, data);

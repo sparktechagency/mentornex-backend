@@ -18,6 +18,7 @@ import { ScheduleRoutes } from '../app/modules/mentorSchedule/schedule.route';
 import { ContactRoutes } from '../app/modules/contact-us/contact.route';
 import { MentorDashboardRoutes } from '../app/modules/mentorDashboard/mentorDashboard.route.';
 import { SubmitRoutes } from '../app/modules/submit-task/submit.route';
+import { MentorRoutes } from '../app/modules/all-mentors/mentor.route';
 const router = express.Router();
 
 router.use('/payment/webhook', express.raw({ type: 'application/json' }));
@@ -82,6 +83,10 @@ const apiRoutes = [
   {
     path: '/task',
     route: SubmitRoutes,
+  },
+  {
+    path: '/list',
+    route: MentorRoutes,
   },
   { path: "/message", route: MessageRoutes },
   { path: '/faq', route: FaqRoutes },

@@ -56,21 +56,13 @@ const loginUserFromDB = async (payload: ILoginData) => {
     config.jwt.jwt_expire_in as string
   );
 
-   // Generate refresh token (expires in 1 days)
-   const refreshToken = jwtHelper.createToken(
-    { id: isExistUser._id },
-    config.jwt.jwt_refresh_secret as Secret,
-    config.jwt.jwt_refresh_expire_in as string
-  );
-
-  // Store refresh token in the database
-  await User.findByIdAndUpdate(isExistUser._id, { refreshToken });
+ 
 
   await User.findByIdAndUpdate(isExistUser._id, { status: 'active' });
 
   (global as any).io.emit('userStatusUpdated', { userId: isExistUser._id, status: 'active' });
 
-  return { createToken, refreshToken };
+  return { createToken };
 
 };
 //forget password

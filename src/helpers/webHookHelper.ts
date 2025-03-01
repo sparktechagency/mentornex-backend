@@ -7,8 +7,6 @@ import { SubscriptionService } from '../app/modules/subscription/subscription.se
 import { PaymentRecord } from '../app/modules/payment-record/payment-record.model';
 import { User } from '../app/modules/user/user.model';
 import { PricingPlan } from '../app/modules/mentorPricingPlan/pricing-plan.model';
-import { setupZoomVideoMeeting } from '../helpers/zoomHelper';
-import { SessionService } from '../app/modules/sessionBooking/session.service';
 
 const handleWebhook = async (req: Request, res: Response) => {
   const signature = req.headers['stripe-signature'] as string;

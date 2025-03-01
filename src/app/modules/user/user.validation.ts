@@ -22,6 +22,7 @@ const updateUserZodSchema = z.object({
   password: z.string().optional(),
   phone: z.string().optional(),
   image: z.string().optional(),
+  banner: z.string().optional(),
   about: z.string().optional(),
   expertise: z.string().optional(),
   focus_area: z.string().optional(),
@@ -29,12 +30,11 @@ const updateUserZodSchema = z.object({
   job_title: z.string().optional(),
   company_name: z.string().optional(),
   education: z.string().optional(),
-  social: z.array(
-    z.object({
-      platform: z.string().optional(),
-      username: z.string().optional(),
-    })
-  ),
+  facebook_url: z.string().optional(),
+  twitter_url: z.string().optional(),
+  linkedin_url: z.string().optional(),
+  instagram_url: z.string().optional(),
+  website_url: z.string().optional(),
   institution_name: z.string().optional(),
   country: z.string().optional(),
   status: z.string().optional(),

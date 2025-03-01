@@ -6,14 +6,6 @@ import { USER_ROLES } from '../../../enums/user';
 import ApiError from '../../../errors/ApiError';
 import { ISocial, IUser, IZoomToken, UserModal } from './user.interface';
 
-const socialSchema = new Schema<ISocial>({
-  platform: {
-    type: String,
-  },
-  username: {
-    type: String,
-  },
-});
 
 const zoomTokenSchema = new Schema<IZoomToken>({
   access_token: {
@@ -89,12 +81,27 @@ const userSchema = new Schema<IUser, UserModal>(
     country: {
       type: String,
     },
-    social: {
-      type: [socialSchema],
+    facebook_url: {
+      type: String,
+    },
+    twitter_url: {
+      type:String
+    },
+    linkedin_url: {
+      type: String,
+    },
+    instagram_url: {
+      type: String,
+    },
+    website_url: {
+      type: String,
     },
     image: {
       type: String,
       default: 'https://i.ibb.co/z5YHLV9/profile.png',
+    },
+    banner: {
+      type: String
     },
     status: {
       type: String,
@@ -128,9 +135,6 @@ const userSchema = new Schema<IUser, UserModal>(
         },
       },
       select: 0,
-    },
-    refreshToken: {
-      type: String,
     },
   },
 

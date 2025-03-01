@@ -30,8 +30,13 @@ export type IUser = {
   education: string;
   institution_name: string;
   country: string;
-  social: ISocial[];
+  facebook_url?: string;
+  twitter_url?: string;
+  linkedin_url?: string;
+  instagram_url?: string;
+  website_url?: string;
   image?: string;
+  banner?: string;
   status: 'active' | 'inactive' |'delete';
   stripe_account_id?: string;
   verified: boolean;
@@ -41,7 +46,6 @@ export type IUser = {
     oneTimeCode: number;
     expireAt: Date;
   };
-  refreshToken: string;
 };
 
 export type UserModal = {

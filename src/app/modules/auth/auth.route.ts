@@ -12,7 +12,6 @@ router.post(
   AuthController.loginUser
 );
 router.post('/logout', auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN, USER_ROLES.MENTOR, USER_ROLES.MENTEE), AuthController.logoutUser);
-router.post('/refresh-token', AuthController.refreshAccessToken);
 
 router.post(
   '/forget-password',

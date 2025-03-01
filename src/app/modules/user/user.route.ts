@@ -11,7 +11,7 @@ router
   .route('/profile')
   .get(auth(USER_ROLES.ADMIN, USER_ROLES.MENTOR,USER_ROLES.MENTEE), UserController.getUserProfile)
   .patch(
-    auth(USER_ROLES.MENTEE),
+    auth(USER_ROLES.MENTEE,USER_ROLES.MENTOR,USER_ROLES.SUPER_ADMIN,USER_ROLES.ADMIN),
     fileUploadHandler(),
     (req: Request, res: Response, next: NextFunction) => {
       if (req.body.data) {
