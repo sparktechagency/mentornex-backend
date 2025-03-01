@@ -16,6 +16,8 @@ export type ISubscription = {
   end_date: Date;
   status: 'active' | 'cancelled' | 'expired';
   stripe_subscription_id: string;
+  stripe_connected_account_id: string;
+  stripe_connected_customer_id: string;
   amount: number;
   sessions_remaining: number;
   sessions_per_month: number;

@@ -7,6 +7,7 @@ const subscriptionSchema = new Schema({
   total_sessions: { type: Number, required: true },
   stripe_product_id: { type: String, required: true },
   stripe_price_id: { type: String, required: true },
+  payment_link: { type: String, required: true },
   description: { type: String },
 });
 
@@ -16,6 +17,7 @@ const payPerSessionSchema = new Schema({
   duration: { type: String, required: true },
   stripe_product_id: { type: String, required: true },
   stripe_price_id: { type: String, required: true },
+  payment_link: { type: String, required: true },
   description: { type: String },
 });
 

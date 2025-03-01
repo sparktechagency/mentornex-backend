@@ -23,6 +23,17 @@ interface PriceCreateParams {
   };
 }
 
+interface PaymentLinkCreateParams {
+  priceId: string;
+  accountId: string;
+  metadata: {
+    mentorId: string;
+    planType: PlanType;
+    [key: string]: string | number;
+    accountId: string;
+  };
+}
+
 export const StripeService = {
   async createConnectAccount(email: string) {
     const account = await stripe.accounts.create({
@@ -63,6 +74,47 @@ export const StripeService = {
     }, {
       stripeAccount: params.accountId,
     });
+  },
+
+  async createPaymentLink(params: PaymentLinkCreateParams) {
+    const isSubscription = params.metadata.planType === 'Subscription';
+    const amount = Number(params.metadata.amount);
+
+    // Base configuration for both types
+    const paymentLinkConfig: Stripe.PaymentLinkCreateParams = {
+      line_items: [
+        {
+          price: params.priceId,
+          quantity: 1,
+        },
+      ],
+      after_completion: {
+        type: 'redirect',
+        redirect: {
+          url: `${process.env.FRONTEND_URL}/subscription/success?payment_link={CHECKOUT_SESSION_ID}`,
+        },
+      },
+      metadata: params.metadata,
+    };
+
+    // Add fee configuration based on plan type
+    if (isSubscription) {
+      // For subscriptions, use application_fee_percent
+      paymentLinkConfig.application_fee_percent = 10;
+    } else {
+      // For one-time payments, use application_fee_amount
+      // Calculate 10% of the amount in cents
+      paymentLinkConfig.application_fee_amount = Math.round(amount * 10); // 10% in cents
+    }
+
+    const paymentLink = await stripe.paymentLinks.create(
+      paymentLinkConfig,
+      {
+        stripeAccount: params.accountId,
+      }
+    );
+
+    return paymentLink;
   },
 
   async getOrCreateConnectCustomer(globalCustomerId: string, accountId: string) {
@@ -148,17 +200,27 @@ export const StripeService = {
         accountId
       );
 
+      // Configuration based on plan type
+      const isSubscription = planType === 'Subscription';
+      
       return await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
-        mode: 'subscription',
+        mode: isSubscription ? 'subscription' : 'payment',
         customer: connectCustomerId,
         line_items: [{ price: priceId, quantity: 1 }],
         metadata: { menteeId, mentorId, planType, stripeAccountId: accountId, amount },
         success_url: `${process.env.FRONTEND_URL}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.FRONTEND_URL}/subscription/cancel`,
-        subscription_data: {
-          application_fee_percent: 10, // 10% platform fee
-        },
+        ...(isSubscription && {
+          subscription_data: {
+            application_fee_percent: 10, // 10% platform fee
+          },
+        }),
+        ...((!isSubscription) && {
+          payment_intent_data: {
+            application_fee_amount: Math.round(amount * 100 * 0.1), // 10% platform fee
+          },
+        }),
       }, {
         stripeAccount: accountId,
       });
@@ -167,6 +229,7 @@ export const StripeService = {
       throw error;
     }
   },
+  
   async handleWebhook(
     signature: string,
     payload: Buffer,

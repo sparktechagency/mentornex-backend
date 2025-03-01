@@ -6,13 +6,13 @@ export type ISession = {
   scheduled_time: Date;
   session_type: string;
   topic: string;
-  duration: number;
+  duration: string;
   expected_outcome: string;
   fee: string;
   status: 'pending' | 'accepted' | 'cancelled' | 'completed';
   payment_type: 'subscription' | 'per_session';
   stripe_payment_intent_id: string;
-  payment_status: 'pending'| 'held'| 'released'| 'refunded' | 'cancelled';
+  payment_status: 'pending'| 'held'| 'released'| 'refunded' | 'cancelled' | 'failed';
   amount: number;
   platform_fee: number;
   meeting_id?: string;

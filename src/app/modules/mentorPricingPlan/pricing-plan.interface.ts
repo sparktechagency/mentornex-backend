@@ -6,6 +6,7 @@ export type Subscription = {
   total_sessions: number;
   stripe_product_id: string;
   stripe_price_id: string;
+  payment_link: string;
   description?: string;
 };
 
@@ -15,6 +16,7 @@ export type PayPerSession = {
   duration: string;
   stripe_product_id: string;
   stripe_price_id: string;
+  payment_link: string;
   description?: string;
 };
 

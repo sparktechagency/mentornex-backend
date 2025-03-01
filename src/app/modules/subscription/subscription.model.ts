@@ -34,6 +34,14 @@ const subscriptionSchema = new Schema<ISubscription, SubscriptionModal>(
         enum: ['active', 'cancelled', 'expired'],
         default: 'active',
       },
+      stripe_connected_account_id: {
+        type: String,
+        required: true,
+      },
+      stripe_connected_customer_id: {
+        type: String,
+        required: true,
+      },
       stripe_subscription_id: {
         type: String,
         required: true,

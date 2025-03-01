@@ -11,6 +11,10 @@ interface CreateSubscriptionParams {
   planType: PlanType;
   stripePriceId: string;
   stripeSubscriptionId: string;
+  amount: number;
+  planDetails : any;
+  stripeConnectedAccountId: string;
+  stripeConnectedCustomerId: string;
 }
 
 export const SubscriptionService = {
@@ -29,40 +33,42 @@ export const SubscriptionService = {
         return existingSubscription;
       }
 
-      // Get pricing plan details
-      const pricingPlan = await PricingPlan.findOne({
-        mentor_id: params.mentorId,
-        'subscriptions.stripe_price_id': params.stripePriceId,
-      });
-
-      if (!pricingPlan?.subscriptions) {
-        throw new ApiError(StatusCodes.NOT_FOUND, 'Pricing plan not found');
-      }
-
-      const subscriptionPlan =
-        pricingPlan.subscriptions?.stripe_price_id === params.stripePriceId? pricingPlan.subscriptions : null;
-
-      if (!subscriptionPlan) {
-        throw new ApiError(
-          StatusCodes.NOT_FOUND,
-          'Subscription plan not found'
-        );
-      }
-
-      // Create new subscription
-      const subscription = await Subscription.create({
+      // Prepare subscription data based on plan type
+      let subscriptionData: any = {
         mentee_id: params.menteeId,
         mentor_id: params.mentorId,
         price_id: params.priceId,
         plan_type: params.planType,
-        start_date: new Date(),
-        end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
         stripe_subscription_id: params.stripeSubscriptionId,
-        amount: subscriptionPlan.amount,
-        sessions_remaining: subscriptionPlan.total_sessions,
-        sessions_per_month: subscriptionPlan.total_sessions,
+        amount: params.amount,
         status: 'active',
-      });
+      };
+
+      // Set specific fields based on plan type
+      if (params.planType === 'Subscription') {
+        // For subscription plans
+        subscriptionData = {
+          ...subscriptionData,
+          start_date: new Date(),
+          end_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+          sessions_remaining: params.planDetails.total_sessions,
+          sessions_per_month: params.planDetails.total_sessions,
+          stripe_connected_account_id: params.stripeConnectedAccountId,
+          stripe_connected_customer_id: params.stripeConnectedCustomerId,
+        };
+      } else if (params.planType === 'PayPerSession') {
+        // For pay-per-session plans
+        subscriptionData = {
+          ...subscriptionData,
+          start_date: new Date(),
+          end_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days validity for pay-per-session
+          sessions_remaining: 1, // One session per payment
+          sessions_per_month: 0, // Not applicable for pay-per-session
+        };
+      }
+
+      // Create new subscription
+      const subscription = await Subscription.create(subscriptionData);
 
       console.log('Created new subscription:', subscription._id);
       return subscription;

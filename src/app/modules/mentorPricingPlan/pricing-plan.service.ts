@@ -4,6 +4,7 @@ import { PayPerSession, Subscription } from './pricing-plan.interface';
 import { PricingPlan } from './pricing-plan.model';
 import { StripeService } from '../subscription/stripe.service';
 import { User } from '../user/user.model';
+import { PlanType } from '../../../types/subscription.types';
 
 const setupMentorStripeAccount = async (mentorId: string, email: string) => {
   const { accountId, onboardingUrl } = await StripeService.createConnectAccount(email);
@@ -30,19 +31,29 @@ const createSubscriptionPlan = async (planData: {
   subscriptions: Subscription 
 }) => {
   const existingPlan = await PricingPlan.findOne({ mentor_id: planData.mentor_id });
-  
-  if (!existingPlan?.stripe_account_id) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST, 
-      'Mentor must complete Stripe onboarding first'
-    );
-  }
 
-  if (existingPlan.subscriptions?.title === planData.subscriptions.title) {
+  if (existingPlan?.subscriptions?.title === planData.subscriptions.title) {
     throw new ApiError(
       StatusCodes.BAD_REQUEST, 
       `Subscription plan with title "${planData.subscriptions.title}" already exists`
     );
+  }
+  const stripeAccountId = await User.findOne({ _id: planData.mentor_id }).select('stripe_account_id');
+
+  console.log('Stripe Account ID:', stripeAccountId?.stripe_account_id);
+
+  if(!stripeAccountId?.stripe_account_id) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      `Stripe account not found for mentor with ID ${planData.mentor_id}`
+    );
+  }
+
+  if (!existingPlan) {
+    await PricingPlan.create({
+      mentor_id: planData.mentor_id,
+      stripe_account_id: stripeAccountId.stripe_account_id
+    });
   }
 
   const product = await StripeService.createProduct({
@@ -51,27 +62,41 @@ const createSubscriptionPlan = async (planData: {
     metadata: {
       total_sessions: Number(planData.subscriptions.total_sessions)
     },
-    accountId: existingPlan.stripe_account_id
+    accountId: stripeAccountId.stripe_account_id
   });
 
   const price = await StripeService.createPrice({
     productId: product.id,
     amount: Number(planData.subscriptions.amount),
-    accountId: existingPlan.stripe_account_id,
+    accountId: stripeAccountId.stripe_account_id,
     recurring: {
       interval: 'month'
+    }
+  });
+
+  // Create a payment link for this price
+  const paymentLink = await StripeService.createPaymentLink({
+    priceId: price.id,
+    accountId: stripeAccountId.stripe_account_id,
+    metadata: {
+      mentorId: planData.mentor_id,
+      planType: 'Subscription' as PlanType,
+      total_sessions: String(planData.subscriptions.total_sessions),
+      amount: String(planData.subscriptions.amount),
+      accountId: stripeAccountId.stripe_account_id
     }
   });
 
   const newSubscription = {
     ...planData.subscriptions,
     stripe_product_id: product.id,
-    stripe_price_id: price.id
+    stripe_price_id: price.id,
+    payment_link: paymentLink.url
   };
 
   const updatedPlan = await PricingPlan.findOneAndUpdate(
     { mentor_id: planData.mentor_id },
-    { $push: { subscriptions: newSubscription } },
+    { subscriptions: newSubscription },
     { new: true }
   );
 
@@ -84,13 +109,7 @@ const createPayPerSessionPlan = async (planData: {
 }) => {
   const existingPlan = await PricingPlan.findOne({ mentor_id: planData.mentor_id });
   
-  if (!existingPlan?.stripe_account_id) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST, 
-      'Mentor must complete Stripe onboarding first'
-    );
-  }
-
+  // Check for existing plan with the same title
   if (existingPlan?.pay_per_sessions?.some(
     session => session.title === planData.pay_per_sessions.title
   )) {
@@ -100,26 +119,59 @@ const createPayPerSessionPlan = async (planData: {
     );
   }
 
+  // Get Stripe account ID from User model for consistency
+  const stripeAccountId = await User.findOne({ _id: planData.mentor_id }).select('stripe_account_id');
+
+  console.log('Stripe Account ID:', stripeAccountId?.stripe_account_id);
+
+  if(!stripeAccountId?.stripe_account_id) {
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      `Stripe account not found for mentor with ID ${planData.mentor_id}`
+    );
+  }
+
+  // Create initial pricing plan if it doesn't exist
+  if (!existingPlan) {
+    await PricingPlan.create({
+      mentor_id: planData.mentor_id,
+      stripe_account_id: stripeAccountId.stripe_account_id
+    });
+  }
+
   const product = await StripeService.createProduct({
     title: `${planData.pay_per_sessions.title} Session`,
     description: planData.pay_per_sessions.description,
     metadata: {
       duration: planData.pay_per_sessions.duration
     },
-    accountId: existingPlan.stripe_account_id
+    accountId: stripeAccountId.stripe_account_id
   });
 
   const price = await StripeService.createPrice({
     productId: product.id,
     amount: Number(planData.pay_per_sessions.amount),
-    accountId: existingPlan.stripe_account_id,
+    accountId: stripeAccountId.stripe_account_id
     // No recurring parameter for pay-per-session
+  });
+
+  const paymentLink = await StripeService.createPaymentLink({
+    priceId: price.id,
+    accountId: stripeAccountId.stripe_account_id,
+    metadata: {
+      mentorId: planData.mentor_id,
+      planType: 'PayPerSession' as PlanType,
+      duration: planData.pay_per_sessions.duration,
+      amount: String(planData.pay_per_sessions.amount),
+      accountId: stripeAccountId.stripe_account_id
+    }
   });
 
   const newPayPerSession = {
     ...planData.pay_per_sessions,
     stripe_product_id: product.id,
-    stripe_price_id: price.id
+    stripe_price_id: price.id,
+    payment_link: paymentLink.url
   };
 
   const updatedPlan = await PricingPlan.findOneAndUpdate(

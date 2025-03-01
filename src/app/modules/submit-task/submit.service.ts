@@ -12,7 +12,7 @@ const createSubmitToDB = async (payload: ISubmit) => {
     if (payload.file) {
       unlinkFile(payload.file);
     }
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Mentor not found');
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Mentee not found');
   }
   if (!result) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to submit task');

@@ -26,7 +26,7 @@ const sessionSchema = new Schema<ISession, SessionModal>(
       required: true,
     },
     duration: {
-      type: Number,
+      type: String,
       required: true,
     },
     expected_outcome: {
@@ -51,7 +51,7 @@ const sessionSchema = new Schema<ISession, SessionModal>(
     },
     payment_status: {
       type: String,
-      enum: ['pending', 'held', 'released', 'refunded', 'cancelled'],
+      enum: ['pending', 'held', 'released', 'refunded', 'cancelled', 'failed'],
       default: 'pending',
     },
     amount: {
