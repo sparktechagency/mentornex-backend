@@ -4,11 +4,13 @@ import sendResponse from "../../../shared/sendResponse";
 import { StatusCodes } from "http-status-codes";
 import { MentorService } from "./mentor.service";
 import pick from "../../../shared/pick";
+import { USER_FILTERABLE_FIELDS } from "../user/user.constants";
 
 const getAllMentors = catchAsync(
     async (req: Request, res: Response) => {
       const paginationOptions = pick(req.query, ['page', 'limit', 'sortBy', 'sortOrder']);
-      const result = await MentorService.getAllMentorsFromDB(paginationOptions);
+      const filterOptions = pick(req.query, USER_FILTERABLE_FIELDS);
+      const result = await MentorService.getAllMentorsFromDB(paginationOptions, filterOptions);
 
       sendResponse(res, {
         success: true,

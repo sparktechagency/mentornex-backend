@@ -54,6 +54,9 @@ const userSchema = new Schema<IUser, UserModal>(
     phone: {
       type: String,
     },
+    bio: {
+      type: String,
+    },
     about: {
       type: String,
     },

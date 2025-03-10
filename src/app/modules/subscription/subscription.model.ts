@@ -19,6 +19,7 @@ const subscriptionSchema = new Schema<ISubscription, SubscriptionModal>(
       },
       plan_type: {
         type: String,
+        enum: ['Subscription', 'PayPerSession'],
         required: true,
       },
       start_date: {

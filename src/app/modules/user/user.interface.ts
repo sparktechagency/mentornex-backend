@@ -21,6 +21,7 @@ export type IUser = {
   timeZone: string;
   password: string;
   phone: string;
+  bio: string;
   about: string;
   expertise: string[];
   focus_area: string;
@@ -53,3 +54,17 @@ export type UserModal = {
   isExistUserByEmail(email: string): any;
   isMatchPassword(password: string, hashPassword: string): boolean;
 } & Model<IUser>;
+
+
+
+
+export type IUserFilterableFields = {
+  searchTerm?: string;
+  focus_area?: string[];
+  expertise?: string;
+  status?: 'active' | 'inactive' | 'delete';
+  language?: string[];
+  minPrice?: number;
+  maxPrice?: number;
+  availability?: string[];
+}
