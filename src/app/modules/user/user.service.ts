@@ -9,6 +9,8 @@ import generateOTP from '../../../util/generateOTP';
 import { IUser } from './user.interface';
 import { User } from './user.model';
 import stripe from '../../../config/stripe';
+import { ReviewMentor } from '../menteeReviews/review.model';
+import { PaymentRecord } from '../payment-record/payment-record.model';
 
 const createUserToDB = async (payload: Partial<IUser>): Promise<IUser> => {
   //set role
@@ -50,17 +52,67 @@ const createUserToDB = async (payload: Partial<IUser>): Promise<IUser> => {
 };
 
 
-const getUserProfileFromDB = async (
-  user: JwtPayload
-): Promise<Partial<IUser>> => {
+const getUserProfileFromDB = async (user: JwtPayload) => {
   const { id } = user;
-  const isExistUser = await User.isExistUserById(id);
+  
+  // Check if the user exists
+  const isExistUser = await User.findById(id).populate({
+    path:"industry",
+    select:{name:1, image:1}
+  }).lean();
   if (!isExistUser) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
   }
 
+  if (isExistUser.role === USER_ROLES.MENTOR) {
+    // Run the queries concurrently
+    const [
+      totalSessionCount,
+      repeatedUserSessions,
+      goalAchievingRate
+    ] = await Promise.all([
+      // Get total session count
+      PaymentRecord.countDocuments({ mentor_id: id, status: 'succeeded' }),
+
+      // Count total repeated user sessions
+      PaymentRecord.aggregate([
+        { $match: { mentor_id: id, status: 'succeeded' } },
+        { $group: { _id: "$user_id", sessionCount: { $sum: 1 } } },
+        { $match: { sessionCount: { $gt: 1 } } },
+        { $count: "repeatedUserCount" }
+      ]),
+
+      // Calculate goal achieving rate from the review collection
+      ReviewMentor.aggregate([
+        { $match: { mentor_id: id } },
+        { $group: { _id: null, totalGoalAchieved: { $sum: "$goalAchieved" }, totalReviews: { $sum: 1 } } },
+        { $project: {
+            goalAchievingRate: {
+              $cond: {
+                if: { $eq: ["$totalReviews", 0] },
+                then: 0,
+                else: { $multiply: [{ $divide: ["$totalGoalAchieved", "$totalReviews"] }, 100] }
+              }
+            }
+          }
+        }
+      ])
+    ]);
+
+    // Extract the repeated user count (default to 0 if no repeated sessions)
+    const repeatedUserCount = repeatedUserSessions.length > 0 ? repeatedUserSessions[0].repeatedUserCount : 0;
+
+    return {
+      ...isExistUser,
+      totalSessionCount,
+      repeatedUserCount,
+      goalAchievingRate: goalAchievingRate[0]?.goalAchievingRate || 0
+    };
+  }
+
   return isExistUser;
 };
+
 
 const updateProfileToDB = async (
   user: JwtPayload,

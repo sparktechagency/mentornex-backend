@@ -7,14 +7,18 @@ import { IUserFilterableFields } from "../user/user.interface";
 import { Subscription } from "../subscription/subscription.model";
 import { USER_SEARCHABLE_FIELDS } from "../user/user.constants";
 import { ReviewMentor } from "../menteeReviews/review.model";
+import { PaymentRecord } from "../payment-record/payment-record.model";
 
 const getAllMentorsFromDB = async (paginationOptions: IPaginationOptions, filterOptions: IUserFilterableFields) => {
     const { page, limit, skip, sortBy, sortOrder } = paginationHelper.calculatePagination(paginationOptions);
     const { searchTerm, focus_area, expertise, language, minPrice, maxPrice } = filterOptions;
-    const sortConditions: { [key: string]: 1 | -1 } = {};
-    if (sortBy && sortOrder) {
-        sortConditions[sortBy] = sortOrder === 'asc' ? 1 : -1;
-    }
+
+    // Sort conditions
+    const sortConditions: { [key: string]: 1 | -1 } = {
+        ...(sortBy.toLocaleLowerCase() === 'newest' && { createdAt: -1 }),
+        ...(sortBy.toLocaleLowerCase() === 'alphabetically' && { name: 1 })
+    };
+
 
     const anyCondition = [];
 
@@ -56,7 +60,10 @@ const getAllMentorsFromDB = async (paginationOptions: IPaginationOptions, filter
     anyCondition.push({ role: 'MENTOR' });
     const whereCondition = anyCondition.length > 0 ? { $and: anyCondition } : {};
 
-    const result = await User.find(whereCondition)
+    const result = await User.find(whereCondition).populate({
+        path:"industry",
+        select:{name:1, image:1}
+      })
         .sort(sortConditions)
         .skip(skip)
         .limit(limit);
@@ -84,6 +91,15 @@ const getAllMentorsFromDB = async (paginationOptions: IPaginationOptions, filter
         })
     );
 
+    // Sort by amount if required
+    if (sortBy.toLocaleLowerCase() === 'amount') {
+        mentorWithStartingPrices.sort((a, b) => {
+            const priceA = a.startingPrice || Infinity; // Handle null values
+            const priceB = b.startingPrice || Infinity; // Handle null values
+                return priceA - priceB; 
+            });
+        }
+
     return {
         meta: {
             page,
@@ -102,7 +118,10 @@ const getAllActiveMentorsFromDB = async(paginationOptions: IPaginationOptions)=>
         sortConditions[sortBy] = sortOrder === 'asc' ? 1 : -1;
     }
 
-    const result = await User.find({role: 'MENTOR', status: 'active'})
+    const result = await User.find({role: 'MENTOR', status: 'active'}).populate({
+        path:"industry",
+        select:{name:1, image:1}
+      })
         .sort(sortConditions)
         .skip(skip)
         .limit(limit);
@@ -123,7 +142,65 @@ const getAllActiveMentorsFromDB = async(paginationOptions: IPaginationOptions)=>
     };
 }
 
+const getSingleMentor = async (id: string) => {
+    // Check if the mentor exists
+    const isExist = await User.findById(id).populate({
+        path:"industry",
+        select:{name:1, image:1}
+      }).lean();
+    if (!isExist) {
+        throw new ApiError(StatusCodes.NOT_FOUND, 'Mentor not found');
+    }
+
+  
+
+    // Count total repeated user sessions
+    const [
+        totalSessionCount,
+        repeatedUserSessions,
+        goalAchievingRate
+      ] = await Promise.all([
+        // Get total session count
+        PaymentRecord.countDocuments({ mentor_id: id, status: 'succeeded' }),
+  
+        // Count total repeated user sessions
+        PaymentRecord.aggregate([
+          { $match: { mentor_id: id, status: 'succeeded' } },
+          { $group: { _id: "$user_id", sessionCount: { $sum: 1 } } },
+          { $match: { sessionCount: { $gt: 1 } } },
+          { $count: "repeatedUserCount" }
+        ]),
+  
+        // Calculate goal achieving rate from the review collection
+        ReviewMentor.aggregate([
+          { $match: { mentor_id: id } },
+          { $group: { _id: null, totalGoalAchieved: { $sum: "$goalAchieved" }, totalReviews: { $sum: 1 } } },
+          { $project: {
+              goalAchievingRate: {
+                $cond: {
+                  if: { $eq: ["$totalReviews", 0] },
+                  then: 0,
+                  else: { $multiply: [{ $divide: ["$totalGoalAchieved", "$totalReviews"] }, 100] }
+                }
+              }
+            }
+          }
+        ])
+      ]);
+
+    // Extract the repeated user count (default to 0 if no repeated sessions)
+    const repeatedUserCount = repeatedUserSessions.length > 0 ? repeatedUserSessions[0].repeatedUserCount : 0;
+
+    return {
+        ...isExist,
+        totalSessionCount,
+        repeatedUserCount,
+        goalAchievingRate: goalAchievingRate[0]?.goalAchievingRate || 0
+    };
+};
+
 export const MentorService = {
     getAllMentorsFromDB,
-    getAllActiveMentorsFromDB
+    getAllActiveMentorsFromDB,
+    getSingleMentor
 }

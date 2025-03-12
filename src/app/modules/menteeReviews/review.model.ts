@@ -13,6 +13,10 @@ const reviewSchema = new Schema<IReview, ReviewModal>(
             ref: 'User',
             required: true,
         },
+        goalAchieved: {
+            type: Number,
+            required: true,
+        },
         rate: {
           type: Number,
           required: true,

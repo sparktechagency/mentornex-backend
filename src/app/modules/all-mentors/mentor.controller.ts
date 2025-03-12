@@ -41,7 +41,23 @@ const getAllMentors = catchAsync(
     }
   );
 
+
+  const getSingleMentor = catchAsync(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const result = await MentorService.getSingleMentor(id);
+
+      sendResponse(res, {
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: 'Mentor retrieved successfully',
+        data: result
+      });
+    }
+  );
+
   export const MentorController = {
     getAllMentors,
-    getAllActiveMentors
+    getAllActiveMentors,
+    getSingleMentor
   };

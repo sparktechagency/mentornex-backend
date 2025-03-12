@@ -6,6 +6,7 @@ import { FaqService } from './faq.service';
 
 const createFaq = catchAsync(async (req: Request, res: Response) => {
     const payload = req.body;
+    
     const result = await FaqService.createFaqToDB(payload);
   
     sendResponse(res, {
@@ -42,6 +43,8 @@ const deleteFaq = catchAsync(async (req: Request, res: Response) => {
 });
   
 const getFaqs = catchAsync(async (req: Request, res: Response) => {
+
+    
     const result = await FaqService.faqsFromDB(req.query);
   
     sendResponse(res, {

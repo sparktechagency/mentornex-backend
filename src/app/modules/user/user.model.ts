@@ -1,10 +1,10 @@
 import bcrypt from 'bcrypt';
 import { StatusCodes } from 'http-status-codes';
-import { model, Schema } from 'mongoose';
+import { model, Schema, Types } from 'mongoose';
 import config from '../../../config';
 import { USER_ROLES } from '../../../enums/user';
 import ApiError from '../../../errors/ApiError';
-import { ISocial, IUser, IZoomToken, UserModal } from './user.interface';
+import {  IUser, IZoomToken, UserModal } from './user.interface';
 
 
 const zoomTokenSchema = new Schema<IZoomToken>({
@@ -38,7 +38,8 @@ const userSchema = new Schema<IUser, UserModal>(
     },
     stripeCustomerId: { type: String, required: false },
     industry: {
-      type: String,
+      type: Schema.Types.ObjectId,
+      ref: 'Industry',
       required: true,
     },
     timeZone: {

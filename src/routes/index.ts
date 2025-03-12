@@ -19,6 +19,9 @@ import { ContactRoutes } from '../app/modules/contact-us/contact.route';
 import { MentorDashboardRoutes } from '../app/modules/mentorDashboard/mentorDashboard.route.';
 import { SubmitRoutes } from '../app/modules/submit-task/submit.route';
 import { MentorRoutes } from '../app/modules/all-mentors/mentor.route';
+import { IndustryRoutes } from '../app/modules/industry/industry.route';
+import { ContentRoutes } from '../app/modules/content/content.route';
+import { OthersRoutes } from '../app/modules/others/others.router';
 const router = express.Router();
 
 router.use('/payment/webhook', express.raw({ type: 'application/json' }));
@@ -85,14 +88,20 @@ const apiRoutes = [
     route: SubmitRoutes,
   },
   {
+    path: '/faq',
+    route: FaqRoutes,
+  },
+  {
     path: '/list',
     route: MentorRoutes,
   },
   { path: "/message", route: MessageRoutes },
   { path: '/faq', route: FaqRoutes },
   { path: '/rule', route: RuleRoutes },
-  { path: "/contact", route: ContactRoutes }
-
+  { path: "/contact", route: ContactRoutes },
+  { path: '/industry', route: IndustryRoutes },
+  { path: '/content', route: ContentRoutes },
+  { path: '/others', route: OthersRoutes },
 ];
 
 apiRoutes.forEach(route => router.use(route.path, route.route));

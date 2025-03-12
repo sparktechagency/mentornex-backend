@@ -13,4 +13,9 @@ router.route('/all-active-mentors').get(
     MentorController.getAllActiveMentors
   );
 
+router.route('/mentors/:id').get(
+
+    MentorController.getSingleMentor
+  );
+
 export  const MentorRoutes = router;

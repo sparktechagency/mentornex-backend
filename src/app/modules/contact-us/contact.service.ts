@@ -8,24 +8,25 @@ const createContact = async (payload: IContact): Promise<IContactResponse> => {
     // Save contact message to database
     const contact = await Contact.create(payload);
 
-    // Send confirmation email to user
-    await emailHelper.sendEmail(
-      contactEmailTemplate.userConfirmation({
-        name: payload.name,
-        email: payload.email,
-      })
-    );
-
-    // Send notification email to admin
-    await emailHelper.sendEmail(
-      contactEmailTemplate.adminNotification({
-        name: payload.name,
-        email: payload.email,
-        phone: payload.phone,
-        country: payload.country,
-        message: payload.message,
-      })
-    );
+    try{
+        emailHelper.sendEmail(
+          contactEmailTemplate.userConfirmation({
+            name: payload.name,
+            email: payload.email,
+          })
+        );
+        emailHelper.sendEmail(
+          contactEmailTemplate.adminNotification({
+            name: payload.name,
+            email: payload.email,
+            phone: payload.phone,
+            country: payload.country,
+            message: payload.message,
+          })
+        )
+    }catch(error){
+      console.log('Failed to send email');
+    }
 
     return {
       success: true,

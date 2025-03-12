@@ -22,8 +22,15 @@ const faqsFromDB = async (query: Record<string, unknown>): Promise<any> => {
   const size = parseInt(limit as string) || 10;
   const skip = (pages - 1) * size;
 
+  const search = query.searchTerm as string;
+
   // Resolve the query by awaiting
-  const faqs = await Faq.find()
+  const faqs = await Faq.find({
+    $or: [
+      { question: { $regex: search, $options: 'i' } },
+      { answer: { $regex: search, $options: 'i' } },
+    ],
+  })
     .select("answer question")
     .skip(skip)
     .limit(size);

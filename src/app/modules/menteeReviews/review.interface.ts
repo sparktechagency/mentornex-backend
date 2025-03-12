@@ -3,6 +3,7 @@ export type IReview = {
     mentee_id: string;
     mentor_id: string;
     rate: number;
+    goalAchieved: number;
     review: string;
 };
 

@@ -1,4 +1,4 @@
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { USER_ROLES } from '../../../enums/user';
 
 export type ISocial = {
@@ -17,7 +17,7 @@ export type IUser = {
   role: USER_ROLES;
   stripeCustomerId: string;
   email: string;
-  industry: string;
+  industry: Types.ObjectId;
   timeZone: string;
   password: string;
   phone: string;
