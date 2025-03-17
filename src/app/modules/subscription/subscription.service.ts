@@ -1,8 +1,8 @@
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import { Subscription } from './subscription.model';
-import { PlanType } from '../../../types/subscription.types';
 import { PricingPlan } from '../mentorPricingPlan/pricing-plan.model';
+import { PlanType } from './subscription.interface';
 
 interface CreateSubscriptionParams {
   menteeId: string;

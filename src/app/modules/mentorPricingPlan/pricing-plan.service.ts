@@ -4,7 +4,9 @@ import { PayPerSession, Subscription } from './pricing-plan.interface';
 import { PricingPlan } from './pricing-plan.model';
 import { StripeService } from '../subscription/stripe.service';
 import { User } from '../user/user.model';
-import { PlanType } from '../../../types/subscription.types';
+import { PlanType } from '../subscription/subscription.interface';
+import { Types } from 'mongoose';
+
 
 const setupMentorStripeAccount = async (mentorId: string, email: string) => {
   const { accountId, onboardingUrl } = await StripeService.createConnectAccount(email);
@@ -184,7 +186,7 @@ const createPayPerSessionPlan = async (planData: {
 };
 
 const getMentorPricingPlan = async (mentor_id: string) => {
-  const plan = await PricingPlan.findOne({ mentor_id });
+  const plan = await PricingPlan.find({ mentor_id: new Types.ObjectId(mentor_id) });
   if (!plan) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Pricing plan not found');
   }

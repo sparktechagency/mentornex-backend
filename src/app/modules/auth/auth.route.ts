@@ -38,4 +38,11 @@ router.post(
   AuthController.changePassword
 );
 
+router.delete(
+  '/delete-profile',
+  auth(USER_ROLES.ADMIN, USER_ROLES.MENTOR, USER_ROLES.MENTEE),
+  validateRequest(AuthValidation.createDeleteAccountZodSchema),
+  AuthController.deleteAccount
+);
+
 export const AuthRoutes = router;

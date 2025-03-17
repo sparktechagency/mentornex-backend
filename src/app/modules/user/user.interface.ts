@@ -13,6 +13,7 @@ export type IZoomToken = {
 }
 
 export type IUser = {
+  _id: Types.ObjectId;
   name: string;
   role: USER_ROLES;
   stripeCustomerId: string;

@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
-import { PlanType } from '../../../types/subscription.types';
 import stripe from '../../../config/stripe';
+import { PlanType } from './subscription.interface';
 
 
 

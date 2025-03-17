@@ -1,4 +1,4 @@
-import { Model} from 'mongoose';
+import { Model, Types} from 'mongoose';
 
 export type Subscription = {
   title: string;
@@ -21,8 +21,9 @@ export type PayPerSession = {
 };
 
 export type IPricingPlan = {
-  mentor_id: string;
-  stripe_account_id: string;
+  mentor_id: Types.ObjectId;
+  stripeCustomerId: string;
+  features: string[];
   //subscriptions?: Subscription[];
   subscriptions?: Subscription;
   pay_per_sessions?: PayPerSession[];

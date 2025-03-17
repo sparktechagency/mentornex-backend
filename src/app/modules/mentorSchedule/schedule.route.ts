@@ -18,7 +18,7 @@ router.route('/get-schedule-by-mentor')
   );
   router.route('/get-schedule-by-mentee/:mentor_id')
   .get(
-    auth(USER_ROLES.MENTEE),
+    // auth(USER_ROLES.MENTEE),
     ScheduleController.getScheduleByMentee
   );
 

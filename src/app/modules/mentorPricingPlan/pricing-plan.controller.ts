@@ -50,14 +50,6 @@ const createSubscriptionPlan = catchAsync(
     };
     const result = await PricingPlanService.createSubscriptionPlan(planData);
 
-    if(!result) {
-      sendResponse(res, {
-        success: false,
-        statusCode: StatusCodes.BAD_REQUEST,
-        message: 'Subscription plan creation failed',
-      });
-    }
-
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.CREATED,

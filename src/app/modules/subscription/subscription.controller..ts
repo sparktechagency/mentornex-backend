@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { StripeService } from './stripe.service';
 import { SubscriptionService } from './subscription.service';
-import { PlanType } from '../../../types/subscription.types';
+
 import { User } from '../user/user.model';
 import { PricingPlan } from '../mentorPricingPlan/pricing-plan.model';
 import Stripe from 'stripe';

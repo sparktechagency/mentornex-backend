@@ -16,5 +16,5 @@ router
     TaskController.addTask
   );
 router.route('/get-all-task').get(auth(USER_ROLES.MENTOR), TaskController.getAllTask);
-router.route('/get-task/:taskId').get(auth(USER_ROLES.MENTEE), TaskController.getTaskByMentee);
+router.route('/get-task').get(auth(USER_ROLES.MENTEE), TaskController.getTaskByMentee);
 export const TaskRoutes = router;

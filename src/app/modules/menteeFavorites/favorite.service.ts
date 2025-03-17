@@ -3,6 +3,7 @@ import ApiError from "../../../errors/ApiError";
 import { User } from "../user/user.model";
 import { IFavorite } from "./favorite.interface";
 import { FavoriteMentor } from "./favorite.model";
+import { getMentorsWithReviewsAndPrices } from "../../../util/mentorStat";
 
 const addOrRemoveFavoriteToDB = async (payload: IFavorite): Promise<IFavorite> => {
   const { mentee_id, mentor } = payload;
@@ -47,9 +48,11 @@ const getFavoriteMentors = async (menteeId: string) => {
 
   const mentorIds = favorite.mentor;
 
-  const mentors = await User.find({ _id: { $in: mentorIds } });
+  const mentors = await User.find({ _id: { $in: mentorIds } }).lean();
 
-  return mentors;
+  const mentorsWithDetails = await getMentorsWithReviewsAndPrices(mentors);
+
+  return mentorsWithDetails;
 };
 
 

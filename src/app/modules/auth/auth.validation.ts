@@ -41,10 +41,17 @@ const createChangePasswordZodSchema = z.object({
   }),
 });
 
+const createDeleteAccountZodSchema = z.object({
+  body: z.object({
+    password: z.string({ required_error: 'Password is required' }),
+  }),
+});
+
 export const AuthValidation = {
   createVerifyEmailZodSchema,
   createForgetPasswordZodSchema,
   createLoginZodSchema,
   createResetPasswordZodSchema,
   createChangePasswordZodSchema,
+  createDeleteAccountZodSchema,
 };

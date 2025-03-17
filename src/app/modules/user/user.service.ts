@@ -13,6 +13,13 @@ import { ReviewMentor } from '../menteeReviews/review.model';
 import { PaymentRecord } from '../payment-record/payment-record.model';
 
 const createUserToDB = async (payload: Partial<IUser>): Promise<IUser> => {
+
+  // Check if user already exists
+  const isExistUser = await User.findOne({ email: payload.email, status:{$ne: 'delete'} });
+  if (isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'An account with this email already exists, please login or try with another email.');
+  }
+
   //set role
   //payload.role = USER_ROLES.MENTEE;
   const stripeCustomer = await stripe.customers.create({
@@ -20,6 +27,11 @@ const createUserToDB = async (payload: Partial<IUser>): Promise<IUser> => {
     name: payload.name || '',
     metadata: { role: payload.role ? payload.role.toString() : '' },
   });
+
+
+  if(!stripeCustomer || !stripeCustomer.id) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Something went wrong, please try again later.');
+  }
 
   // Add Stripe Customer ID to the user payload
   payload.stripeCustomerId = stripeCustomer.id;

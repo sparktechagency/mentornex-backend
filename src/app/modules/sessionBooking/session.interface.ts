@@ -1,8 +1,8 @@
-import { Model} from 'mongoose';
+import { Model, Types} from 'mongoose';
 
 export type ISession = {
-  mentor_id: string;
-  mentee_id: string;
+  mentor_id: Types.ObjectId;
+  mentee_id: Types.ObjectId;
   scheduled_time: Date;
   session_type: string;
   topic: string;

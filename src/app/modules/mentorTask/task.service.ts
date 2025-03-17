@@ -7,6 +7,7 @@ import unlinkFile from '../../../shared/unlinkFile';
 import { onlineUsers } from '../../../server';
 import { Notification } from '../notification/notification.model';
 import { socketHelper } from '../../../helpers/socketHelper';
+import { JwtPayload } from 'jsonwebtoken';
 
 const addTaskToDB = async (payload: ITask): Promise<ITask> => {
   const addTask = await Task.create(payload);
@@ -62,18 +63,16 @@ const getAllTaskFromDB = async (mentorId: string): Promise<ITask[]> => {
 };
 
 const getTaskByMenteeFromDB = async (
-  taskId: string,
-  menteeId: string
+  user: JwtPayload
 ): Promise<ITask[]> => {
   const result = await Task.find({
-    _id: taskId,
-    mentee_id: menteeId,
+    mentee_id: user.id,
   }).populate({
     path: 'mentor_id',
     model: 'User',
     select: 'name email',
   });
-  if (!result) {
+  if (!result || result.length === 0) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'No tasks found!');
   }
   return result;

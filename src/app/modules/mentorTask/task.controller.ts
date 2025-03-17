@@ -52,9 +52,8 @@ const getAllTask = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getTaskByMentee = catchAsync(async (req: Request, res: Response) => {
-  const menteeId = req.user.id;
-  const taskId = req.params.taskId;
-  const result = await TaskService.getTaskByMenteeFromDB(taskId,menteeId);
+
+  const result = await TaskService.getTaskByMenteeFromDB(req.user);
 
   if (!result) {
     sendResponse(res, {

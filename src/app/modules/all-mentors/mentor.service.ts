@@ -8,6 +8,7 @@ import { Subscription } from "../subscription/subscription.model";
 import { USER_SEARCHABLE_FIELDS } from "../user/user.constants";
 import { ReviewMentor } from "../menteeReviews/review.model";
 import { PaymentRecord } from "../payment-record/payment-record.model";
+import { getMentorsWithReviewsAndPrices } from "../../../util/mentorStat";
 
 const getAllMentorsFromDB = async (paginationOptions: IPaginationOptions, filterOptions: IUserFilterableFields) => {
     const { page, limit, skip, sortBy, sortOrder } = paginationHelper.calculatePagination(paginationOptions);
@@ -66,39 +67,11 @@ const getAllMentorsFromDB = async (paginationOptions: IPaginationOptions, filter
       })
         .sort(sortConditions)
         .skip(skip)
-        .limit(limit);
+        .limit(limit).lean();
 
     const total = await User.countDocuments(whereCondition);
 
-    // Get every mentor's review and rating, and also calculate top-rated mentors
-    const mentorsWithReviews = await Promise.all(result.map(async (mentor) => {
-        const reviews = await ReviewMentor.find({ mentor_id: mentor._id });
-        const ratingCount = reviews.length;
-        const rating = ratingCount > 0 ? reviews.reduce((acc, review) => acc + review.rate, 0) / ratingCount : 0;
-        const topRated = rating > 4.5 && ratingCount >= 20;
-        return { ...mentor.toObject(), rating, topRated };
-    }));
-
-    const mentorWithStartingPrices = await Promise.all(
-        mentorsWithReviews.map(async (mentor) => {
-            const subscription = await Subscription.findOne({
-                mentor_id: mentor._id,
-                plan_type: 'Subscription'
-            })
-                .sort({ amount: 1 })  
-                .limit(1);  
-            return { ...mentor, startingPrice: subscription ? subscription.amount : null };
-        })
-    );
-
-    // Sort by amount if required
-    if (sortBy.toLocaleLowerCase() === 'amount') {
-        mentorWithStartingPrices.sort((a, b) => {
-            const priceA = a.startingPrice || Infinity; // Handle null values
-            const priceB = b.startingPrice || Infinity; // Handle null values
-                return priceA - priceB; 
-            });
-        }
+    const mentorWithStartingPrices = await getMentorsWithReviewsAndPrices(result, sortBy);
 
     return {
         meta: {
