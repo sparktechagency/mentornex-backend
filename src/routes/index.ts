@@ -22,6 +22,7 @@ import { MentorRoutes } from '../app/modules/all-mentors/mentor.route';
 import { IndustryRoutes } from '../app/modules/industry/industry.route';
 import { ContentRoutes } from '../app/modules/content/content.route';
 import { OthersRoutes } from '../app/modules/others/others.router';
+import { PlansRoutes } from '../app/modules/plans/plans.route';
 const router = express.Router();
 
 router.use('/payment/webhook', express.raw({ type: 'application/json' }));
@@ -66,6 +67,10 @@ const apiRoutes = [
   {
     path: '/subscription',
     route: SubscriptionRoutes,
+  },
+  {
+    path: '/plans',
+    route: PlansRoutes,
   },
   {
     path: '/note',

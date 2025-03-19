@@ -45,6 +45,7 @@ export const StripeService = {
       },
     });
 
+
     const accountLinks = await stripe.accountLinks.create({
       account: account.id,
       refresh_url: `${process.env.FRONTEND_URL}/stripe/refresh`,
@@ -63,6 +64,28 @@ export const StripeService = {
     }, {
       stripeAccount: params.accountId,
     });
+  },
+
+  async updateProduct(params: {productId: string, title: string, description?: string, metadata?: {total_sessions?: number; duration?: string;}, accountId: string}) {
+    return await stripe.products.update(params.productId, {
+      name: params.title,
+      description: params.description,
+      metadata: params.metadata,
+    }, {
+      stripeAccount: params.accountId,
+    });
+
+
+  },
+
+  async removePrice(priceId: string) {
+    return await stripe.prices.update(priceId, {
+      active: false
+    });
+  },
+
+  async deleteProduct(productId: string) {
+    return await stripe.products.del(productId);
   },
 
   async createPrice(params: PriceCreateParams) {
@@ -117,10 +140,10 @@ export const StripeService = {
     return paymentLink;
   },
 
-  async getOrCreateConnectCustomer(globalCustomerId: string, accountId: string) {
+  async getOrCreateConnectCustomer(customerId: string, accountId: string) {
     try {
       // First, retrieve the customer from the platform account
-      const globalCustomer = await stripe.customers.retrieve(globalCustomerId);
+      const globalCustomer = await stripe.customers.retrieve(customerId);
       
       // Check if customer is deleted
       if (globalCustomer.deleted) {
@@ -154,7 +177,7 @@ export const StripeService = {
           email: customerEmail,
           name: globalCustomer.name ?? undefined,
           metadata: {
-            global_customer_id: globalCustomerId
+            global_customer_id: customerId
           }
         },
         {
@@ -182,51 +205,71 @@ export const StripeService = {
   },
 
   async createCheckoutSession(
-    stripeCustomerId: string,
+    customerId: string,
     menteeId: string,
     mentorId: string,
-    priceId: string,
-    planType: PlanType,
+    title: string,
+    planType: 'Subscription' | 'PayPerSession' | 'Package',
     accountId: string,
-    amount: number
+    amount: number,
+    priceId: string,
   ) {
     try {
-      // First verify the price exists in the connected account
-      await this.verifyPrice(priceId, accountId);
-
       // Get or create customer on connected account
-      const connectCustomerId = await this.getOrCreateConnectCustomer(
-        stripeCustomerId,
-        accountId
-      );
-
-      // Configuration based on plan type
+      const connectCustomerId = await this.getOrCreateConnectCustomer(customerId, accountId);
+  
+      // Validate price for non-subscription plans
+      if (planType !== 'Subscription' && !priceId) {
+        await this.verifyPrice(priceId, accountId);
+      }
+  
+      // Determine mode and line items based on plan type
       const isSubscription = planType === 'Subscription';
-      
-      return await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        mode: isSubscription ? 'subscription' : 'payment',
-        customer: connectCustomerId,
-        line_items: [{ price: priceId, quantity: 1 }],
-        metadata: { menteeId, mentorId, planType, stripeAccountId: accountId, amount },
-        success_url: `${process.env.FRONTEND_URL}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL}/subscription/cancel`,
-        ...(isSubscription && {
-          subscription_data: {
-            application_fee_percent: 10, // 10% platform fee
+      const mode = isSubscription ? 'subscription' : 'payment';
+  
+      const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = isSubscription
+        ? [{ price: priceId, quantity: 1 }]
+        : [
+            {
+              price_data: {
+                currency: 'usd',
+                product_data: { name: title },
+                unit_amount: amount * 100, // Convert to cents
+              },
+              quantity: 1,
+            },
+          ];
+  
+      // Create the checkout session
+      return await stripe.checkout.sessions.create(
+        {
+          payment_method_types: ['card'],
+          mode,
+          customer: connectCustomerId,
+          line_items,
+          success_url: `${process.env.FRONTEND_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
+          ...(isSubscription && {
+            subscription_data: {
+              application_fee_percent: 10, // 10% platform fee
+            },
+          }),
+          metadata: {
+            mentee_id: menteeId,
+            mentor_id: mentorId,
+            plan_type: planType,
+            stripe_account_id: accountId,
+            amount,
           },
-        }),
-        ...((!isSubscription) && {
-          payment_intent_data: {
-            application_fee_amount: Math.round(amount * 100 * 0.1), // 10% platform fee
-          },
-        }),
-      }, {
-        stripeAccount: accountId,
-      });
+        },
+        {
+          stripeAccount: accountId,
+        }
+      );
     } catch (error) {
       console.error('Error in createCheckoutSession:', error);
-      throw error;
+      //@ts-ignore
+      throw new Error(`Failed to create checkout session: ${error.message}`);
     }
   },
   

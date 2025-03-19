@@ -4,12 +4,12 @@ import { ISession, SessionModal } from './session.interface';
 const sessionSchema = new Schema<ISession, SessionModal>(
   {
     mentor_id: {
-      type: String,
+      type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },
     mentee_id: {
-      type: String,
+      type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },

@@ -15,13 +15,13 @@ const paymentRecordSchema = new Schema<IPaymentRecord, PaymentRecordModel>(
       unique: true,
     },
     mentee_id: {
-      type: String,
+      type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
       index: true,
     },
     mentor_id: {
-      type: String,
+      type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
       index: true,
