@@ -1,15 +1,14 @@
 import express from 'express';
 import { AuthRoutes } from '../app/modules/auth/auth.route';
 import { UserRoutes } from '../app/modules/user/user.route';
-import { SessionRoutes } from '../app/modules/sessionBooking/session.route';
+
 import { MenteeFavoriteRoutes } from '../app/modules/menteeFavorites/favorite.route';
 import { MenteeReviewRoutes } from '../app/modules/menteeReviews/review.route';
 import { MenteeDashboardRoutes } from '../app/modules/menteeDashboard/menteeDashboard.route';
 import { TaskRoutes } from '../app/modules/mentorTask/task.route';
 import { NoteRoutes } from '../app/modules/mentorNotes/note.route';
 import { AdminRoutes } from '../app/modules/admin/admin.route';
-import { SubscriptionRoutes } from '../app/modules/subscription/subscription.route';
-import { PricingPlanRoutes } from '../app/modules/mentorPricingPlan/pricing-plan.route';
+
 import { FaqRoutes } from '../app/modules/faq/faq.route';
 import { RuleRoutes } from '../app/modules/rule/rule.route';
 import { MessageRoutes } from '../app/modules/message/message.route';
@@ -40,10 +39,10 @@ const apiRoutes = [
     path: '/auth',
     route: AuthRoutes,
   },
-  {
-    path: '/session',
-    route: SessionRoutes,
-  },
+  // {
+  //   path: '/session',
+  //   route: SessionRoutes,
+  // },
   {
     path: '/mentee',
     route: MenteeFavoriteRoutes,
@@ -65,10 +64,6 @@ const apiRoutes = [
     route: TaskRoutes,
   },
   {
-    path: '/subscription',
-    route: SubscriptionRoutes,
-  },
-  {
     path: '/plans',
     route: PlansRoutes,
   },
@@ -76,10 +71,7 @@ const apiRoutes = [
     path: '/note',
     route: NoteRoutes,
   },
-  {
-    path: '/mentor',
-    route: PricingPlanRoutes,
-  },
+
   {
     path: '/platform',
     route: PlatformReviewRoutes,

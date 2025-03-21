@@ -1,6 +1,9 @@
 import Stripe from 'stripe';
 import stripe from '../../../config/stripe';
-import { PlanType } from './subscription.interface';
+
+import ApiError from '../../../errors/ApiError';
+import { StatusCodes } from 'http-status-codes';
+import { IPlanType } from '../../../types/plan';
 
 
 
@@ -8,8 +11,8 @@ interface ProductCreateParams {
   title: string;
   description?: string;
   metadata?: {
-    total_sessions?: number;
-    duration?: string;
+    sessions?: number;
+    duration?: number;
   };
   accountId: string; // Stripe Connect account ID
 }
@@ -28,7 +31,7 @@ interface PaymentLinkCreateParams {
   accountId: string;
   metadata: {
     mentorId: string;
-    planType: PlanType;
+    planType: IPlanType;
     [key: string]: string | number;
     accountId: string;
   };
@@ -66,7 +69,7 @@ export const StripeService = {
     });
   },
 
-  async updateProduct(params: {productId: string, title: string, description?: string, metadata?: {total_sessions?: number; duration?: string;}, accountId: string}) {
+  async updateProduct(params: {productId: string, title: string, description?: string, metadata?: {sessions?: number;}, accountId: string}) {
     return await stripe.products.update(params.productId, {
       name: params.title,
       description: params.description,
@@ -78,14 +81,37 @@ export const StripeService = {
 
   },
 
-  async removePrice(priceId: string) {
-    return await stripe.prices.update(priceId, {
-      active: false
-    });
+  async removePrice(priceId: string, accountId: string) {
+    return await stripe.prices.update(
+      priceId,
+      { active: false },
+      { stripeAccount: accountId }
+    );
+  },
+  
+  async deactivateAllPricesForProduct(productId: string, accountId: string) {
+    // Retrieve all prices associated with the product
+    const prices = await stripe.prices.list(
+      {
+        product: productId,
+        // active: true, // Only deactivate active prices
+      },
+      // { stripeAccount: accountId }
+    );
+  
+    console.log('Prices to deactivate: 🦥🦥🦥🦥🦥🦥🦥', prices.data);
+    // Deactivate all prices
+    const deactivatePromises = prices.data.map((price) =>
+      this.removePrice(price.id, accountId)
+    );
+  
+    await Promise.all(deactivatePromises);
   },
 
-  async deleteProduct(productId: string) {
-    return await stripe.products.del(productId);
+  async deleteProduct(productId: string, accountId: string) {
+    return await stripe.products.del(productId, {
+      stripeAccount: accountId,
+    });
   },
 
   async createPrice(params: PriceCreateParams) {
@@ -94,6 +120,19 @@ export const StripeService = {
       unit_amount: params.amount * 100,
       currency: 'usd',
       recurring: params.recurring,
+    }, {
+      stripeAccount: params.accountId,
+    });
+  },
+
+
+  async createInvoice(params: {customerId: string, amount: number,accountId: string, metadata: { purchaseId: string, checkout_session_id: string, planType: IPlanType}}) {
+    return await stripe.invoices.create({
+      customer: params.customerId,
+      description:`Thank you for purchasing the ${params.metadata.planType} plan`,
+      application_fee_amount: Math.round(Number(params.amount) * 0.1),
+      metadata: params.metadata,
+      footer: 'Thank you for using Mentornex!'
     }, {
       stripeAccount: params.accountId,
     });
@@ -138,6 +177,11 @@ export const StripeService = {
     );
 
     return paymentLink;
+  },
+
+
+  async cancelSubscription(subscriptionId: string) {
+    return await stripe.subscriptions.cancel(subscriptionId);
   },
 
   async getOrCreateConnectCustomer(customerId: string, accountId: string) {
@@ -212,19 +256,25 @@ export const StripeService = {
     planType: 'Subscription' | 'PayPerSession' | 'Package',
     accountId: string,
     amount: number,
-    priceId: string,
+    priceId?: string,
   ) {
     try {
       // Get or create customer on connected account
       const connectCustomerId = await this.getOrCreateConnectCustomer(customerId, accountId);
-  
+
+      
+      if (planType === 'Subscription' && !priceId) {
+        throw new ApiError(StatusCodes.BAD_REQUEST, 'priceId required for subscriptions');
+      }
       // Validate price for non-subscription plans
-      if (planType !== 'Subscription' && !priceId) {
+      if (planType === 'Subscription' && priceId) {
         await this.verifyPrice(priceId, accountId);
       }
   
       // Determine mode and line items based on plan type
       const isSubscription = planType === 'Subscription';
+      const isPayPerSession = planType === 'PayPerSession';
+      const isPackage = planType === 'Package';
       const mode = isSubscription ? 'subscription' : 'payment';
   
       const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = isSubscription
@@ -234,14 +284,14 @@ export const StripeService = {
               price_data: {
                 currency: 'usd',
                 product_data: { name: title },
-                unit_amount: amount * 100, // Convert to cents
+                unit_amount: Number((amount * 100).toFixed(2)), // Convert to cents
               },
               quantity: 1,
             },
           ];
   
       // Create the checkout session
-      return await stripe.checkout.sessions.create(
+      const session =  await stripe.checkout.sessions.create(
         {
           payment_method_types: ['card'],
           mode,
@@ -251,7 +301,12 @@ export const StripeService = {
           cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,
           ...(isSubscription && {
             subscription_data: {
-              application_fee_percent: 10, // 10% platform fee
+              application_fee_percent: 10, // Deducts 10% fee for subscriptions
+            },
+          }),
+          ...(isPackage && {
+            payment_intent_data: {
+              application_fee_amount: Math.round(amount * 0.1), // Deducts 10% fee for packages
             },
           }),
           metadata: {
@@ -266,6 +321,8 @@ export const StripeService = {
           stripeAccount: accountId,
         }
       );
+
+      return { sessionId: session.id , url: session.url as string};
     } catch (error) {
       console.error('Error in createCheckoutSession:', error);
       //@ts-ignore

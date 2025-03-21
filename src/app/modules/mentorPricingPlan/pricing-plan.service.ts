@@ -1,11 +1,12 @@
+
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import { PayPerSession, Subscription } from './pricing-plan.interface';
 import { PricingPlan } from './pricing-plan.model';
-import { StripeService } from '../subscription/stripe.service';
+import { StripeService } from '../purchase/stripe.service';
 import { User } from '../user/user.model';
-import { PlanType } from '../subscription/subscription.interface';
 import { Types } from 'mongoose';
+import { IPlanType } from '../../../types/plan';
 
 
 const setupMentorStripeAccount = async (mentorId: string, email: string) => {
@@ -62,7 +63,7 @@ const createSubscriptionPlan = async (planData: {
     title: `${planData.subscriptions.title} Plan`,
     description: planData.subscriptions.description,
     metadata: {
-      total_sessions: Number(planData.subscriptions.total_sessions)
+      sessions: Number(planData.subscriptions.total_sessions)
     },
     accountId: stripeAccountId.stripe_account_id
   });
@@ -82,8 +83,8 @@ const createSubscriptionPlan = async (planData: {
     accountId: stripeAccountId.stripe_account_id,
     metadata: {
       mentorId: planData.mentor_id,
-      planType: 'Subscription' as PlanType,
-      total_sessions: String(planData.subscriptions.total_sessions),
+      planType: 'Subscription' as IPlanType,
+      sessions: String(planData.subscriptions.total_sessions),
       amount: String(planData.subscriptions.amount),
       accountId: stripeAccountId.stripe_account_id
     }
@@ -145,7 +146,7 @@ const createPayPerSessionPlan = async (planData: {
     title: `${planData.pay_per_sessions.title} Session`,
     description: planData.pay_per_sessions.description,
     metadata: {
-      duration: planData.pay_per_sessions.duration
+      duration: Number(planData.pay_per_sessions.duration)
     },
     accountId: stripeAccountId.stripe_account_id
   });
@@ -162,7 +163,7 @@ const createPayPerSessionPlan = async (planData: {
     accountId: stripeAccountId.stripe_account_id,
     metadata: {
       mentorId: planData.mentor_id,
-      planType: 'PayPerSession' as PlanType,
+      planType: 'PayPerSession' as IPlanType,
       duration: planData.pay_per_sessions.duration,
       amount: String(planData.pay_per_sessions.amount),
       accountId: stripeAccountId.stripe_account_id

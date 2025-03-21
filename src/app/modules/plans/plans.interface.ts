@@ -5,7 +5,7 @@ export type IPayPerSession = {
   _id:Types.ObjectId;
   mentor_id:Types.ObjectId;
   title:string;
-  price:number;
+  amount:number;
   duration:string;
   description:string;
   features:string[];
@@ -18,12 +18,11 @@ export type IPackage ={
   _id:Types.ObjectId;
   mentor_id:Types.ObjectId;
   title:string;
-  price:number;
+  amount:number;
   sessions:number;
   description:string;
   features:string[];
   status:'active' | 'inactive';
-  type:string;
   created_at:Date;
   updated_at:Date;
 }
@@ -33,7 +32,7 @@ export type ISubscription = {
   mentor_id:Types.ObjectId;
   title:string;
   amount:number;
-  total_sessions:number;
+  isContent?:boolean;
   stripe_account_id:string;
   stripe_product_id:string;
   stripe_price_id:string;

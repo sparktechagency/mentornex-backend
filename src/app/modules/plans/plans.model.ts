@@ -11,7 +11,7 @@ const payPerSessionSchema = new Schema<IPayPerSession, IPayPerSessionModel>({
     type: String,
     required: true,
   },
-  price: {
+  amount: {
     type: Number,
     required: true,
   },
@@ -43,7 +43,7 @@ const packageSchema = new Schema<IPackage, IPackageModel>({
     type: String,
     required: true,
   },
-  price: {
+  amount: {
     type: Number,
     required: true,
   },
@@ -62,6 +62,7 @@ const packageSchema = new Schema<IPackage, IPackageModel>({
     enum: ['active', 'inactive'],
     default: 'active'
   },
+
 }, { timestamps: true });
 
 const subscriptionSchema = new Schema<ISubscription, ISubscriptionModel>({
@@ -78,9 +79,12 @@ const subscriptionSchema = new Schema<ISubscription, ISubscriptionModel>({
     type: Number,
     required: true,
   },
-  total_sessions: {
+  sessions: {
     type: Number,
-    required: true,
+  },
+  isContent:{
+    type: Boolean,
+    default: false
   },
   stripe_product_id: {
     type: String,
@@ -112,6 +116,7 @@ const subscriptionSchema = new Schema<ISubscription, ISubscriptionModel>({
   type: {
     type: String,
     enum: ['basic', 'pro', 'premium'],
+    default: 'basic',
     required: true
   },
 });

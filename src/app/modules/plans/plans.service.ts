@@ -5,7 +5,7 @@ import { Package, PayPerSession, Subscription } from "./plans.model";
 import { Types } from "mongoose";
 import { JwtPayload } from "jsonwebtoken";
 import { User } from "../user/user.model";
-import { StripeService } from "../subscription/stripe.service";
+import { StripeService } from "../purchase/stripe.service";
 
 
 const createPayPerSession = async (payload: IPayPerSession, user:JwtPayload) => {
@@ -101,7 +101,7 @@ const createSubscriptionPlan = async (payload: ISubscription, user: JwtPayload) 
     title: `${payload.title}`,
     description: payload.description,
     metadata: {
-      total_sessions: Number(payload.total_sessions)
+      sessions: Number(payload.sessions)
     },
     accountId: stripeAccountId.stripe_account_id
   });
@@ -142,26 +142,27 @@ const updateSubscriptionPlan = async (id: Types.ObjectId, payload: ISubscription
     if(isSubscriptionPlanExist.mentor_id.toString() !== user.id) throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to update this subscription plan');
     
     //check if price is updated
-    if(payload.amount) {
+    if(payload.amount && payload.amount !== isSubscriptionPlanExist.amount) {
         const price = await StripeService.createPrice({
             productId: isSubscriptionPlanExist.stripe_product_id,
             amount: Number(payload.amount),
-            accountId: isSubscriptionPlanExist.stripe_account_id,
+            accountId: isSubscriptionPlanExist.stripe_account_id, 
             recurring: {
-                interval: 'month'  // Set the interval as monthly
+                interval: 'month'  // Set the interval as monthly,
+                
             }
         });
         if(!price) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to update price');
         payload.stripe_price_id = price.id;
     }
 
-    if(payload.title || payload.description || payload.total_sessions){
+    if(payload.title || payload.description || payload.sessions){
         const product = await StripeService.updateProduct({
             productId: isSubscriptionPlanExist.stripe_product_id,
             title: payload.title || isSubscriptionPlanExist.title,
             description: payload.description || isSubscriptionPlanExist.description,
             metadata: {
-                total_sessions: Number(payload.total_sessions || isSubscriptionPlanExist.total_sessions)
+                sessions: Number(payload.sessions || isSubscriptionPlanExist.sessions)
             },
             accountId: isSubscriptionPlanExist.stripe_account_id
         });
@@ -174,28 +175,72 @@ const updateSubscriptionPlan = async (id: Types.ObjectId, payload: ISubscription
    
 }
 
-const deleteSubscriptionPlan = async (id: Types.ObjectId, user:JwtPayload) => {
-    const isSubscriptionPlanExist = await Subscription.findById(id).lean();
-    if(!isSubscriptionPlanExist) throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscription plan not found');
-    if(isSubscriptionPlanExist.mentor_id.toString() !== user.id) throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to delete this subscription plan');
+// const deleteSubscriptionPlan = async (id: Types.ObjectId, user:JwtPayload) => {
+//     const isSubscriptionPlanExist = await Subscription.findById(id).lean();
+//     if(!isSubscriptionPlanExist) throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscription plan not found');
+//     if(isSubscriptionPlanExist.mentor_id.toString() !== user.id) throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to delete this subscription plan');
     
 
-    const removePrice = await StripeService.removePrice(isSubscriptionPlanExist.stripe_price_id);
-    const deleteProduct = await StripeService.deleteProduct(isSubscriptionPlanExist.stripe_product_id);
+//     const removePrice = await StripeService.removePrice(isSubscriptionPlanExist.stripe_price_id, isSubscriptionPlanExist.stripe_account_id);
+//     const deleteProduct = await StripeService.deleteProduct(isSubscriptionPlanExist.stripe_product_id, isSubscriptionPlanExist.stripe_account_id);
 
-    if(!removePrice || !deleteProduct) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to delete subscription plan');
+//     if(!removePrice || !deleteProduct) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to delete subscription plan');
 
 
-    const result = await Subscription.findByIdAndUpdate(id, {$set: {status: 'inactive'}}, { new: true });
-    if(!result) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to delete subscription plan');
+//     const result = await Subscription.findByIdAndUpdate(id, {$set: {status: 'inactive'}}, { new: true });
+//     if(!result) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to delete subscription plan');
+//     return result;
+// }
+
+const deleteSubscriptionPlan = async (id: Types.ObjectId, user: JwtPayload) => {
+  const isSubscriptionPlanExist = await Subscription.findById(id).lean();
+  if (!isSubscriptionPlanExist) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscription plan not found');
+  }
+  if (isSubscriptionPlanExist.mentor_id.toString() !== user.id) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to delete this subscription plan');
+  }
+
+  try {
+    // Step 1: Deactivate all prices associated with the product
+    await StripeService.deactivateAllPricesForProduct(
+      isSubscriptionPlanExist.stripe_product_id,
+      isSubscriptionPlanExist.stripe_account_id
+    );
+
+    // Step 2: Delete the product
+    const deleteProduct = await StripeService.deleteProduct(
+      isSubscriptionPlanExist.stripe_product_id,
+      isSubscriptionPlanExist.stripe_account_id
+    );
+
+    if (!deleteProduct) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to delete subscription plan');
+    }
+
+    // Step 3: Update the subscription plan status to 'inactive'
+    const result = await Subscription.findByIdAndUpdate(
+      id,
+      { $set: { status: 'inactive' } },
+      { new: true }
+    );
+
+    if (!result) {
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to delete subscription plan');
+    }
+
     return result;
-}
+  } catch (error) {
+    console.error('Error deleting subscription plan:', error);
+    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'An error occurred while deleting the subscription plan');
+  }
+};
 
 const getPricingPlans = async (mentorId: Types.ObjectId) => {
     const [payPerSession, packages, subscriptions] = await Promise.all([
         PayPerSession.find({status: 'active', mentor_id: mentorId}).lean(),
         Package.find({status: 'active', mentor_id: mentorId}).lean(),
-        Subscription.find({status: 'active', mentor_id: mentorId}).lean()
+        Subscription.find({status: 'active', mentor_id: mentorId},{stripe_product_id: 0, stripe_price_id: 0, stripe_account_id: 0}).lean()
     ]);
     if(!payPerSession || !packages || !subscriptions) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to get pricing plans');
     return {payPerSession, packages, subscriptions};

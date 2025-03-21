@@ -1,0 +1,1 @@
+export type IPlanType = 'PayPerSession' | 'Package' | 'Subscription';
