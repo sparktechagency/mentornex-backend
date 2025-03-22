@@ -5,6 +5,16 @@
 // import { IPaginationOptions } from "../../../types/pagination";
 // import { IUserFilterableFields } from "../user/user.interface";
 
+import { JwtPayload } from "jsonwebtoken"
+import { User } from "../user/user.model"
+import ApiError from "../../../errors/ApiError";
+import { StatusCodes } from "http-status-codes";
+import { StripeService } from "../purchase/stripe.service";
+import stripe from "../../../config/stripe";
+import { Purchase } from "../purchase/purchase.model";
+import { IPaginationOptions } from "../../../types/pagination";
+import { paginationHelper } from "../../../helpers/paginationHelper";
+
 // import { USER_SEARCHABLE_FIELDS } from "../user/user.constants";
 // import { ReviewMentor } from "../menteeReviews/review.model";
 // import { PaymentRecord } from "../payment-record/payment-record.model";
@@ -172,8 +182,106 @@
 //     };
 // };
 
-// export const MentorService = {
-//     getAllMentorsFromDB,
-//     getAllActiveMentorsFromDB,
-//     getSingleMentor
-// }
+
+const onboardMentorToStripe = async(user:JwtPayload)=>{
+    try {
+     const isUserExist = await User.findById(user.id).lean();   
+
+     if(!isUserExist){
+        throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+     }
+     const {stripe_account_id, status} = isUserExist;
+    if(status === 'delete'){
+        throw new ApiError(StatusCodes.BAD_REQUEST, 'The account has been deleted.');
+    }
+    let newStripeAccountId = stripe_account_id;
+    if(!stripe_account_id){
+       const account = await StripeService.createConnectAccount(isUserExist.email);
+       if(!account.accountId){
+        throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create Stripe account');
+       }
+
+       await User.findByIdAndUpdate(user.id, { $set: { stripe_account_id: account.accountId } });
+       newStripeAccountId = account.accountId;
+    }
+
+    const accountLinks = await stripe.accountLinks.create({
+        account: newStripeAccountId!,
+        refresh_url: `${process.env.FRONTEND_URL}/stripe/refresh`,
+        return_url: `${process.env.FRONTEND_URL}/stripe/return`,
+        type: 'account_onboarding',
+      });
+
+    return {onboardingUrl: accountLinks.url};
+    } catch (error) {
+        throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to onboard mentor to Stripe');
+    }
+    
+}
+
+
+const createStripeLoginLink = async(user:JwtPayload)=>{
+    try {
+        const isUserExist = await User.findById(user.id).lean();
+        if(!isUserExist){
+            throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+        }
+        const {stripe_account_id, status} = isUserExist;
+        if(status === 'delete'){
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'The account has been deleted.');
+        }
+        if(!stripe_account_id){
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'Stripe account not found');
+        }
+        const loginLink = await StripeService.createLoginLink(stripe_account_id);
+        return {loginUrl: loginLink};
+    } catch (error) {
+        throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'Failed to create Stripe login link');
+    }
+}
+
+const getMenteeByMentor = async(user:JwtPayload, paginationOptions: IPaginationOptions, filters:{searchTerm?: string})=>{
+    const {searchTerm} = filters;
+    const {page, limit, skip, sortBy, sortOrder} = paginationHelper.calculatePagination(paginationOptions);
+
+        const isUserExist = await User.findById(user.id).lean();
+        if(!isUserExist){
+            throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
+        }
+        const {status} = isUserExist;
+        if(status === 'delete'){
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'The account has been deleted.');
+        }
+
+    const anyCondition = [];
+    if (searchTerm) {
+        anyCondition.push({ name: { $regex: searchTerm, $options: 'i' } });
+    }
+    
+    anyCondition.push({  role: 'MENTEE', status: 'active' });
+    const whereCondition = anyCondition.length > 0 ? { $and: anyCondition } : {  role: 'MENTEE', status: 'active' };
+    const mentees = await User.find(whereCondition, {stripeCustomerId:0}).skip(skip).limit(limit);
+    const total = await User.countDocuments(whereCondition);
+    return {
+        meta: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit)
+        },
+        data: mentees
+    };
+
+}
+
+export const MentorService = {
+    // getAllMentorsFromDB,
+    // getAllActiveMentorsFromDB,
+    // getSingleMentor
+    onboardMentorToStripe,
+    createStripeLoginLink,
+    getMenteeByMentor
+}
+
+
+

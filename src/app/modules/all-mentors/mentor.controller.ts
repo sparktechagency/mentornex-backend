@@ -6,58 +6,102 @@ import { MentorService } from "./mentor.service";
 import pick from "../../../shared/pick";
 import { USER_FILTERABLE_FIELDS } from "../user/user.constants";
 
-const getAllMentors = catchAsync(
+// const getAllMentors = catchAsync(
+//     async (req: Request, res: Response) => {
+//       const paginationOptions = pick(req.query, ['page', 'limit', 'sortBy', 'sortOrder']);
+//       const filterOptions = pick(req.query, USER_FILTERABLE_FIELDS);
+//       const result = await MentorService.getAllMentorsFromDB(paginationOptions, filterOptions);
+
+//       sendResponse(res, {
+//         success: true,
+//         statusCode: StatusCodes.OK,
+//         message: 'All mentors retrieved successfully',
+//         data: {
+//           mentors: result.data,
+//           pagination: result.meta
+//         },
+//       });
+//     }
+//   );
+
+//   const getAllActiveMentors = catchAsync(
+//     async (req: Request, res: Response) => {
+//       const paginationOptions = pick(req.query, ['page', 'limit', 'sortBy', 'sortOrder']);
+//       const result = await MentorService.getAllActiveMentorsFromDB(paginationOptions);
+
+//       sendResponse(res, {
+//         success: true,
+//         statusCode: StatusCodes.OK,
+//         message: 'All active mentors retrieved successfully',
+//         data: {
+//           mentors: result.data,
+//           pagination: result.meta
+//         },
+//       });
+//     }
+//   );
+
+
+//   const getSingleMentor = catchAsync(
+//     async (req: Request, res: Response) => {
+//       const { id } = req.params;
+//       const result = await MentorService.getSingleMentor(id);
+
+//       sendResponse(res, {
+//         success: true,
+//         statusCode: StatusCodes.OK,
+//         message: 'Mentor retrieved successfully',
+//         data: result
+//       });
+//     }
+//   );
+const onboardMentorToStripe = catchAsync(
     async (req: Request, res: Response) => {
-      const paginationOptions = pick(req.query, ['page', 'limit', 'sortBy', 'sortOrder']);
-      const filterOptions = pick(req.query, USER_FILTERABLE_FIELDS);
-      const result = await MentorService.getAllMentorsFromDB(paginationOptions, filterOptions);
+      const result = await MentorService.onboardMentorToStripe(req.user);
 
       sendResponse(res, {
         success: true,
         statusCode: StatusCodes.OK,
-        message: 'All mentors retrieved successfully',
-        data: {
-          mentors: result.data,
-          pagination: result.meta
-        },
+        message: 'Mentor onboarded to Stripe successfully',
+        data: result
       });
     }
   );
 
-  const getAllActiveMentors = catchAsync(
+  const createStripeLoginLink = catchAsync(
     async (req: Request, res: Response) => {
-      const paginationOptions = pick(req.query, ['page', 'limit', 'sortBy', 'sortOrder']);
-      const result = await MentorService.getAllActiveMentorsFromDB(paginationOptions);
+      const result = await MentorService.createStripeLoginLink(req.user);
 
       sendResponse(res, {
         success: true,
         statusCode: StatusCodes.OK,
-        message: 'All active mentors retrieved successfully',
-        data: {
-          mentors: result.data,
-          pagination: result.meta
-        },
+        message: 'Stripe login link created successfully',
+        data: result
       });
     }
   );
 
 
-  const getSingleMentor = catchAsync(
+  const getMenteeByMentor = catchAsync(
     async (req: Request, res: Response) => {
-      const { id } = req.params;
-      const result = await MentorService.getSingleMentor(id);
+      const filters = pick(req.query, ['searchTerm']);
+      const paginationOptions = pick(req.query, ['page', 'limit', 'sortBy', 'sortOrder']);
+      const result = await MentorService.getMenteeByMentor(req.user, paginationOptions, filters);
 
       sendResponse(res, {
         success: true,
         statusCode: StatusCodes.OK,
-        message: 'Mentor retrieved successfully',
+        message: 'Mentees retrieved successfully',
         data: result
       });
     }
   );
 
   export const MentorController = {
-    getAllMentors,
-    getAllActiveMentors,
-    getSingleMentor
+    // getAllMentors,
+    // getAllActiveMentors,
+    // getSingleMentor,
+    onboardMentorToStripe,
+    createStripeLoginLink,
+    getMenteeByMentor
   };

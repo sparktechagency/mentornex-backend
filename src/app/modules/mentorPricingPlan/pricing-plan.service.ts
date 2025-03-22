@@ -9,25 +9,7 @@ import { Types } from 'mongoose';
 import { IPlanType } from '../../../types/plan';
 
 
-const setupMentorStripeAccount = async (mentorId: string, email: string) => {
-  const { accountId, onboardingUrl } = await StripeService.createConnectAccount(email);
-  
-  // Create or update pricing plan with Stripe account ID
-  await PricingPlan.findOneAndUpdate(
-    { mentor_id: mentorId },
-    { 
-      mentor_id: mentorId,
-      stripe_account_id: accountId 
-    },
-    { upsert: true }
-  );
 
-  await User.findByIdAndUpdate(mentorId, {
-    stripe_account_id: accountId
-  });
-
-  return { accountId, onboardingUrl };
-};
 
 const createSubscriptionPlan = async (planData: { 
   mentor_id: string, 
@@ -195,7 +177,7 @@ const getMentorPricingPlan = async (mentor_id: string) => {
 };
 
 export const PricingPlanService = {
-  setupMentorStripeAccount,
+
   createSubscriptionPlan,
   createPayPerSessionPlan,
   getMentorPricingPlan,

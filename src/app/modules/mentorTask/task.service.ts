@@ -11,7 +11,7 @@ import { JwtPayload } from 'jsonwebtoken';
 
 const addTaskToDB = async (payload: ITask): Promise<ITask> => {
   const addTask = await Task.create(payload);
-  const isMentorExist = await User.isExistUserById(payload.mentor_id);
+  const isMentorExist = await User.isExistUserById(payload.mentor_id.toString());
   if (!isMentorExist) {
     if (payload.file) {
       unlinkFile(payload.file);
@@ -32,19 +32,11 @@ const addTaskToDB = async (payload: ITask): Promise<ITask> => {
   });
 
   // Send real-time notification via socket.io if mentee is online
-  socketHelper.sendNotification(payload.mentee_id, {
+  socketHelper.sendNotification(payload.mentee_id.toString(), {
     notification,
     task: addTask,
   });
 
-  // Send real-time notification via socket.io if mentee is online
-  /*const menteeSocketId = onlineUsers[payload.mentee_id];
-  if (menteeSocketId) {
-    (global as any).io.to(menteeSocketId).emit('newNotification', {
-      notification,
-      task: addTask,
-    });
-  }*/
   return addTask;
 };
 
@@ -62,18 +54,30 @@ const getAllTaskFromDB = async (mentorId: string): Promise<ITask[]> => {
   return result;
 };
 
-const getTaskByMenteeFromDB = async (
+const getTaskByMenteeOrMentor = async (
   user: JwtPayload
 ): Promise<ITask[]> => {
   const result = await Task.find({
-    mentee_id: user.id,
+    $or: [{ mentee_id: user.id }, { mentor_id: user.id }],
+  }).populate({
+    path: 'mentee_id',
+    model: 'User',
+    select: 'name email',
   }).populate({
     path: 'mentor_id',
     model: 'User',
     select: 'name email',
   });
-  if (!result || result.length === 0) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'No tasks found!');
+ 
+  return result;
+};
+
+
+const deleteTask = async (taskId: string, user: JwtPayload): Promise<ITask> => {
+  const result = await Task.findOneAndDelete({ _id: taskId, mentor_id: user.id });
+
+  if (!result) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'You are not authorized to delete this task.');
   }
   return result;
 };
@@ -81,5 +85,6 @@ const getTaskByMenteeFromDB = async (
 export const TaskService = {
   addTaskToDB,
   getAllTaskFromDB,
-  getTaskByMenteeFromDB,
+  getTaskByMenteeOrMentor,
+  deleteTask,
 };

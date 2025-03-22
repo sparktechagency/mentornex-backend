@@ -113,9 +113,10 @@ const getUserProfileFromDB = async (user: JwtPayload) => {
 
     // Extract the repeated user count (default to 0 if no repeated sessions)
     const repeatedUserCount = repeatedUserSessions.length > 0 ? repeatedUserSessions[0].repeatedUserCount : 0;
-
+    const {stripe_account_id, stripeCustomerId, ...rest} = isExistUser;
+    rest.isConnected = !!stripe_account_id;
     return {
-      ...isExistUser,
+      ...rest,
       totalSessionCount,
       repeatedUserCount,
       goalAchievingRate: goalAchievingRate[0]?.goalAchievingRate || 0

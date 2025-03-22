@@ -1,8 +1,9 @@
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import { MessageController } from './message.controller';
 import auth from '../../middlewares/auth';
 import { USER_ROLES } from '../../../enums/user';
 import fileUploadHandler from '../../middlewares/fileUploadHandler';
+import { MessageValidation } from './message.validation';
 
 const router = express.Router();
 
@@ -16,7 +17,14 @@ router
       USER_ROLES.SUPER_ADMIN
     ),
     fileUploadHandler(),
-    MessageController.sendMessage
+    (req:Request, res:Response, next:NextFunction)=>{
+      if(req.body.data) {
+        req.body = MessageValidation.createMessageZodSchema.parse(
+          JSON.parse(req.body.data)
+        );
+       }
+       return MessageController.sendMessage(req, res, next);
+     }
   );
 
 router

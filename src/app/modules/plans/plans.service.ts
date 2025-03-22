@@ -70,7 +70,7 @@ const deletePackage = async (id: Types.ObjectId, user:JwtPayload) => {
 const createSubscriptionPlan = async (payload: ISubscription, user: JwtPayload) => {
   // Fetch existing plans and Stripe account ID in parallel
   const [existingPlan, stripeAccountId] = await Promise.all([
-    Subscription.find({ mentor_id: user.id }).lean(),
+    Subscription.find({ mentor_id: user.id, status: 'active' }).lean(),
     User.findOne({ _id: user.id }).select('stripe_account_id').lean()
   ]);
 
@@ -231,7 +231,8 @@ const deleteSubscriptionPlan = async (id: Types.ObjectId, user: JwtPayload) => {
 
     return result;
   } catch (error) {
-    console.error('Error deleting subscription plan:', error);
+    //@ts-ignore
+    console.error('Error deleting subscription plan:', error.message);
     throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'An error occurred while deleting the subscription plan');
   }
 };

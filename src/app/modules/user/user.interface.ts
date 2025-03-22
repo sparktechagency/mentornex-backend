@@ -42,6 +42,7 @@ export type IUser = {
   status: 'active' | 'inactive' |'delete';
   stripe_account_id?: string;
   verified: boolean;
+  isConnected?: boolean;
   zoom_tokens?: IZoomToken;
   authentication?: {
     isResetPassword: boolean;

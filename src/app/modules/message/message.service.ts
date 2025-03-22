@@ -60,6 +60,8 @@ const sendMessage = async (payload: IMessage): Promise<IMessage> => {
       );
     }
 
+    
+
     const receiverSocketId = onlineUsers[payload.receiver_id];
     
     if (receiverSocketId) {

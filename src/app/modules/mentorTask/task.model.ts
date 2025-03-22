@@ -6,11 +6,11 @@ const TaskSchema = new Schema<ITask, TaskModal>(
     {
         
         mentor_id: {
-            type: String,
+            type: Schema.Types.ObjectId,
             ref: 'User',
         },
         mentee_id: {
-            type: String,
+            type: Schema.Types.ObjectId,
             ref: 'User',
             required: true
           },

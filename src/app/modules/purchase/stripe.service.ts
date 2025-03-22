@@ -48,15 +48,12 @@ export const StripeService = {
       },
     });
 
+    return { accountId: account.id };
+  },
 
-    const accountLinks = await stripe.accountLinks.create({
-      account: account.id,
-      refresh_url: `${process.env.FRONTEND_URL}/stripe/refresh`,
-      return_url: `${process.env.FRONTEND_URL}/stripe/return`,
-      type: 'account_onboarding',
-    });
-
-    return { accountId: account.id, onboardingUrl: accountLinks.url };
+  async createLoginLink(accountId: string): Promise<string> {
+    const loginLink = await stripe.accounts.createLoginLink(accountId);
+    return loginLink.url;
   },
 
   async createProduct(params: ProductCreateParams) {
@@ -88,30 +85,27 @@ export const StripeService = {
       { stripeAccount: accountId }
     );
   },
-  
+
+
   async deactivateAllPricesForProduct(productId: string, accountId: string) {
     // Retrieve all prices associated with the product
     const prices = await stripe.prices.list(
-      {
-        product: productId,
-        // active: true, // Only deactivate active prices
-      },
-      // { stripeAccount: accountId }
+      { product: productId },
+      { stripeAccount: accountId }
     );
   
-    console.log('Prices to deactivate: 🦥🦥🦥🦥🦥🦥🦥', prices.data);
-    // Deactivate all prices
-    const deactivatePromises = prices.data.map((price) =>
+    // Delete all prices
+    const deletePromises = prices.data.map((price) =>
       this.removePrice(price.id, accountId)
     );
   
-    await Promise.all(deactivatePromises);
+    await Promise.all(deletePromises);
   },
-
+  
   async deleteProduct(productId: string, accountId: string) {
-    return await stripe.products.del(productId, {
-      stripeAccount: accountId,
-    });
+    return await stripe.products.update(productId, {
+      active: false
+    },{stripeAccount:accountId});
   },
 
   async createPrice(params: PriceCreateParams) {

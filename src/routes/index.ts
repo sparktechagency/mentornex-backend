@@ -57,7 +57,7 @@ const apiRoutes = [
   },
   {
     path: '/mentor',
-    route: MentorDashboardRoutes,
+    route: MentorRoutes,
   },
   {
     path: '/task',

@@ -5,41 +5,7 @@ import { StatusCodes } from 'http-status-codes';
 import { PricingPlanService } from './pricing-plan.service';
 import { User } from '../user/user.model';
 
-const setupStripeAccount = catchAsync(
-  async (req: Request, res: Response) => {
-    const mentor_id = req.user.id;
-    const { email } = req.user;
-    
-    const result = await PricingPlanService.setupMentorStripeAccount(mentor_id, email);
 
-    if(!result) {
-      sendResponse(res, {
-        success: false,
-        statusCode: StatusCodes.BAD_REQUEST,
-        message: 'Stripe account setup failed',
-      });
-    }
-
-    const updateAccountID = await User.findByIdAndUpdate(mentor_id, {
-      stripe_account_id: result.accountId
-    });
-
-    if(!updateAccountID) {
-      sendResponse(res, {
-        success: false,
-        statusCode: StatusCodes.BAD_REQUEST,
-        message: 'Could not update account ID',
-      });
-    }
-
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.CREATED,
-      message: 'Stripe account setup initiated',
-      data: result,
-    });
-  }
-);
 
 const createSubscriptionPlan = catchAsync(
   async (req: Request, res: Response) => {
@@ -108,7 +74,7 @@ const getMentorPricingPlan = catchAsync(
 );
 
 export const PricingPlanController = {
-  setupStripeAccount,
+
   createSubscriptionPlan,
   createPayPerSessionPlan,
   getMentorPricingPlan,

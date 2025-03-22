@@ -10,9 +10,9 @@ const addTask = catchAsync(async (req: Request, res: Response) => {
   const filePath = req.files
     ? getSingleFilePath(req.files, 'image') ||
       getSingleFilePath(req.files, 'doc') ||
-      getSingleFilePath(req.files, 'media')
+      getSingleFilePath(req.files, 'media') 
     : undefined;
-  const task = { mentor_id, filePath, ...req.body };
+  const task = { mentor_id, file:filePath, ...req.body };
   const result = await TaskService.addTaskToDB(task);
 
   if (!result) {
@@ -51,9 +51,9 @@ const getAllTask = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const getTaskByMentee = catchAsync(async (req: Request, res: Response) => {
+const getTaskByMenteeOrMentor = catchAsync(async (req: Request, res: Response) => {
 
-  const result = await TaskService.getTaskByMenteeFromDB(req.user);
+  const result = await TaskService.getTaskByMenteeOrMentor(req.user);
 
   if (!result) {
     sendResponse(res, {
@@ -70,8 +70,22 @@ const getTaskByMentee = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+
+const deleteTask = catchAsync(async (req: Request, res: Response) => {
+  const result = await TaskService.deleteTask(req.params.id, req.user);
+
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Task deleted successfully',
+    data: result,
+  });
+});
+
 export const TaskController = {
   addTask,
   getAllTask,
-  getTaskByMentee,
+  getTaskByMenteeOrMentor,
+  deleteTask,
 };
