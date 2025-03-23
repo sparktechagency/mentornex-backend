@@ -35,7 +35,7 @@ const sendMessage = async(user:JwtPayload,chatId:Types.ObjectId,payload:Partial<
       : 'text'  
     : 'file';   
     payload.type = messageType;
-    console.log(messageType)
+
     const otherUser = chat?.participants.find((participant: any) => participant._id.toString() !== requestedUserId);
     const message = await Message.create({
         chatId,
@@ -47,6 +47,9 @@ const sendMessage = async(user:JwtPayload,chatId:Types.ObjectId,payload:Partial<
 
     chat.latestMessage = message._id;
     chat.latestMessageTime = new Date();
+    if(requestedUserId !== chat.participants[0].toString()){ // Chat creator id is in the first position
+        chat.isRequested = false;
+    }
     await chat.save({session});
 
     if(!message) throw new ApiError(StatusCodes.BAD_REQUEST,'Failed to send message');
