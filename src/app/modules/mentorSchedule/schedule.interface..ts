@@ -2,6 +2,7 @@ import { Model } from 'mongoose';
 
 export type TimeSlot = {
   time: string;
+  timeCode: number;
   status: boolean;
 };
 

@@ -6,10 +6,9 @@ import { ScheduleService } from "./schedule.service";
 
 const createSchedule = catchAsync(
   async (req: Request, res: Response) => {
-    const mentor_id = req.user.id;
-    const scheduleData = { mentor_id, ...req.body };
+    const scheduleData = { ...req.body };
     
-    const result = await ScheduleService.createScheduleInDB(scheduleData);
+    const result = await ScheduleService.createScheduleInDB(req.user,scheduleData);
 
     if(!result){
       sendResponse(res, {

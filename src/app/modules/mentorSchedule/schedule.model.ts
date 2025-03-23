@@ -6,6 +6,10 @@ const TimeSlotSchema = new Schema({
     type: String,
     required: true,
   },
+  timeCode: {
+    type: Number,
+    required: true,
+  },
   status: {
     type: Boolean,
     default: false,
