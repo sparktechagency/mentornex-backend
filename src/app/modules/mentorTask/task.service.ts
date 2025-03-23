@@ -8,6 +8,7 @@ import { onlineUsers } from '../../../server';
 import { Notification } from '../notification/notification.model';
 import { socketHelper } from '../../../helpers/socketHelper';
 import { JwtPayload } from 'jsonwebtoken';
+import { Types } from 'mongoose';
 
 const addTaskToDB = async (payload: ITask): Promise<ITask> => {
   const addTask = await Task.create(payload);
@@ -74,7 +75,7 @@ const getTaskByMenteeOrMentor = async (
 
 
 const deleteTask = async (taskId: string, user: JwtPayload): Promise<ITask> => {
-  const result = await Task.findOneAndDelete({ _id: taskId, mentor_id: user.id });
+  const result = await Task.findOneAndDelete({ _id: new Types.ObjectId(taskId), mentor_id: user.id });
 
   if (!result) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'You are not authorized to delete this task.');

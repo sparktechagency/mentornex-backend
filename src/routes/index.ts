@@ -22,6 +22,7 @@ import { IndustryRoutes } from '../app/modules/industry/industry.route';
 import { ContentRoutes } from '../app/modules/content/content.route';
 import { OthersRoutes } from '../app/modules/others/others.router';
 import { PlansRoutes } from '../app/modules/plans/plans.route';
+import { ChatRoutes } from '../app/modules/chat/chat.route';
 const router = express.Router();
 
 router.use('/payment/webhook', express.raw({ type: 'application/json' }));
@@ -43,6 +44,10 @@ const apiRoutes = [
   //   path: '/session',
   //   route: SessionRoutes,
   // },
+  {
+    path: '/chat',
+    route: ChatRoutes,
+  },
   {
     path: '/mentee',
     route: MenteeFavoriteRoutes,

@@ -2,36 +2,27 @@ import { Schema, model } from 'mongoose';
 import { IMessage, MessageModel } from './message.interface';
 
 const messageSchema = new Schema<IMessage, MessageModel>(
-  {
-    sender_id: {
-      type: String,
+{
+    chatId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Chat',
+      required: true,
+    },
+    receiver: {
+      type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },
-    receiver_id: {
-      type: String,
-      ref: 'User',
-      required: true,
+    files: {
+      type: [String],
     },
-    content: {
+    message: {
       type: String,
       required: true,
     },
-    isMessageRequest: {
-      type: Boolean,
-      required: true,
-      default: true,
-    },
-    file: {
-      type: String,
-      required: false,
-    },
-  },
+},
   {
-    timestamps: true,
-    toJSON: {
-      virtuals: true,
-    },
+    timestamps: true
   }
 );
 

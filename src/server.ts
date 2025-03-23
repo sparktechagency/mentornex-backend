@@ -46,9 +46,10 @@ async function main() {
     global.io = io;
 
     io.on('connection', socket => {
-      console.log(`User connected: ${socket.id}`);
+      console.log(`User connected----: ${socket.id}`);
 
       socket.on('authenticate', async (data: { token: string }) => {
+        console.log(data.token)
         try {
           const { token } = data;
           const { id } = jwtHelper.verifyToken(
@@ -69,7 +70,7 @@ async function main() {
 
           // Send unread notifications to the user
           if (unreadNotifications.length > 0) {
-            socket.emit('pendingNotifications', unreadNotifications);
+            socket.emit(`pendingNotifications::${id}`, unreadNotifications);
           }
 
           socket.emit('authenticated', { success: true });
