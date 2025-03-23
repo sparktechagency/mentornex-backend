@@ -16,9 +16,14 @@ const messageSchema = new Schema<IMessage, MessageModel>(
     files: {
       type: [String],
     },
+    type: {
+      type: String,
+      enum: ['text', 'file', 'both'],
+      required: true,
+    },
     message: {
       type: String,
-      required: true,
+  
     },
 },
   {

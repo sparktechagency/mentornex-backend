@@ -20,7 +20,7 @@ const createChat = async(user:JwtPayload,participantId:Types.ObjectId) =>{
 
 
     if(isChatExist){
-        const formattedChat = await formattedChatData(isChatExist._id);
+        const formattedChat = await formattedChatData(isChatExist._id, requestedUserId);
         return formattedChat;
     }
 
@@ -30,37 +30,21 @@ const createChat = async(user:JwtPayload,participantId:Types.ObjectId) =>{
 
     if(!chat) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create chat');
 
-    const formattedChat = await formattedChatData(chat._id);
+    const formattedChat = await formattedChatData(chat._id, requestedUserId);
 
-
-
-    const requestedUser = formattedChat?.participants.find((participant: any) => participant._id.toString() === requestedUserId) as {name: string, image: string, _id: Types.ObjectId} | undefined;
-    const otherUser = formattedChat?.participants.find((participant: any) => participant._id.toString() !== requestedUserId) as {name: string, image: string, _id: Types.ObjectId} | undefined;
-
-
-    const manageReturnableData = (flag: boolean) => {
-        return {
-            _id: chat._id,
-            participant: flag ? otherUser : requestedUser,
-            latestMessage: "",
-            isRequest: chat.isRequested,
-            createdAt: chat.createdAt,
-            updatedAt: chat.updatedAt
-        };
-    };
     
     // Instead of using `forEach`, you could also optimize with `for...of`
     //@ts-ignore
     const socket = global.io;
-    for (const participant of formattedChat?.participants || []) {
-        socket.emit(`newChat::${participant._id}`, manageReturnableData(participant._id.toString() === requestedUserId.toString()));
+    for (const participant of participants) {
+        socket.emit(`newChat::${participant}`, formattedChat);
     }
 
     try{
         await sendNotification('getNotification',{
             senderId: requestedUserId,
             receiverId: participantId.toString(),
-            title: `${requestedUser?.name} has sent you a message request.`,
+            title: `${formattedChat?.participant?.name} has sent you a message request.`,
             message: 'Please send a message to accept or reject the request.',
         })
     }catch(error){
@@ -68,7 +52,7 @@ const createChat = async(user:JwtPayload,participantId:Types.ObjectId) =>{
     }
 
 
-    return manageReturnableData(true);
+    return formattedChat;
 }
 
 

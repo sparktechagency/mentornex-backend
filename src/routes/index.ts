@@ -49,6 +49,10 @@ const apiRoutes = [
     route: ChatRoutes,
   },
   {
+    path: '/message',
+    route: MessageRoutes,
+  },
+  {
     path: '/mentee',
     route: MenteeFavoriteRoutes,
   },
