@@ -4,10 +4,12 @@ import { Submit } from './submit.model';
 import { ISubmit } from './submit.interface';
 import { User } from '../user/user.model';
 import unlinkFile from '../../../shared/unlinkFile';
+import { JwtPayload } from 'jsonwebtoken';
+import { Types } from 'mongoose';
 
 const createSubmitToDB = async (payload: ISubmit) => {
   const result = await Submit.create(payload);
-  const isMenteeExist = await User.isExistUserById(payload.menteeId);
+  const isMenteeExist = await User.isExistUserById(payload.menteeId.toString());
   if (!isMenteeExist) {
     if (payload.file) {
       unlinkFile(payload.file);
@@ -20,31 +22,30 @@ const createSubmitToDB = async (payload: ISubmit) => {
   return result;
 };
 
-const getSubmitByMenteeFromDB = async (menteeId: string, taskId: string) => {
-  const result = await Submit.find({ menteeId, taskId });
-  if (!result) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'No task found');
-  }
-  return result;
-};
 
-const getSubmitByMentorFromDB = async (taskId: string) => {
-  const result = await Submit.find({ taskId })
-    .populate({
-      path: 'menteeId',
-      model: 'User',
-      select: 'name image',
-    })
-    .populate('taskId', 'answer file status');
+
+const getSubmissionByTask = async(user:JwtPayload, taskId: Types.ObjectId) => {
+  const result = await Submit.findOne({ taskId: new Types.ObjectId(taskId) })
+    .populate<{taskId: {mentor_id: Types.ObjectId, mentee_id: Types.ObjectId, answer: string, file: string, status: string, feedback: string}}>({
+      path: 'taskId',
+      select: {mentor_id: 1, mentee_id: 1, answer: 1, file: 1, status: 1}
+    });
+
   if (!result) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'No task found');
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Requested task not found!');
+  }
+
+  console.log(result);
+
+  if(result.menteeId.toString() !== user.id && result.taskId.mentor_id.toString() !== user.id) {
+    throw new ApiError(StatusCodes.FORBIDDEN, 'You are not authorized to view this task.');
   }
   return result;
-};
+}
 
 const createFeedbackToDB = async (payload: Partial<ISubmit>) => {
   const result = await Submit.findOneAndUpdate(
-    { taskId: payload.taskId },
+    { taskId: new Types.ObjectId(payload.taskId) },
     { $set: { feedback: payload.feedback, status: 'reviewed' } },
     { new: true }
   );
@@ -56,7 +57,8 @@ const createFeedbackToDB = async (payload: Partial<ISubmit>) => {
 
 export const SubmitService = {
   createSubmitToDB,
-  getSubmitByMenteeFromDB,
-  getSubmitByMentorFromDB,
+
   createFeedbackToDB,
+  getSubmissionByTask,
+  
 };

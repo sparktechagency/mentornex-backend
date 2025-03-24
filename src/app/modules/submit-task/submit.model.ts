@@ -4,11 +4,12 @@ import { ISubmit, SubmitModel } from './submit.interface';
 const submitSchema = new Schema<ISubmit, SubmitModel>(
   {
     taskId: {
-      type: String,
+      type: Schema.Types.ObjectId,
+      ref: 'Task',
       required: true,
     },
     menteeId: {
-      type: String,
+      type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },

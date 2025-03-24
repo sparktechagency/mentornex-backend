@@ -6,23 +6,23 @@ import { MentorService } from "./mentor.service";
 import pick from "../../../shared/pick";
 import { USER_FILTERABLE_FIELDS } from "../user/user.constants";
 
-// const getAllMentors = catchAsync(
-//     async (req: Request, res: Response) => {
-//       const paginationOptions = pick(req.query, ['page', 'limit', 'sortBy', 'sortOrder']);
-//       const filterOptions = pick(req.query, USER_FILTERABLE_FIELDS);
-//       const result = await MentorService.getAllMentorsFromDB(paginationOptions, filterOptions);
+const getAllMentors = catchAsync(
+    async (req: Request, res: Response) => {
+      const paginationOptions = pick(req.query, ['page', 'limit', 'sortBy', 'sortOrder']);
+      const filterOptions = pick(req.query, USER_FILTERABLE_FIELDS);
+      const result = await MentorService.getAllMentorsFromDB(paginationOptions, filterOptions);
 
-//       sendResponse(res, {
-//         success: true,
-//         statusCode: StatusCodes.OK,
-//         message: 'All mentors retrieved successfully',
-//         data: {
-//           mentors: result.data,
-//           pagination: result.meta
-//         },
-//       });
-//     }
-//   );
+      sendResponse(res, {
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: 'All mentors retrieved successfully',
+        data: {
+          mentors: result.data,
+          pagination: result.meta
+        },
+      });
+    }
+  );
 
 //   const getAllActiveMentors = catchAsync(
 //     async (req: Request, res: Response) => {
@@ -42,19 +42,20 @@ import { USER_FILTERABLE_FIELDS } from "../user/user.constants";
 //   );
 
 
-//   const getSingleMentor = catchAsync(
-//     async (req: Request, res: Response) => {
-//       const { id } = req.params;
-//       const result = await MentorService.getSingleMentor(id);
+  const getSingleMentor = catchAsync(
+    async (req: Request, res: Response) => {
+      const { id } = req.params;
+      const result = await MentorService.getSingleMentor(id);
 
-//       sendResponse(res, {
-//         success: true,
-//         statusCode: StatusCodes.OK,
-//         message: 'Mentor retrieved successfully',
-//         data: result
-//       });
-//     }
-//   );
+      sendResponse(res, {
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: 'Mentor retrieved successfully',
+        data: result
+      });
+    }
+  );
+
 const onboardMentorToStripe = catchAsync(
     async (req: Request, res: Response) => {
       const result = await MentorService.onboardMentorToStripe(req.user);
@@ -98,9 +99,9 @@ const onboardMentorToStripe = catchAsync(
   );
 
   export const MentorController = {
-    // getAllMentors,
+    getAllMentors,
     // getAllActiveMentors,
-    // getSingleMentor,
+    getSingleMentor,
     onboardMentorToStripe,
     createStripeLoginLink,
     getMenteeByMentor

@@ -4,3 +4,6 @@ export type IPaginationOptions = {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 };
+
+
+export const paginationConstants = ['page', 'limit', 'sortBy', 'sortOrder'];

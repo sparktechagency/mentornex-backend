@@ -13,6 +13,7 @@ router
     auth(USER_ROLES.MENTOR),
     fileUploadHandler(),
    (req:Request, res:Response, next:NextFunction)=>{
+
      if(req.body.data) {
       req.body = TaskValidation.taskZodSchema.parse(
         JSON.parse(req.body.data)
@@ -21,7 +22,9 @@ router
      return TaskController.addTask(req, res, next);
    }
   );
-router.route('/get-all-task').get(auth(USER_ROLES.MENTOR), TaskController.getAllTask);
+
+router.get('/:id',auth(USER_ROLES.MENTOR, USER_ROLES.MENTEE), TaskController.getSingleTask);
+router.route('/').get(auth(USER_ROLES.MENTOR), TaskController.getAllTask);
 router.route('/').get(auth(USER_ROLES.MENTEE,USER_ROLES.MENTOR), TaskController.getTaskByMenteeOrMentor);
 router.route('/delete-task/:id').delete(auth(USER_ROLES.MENTOR), TaskController.deleteTask);
 export const TaskRoutes = router;

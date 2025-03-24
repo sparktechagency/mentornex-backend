@@ -4,29 +4,23 @@ import sendResponse from "../../../shared/sendResponse";
 import { StatusCodes } from "http-status-codes";
 import { NoteService } from "./note.service";
 import { getSingleFilePath } from "../../../shared/getFilePath";
+import pick from "../../../shared/pick";
+import { Types } from "mongoose";
+import { paginationConstants } from "../../../types/pagination";
 
 const addNote = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response) => {
       const mentor_id = req.user.id;
-      let files = getSingleFilePath(req.files, 'doc');
-      if (!files || Object.keys(files).length === 0) {
-        return res.status(StatusCodes.BAD_REQUEST).json({
-          success: false,
-          message: "No files uploaded",
-        });
+
+      const payload = req.body;
+      payload.mentor_id = mentor_id;
+
+      if(req.files && req.file && req.file.fieldname === 'doc') {
+        payload.file = getSingleFilePath(req.files, 'doc');
       }
 
-      const note = {mentor_id, file: files, ...req.body};
-      const result = await NoteService.addNoteToDB(note);
 
-      if(!result){
-        sendResponse(res, {
-          success: false,
-          statusCode: StatusCodes.BAD_REQUEST,
-          message: 'Note not added',
-          data: result,
-        });
-      }
+      const result = await NoteService.addNoteToDB(payload);
   
       sendResponse(res, {
         success: true,
@@ -39,18 +33,12 @@ const addNote = catchAsync(
   );
 
   const getAllNotes = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response) => {
       const mentor_id = req.user.id;
-      const result = await NoteService.getAllNotesFromDB(mentor_id);
-
-      if(!result){
-        sendResponse(res, {
-          success: false,
-          statusCode: StatusCodes.BAD_REQUEST,
-          message: 'Notes not found',
-          data: result,
-        });
-      }
+      const mentee_id = req.query.menteeId as string | undefined;
+      const pagination = pick(req.query, paginationConstants);
+      
+      const result = await NoteService.getAllNotesFromDB(mentor_id,pagination,mentee_id ? new Types.ObjectId(mentee_id) : undefined);
 
       sendResponse(res, {
         success: true,
@@ -61,7 +49,57 @@ const addNote = catchAsync(
     }
   );
 
+const getSingleNote = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const result = await NoteService.getSingleNote(req.user, id);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Note retrieved successfully',
+      data: result,
+    });
+  }
+);
+
+const deleteNote = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const result = await NoteService.deleteNote(req.user, id);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Note deleted successfully',
+      data: result,
+    });
+  }
+);
+
+const updateNote = catchAsync(
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const payload = req.body;
+    if(req.files && req.file && req.file.fieldname === 'doc') {
+      payload.file = getSingleFilePath(req.files, 'doc');
+    }
+    payload.mentor_id = req.user.id;
+    const result = await NoteService.updateNote(req.user, id, payload);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Note updated successfully',
+      data: result,
+    });
+  }
+);
+
  export const NoteController = {
     addNote,
-    getAllNotes
+    getAllNotes,
+    getSingleNote,
+    deleteNote,
+    updateNote
  }

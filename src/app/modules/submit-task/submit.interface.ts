@@ -1,8 +1,8 @@
-import {Model} from 'mongoose';
+import {Model, Types} from 'mongoose';
 
 export interface ISubmit {
-    taskId: string;
-    menteeId: string;
+    taskId: Types.ObjectId;
+    menteeId: Types.ObjectId;
     answer?: string;
     file?: string;
     status?: 'reviewed' | 'pending';
