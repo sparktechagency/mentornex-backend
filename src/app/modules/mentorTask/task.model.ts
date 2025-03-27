@@ -24,6 +24,11 @@ const TaskSchema = new Schema<ITask, TaskModal>(
         file: {
             type: String,
         },
+        priority: {
+            type: String,
+            enum: ['low', 'medium', 'high', 'urgent'],
+            default: 'low'
+        },
         status: {
             type: String,
             enum: ['incomplete', 'complete'],

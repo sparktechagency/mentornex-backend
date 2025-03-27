@@ -24,7 +24,7 @@ router
   );
 
 router.get('/:id',auth(USER_ROLES.MENTOR, USER_ROLES.MENTEE), TaskController.getSingleTask);
-router.route('/').get(auth(USER_ROLES.MENTOR), TaskController.getAllTask);
+router.route('/').get(auth(USER_ROLES.MENTOR, USER_ROLES.MENTEE), TaskController.getAllTask);
 router.route('/').get(auth(USER_ROLES.MENTEE,USER_ROLES.MENTOR), TaskController.getTaskByMenteeOrMentor);
 router.route('/delete-task/:id').delete(auth(USER_ROLES.MENTOR), TaskController.deleteTask);
 export const TaskRoutes = router;

@@ -9,6 +9,7 @@ import { errorLogger, logger } from './shared/logger';
 import { jwtHelper } from './helpers/jwtHelper';
 import { Notification } from './app/modules/notification/notification.model';
 
+
 //uncaught exception
 process.on('uncaughtException', error => {
   errorLogger.error('UnhandleException Detected', error);
@@ -24,6 +25,7 @@ async function main() {
 
     //Seed Super Admin after database connection is successful
     await seedSuperAdmin();
+
 
     const port =
       typeof config.port === 'number' ? config.port : Number(config.port);

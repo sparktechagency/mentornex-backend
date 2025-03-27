@@ -11,21 +11,11 @@ router.route('/create-schedule')
     ScheduleController.createSchedule
   );
 
-router.route('/get-schedule-by-mentor')
+router.route('/')
   .get(
-    auth(USER_ROLES.MENTOR),
-    ScheduleController.getScheduleByMentor
-  );
-  router.route('/get-schedule-by-mentee/:mentor_id')
-  .get(
-    // auth(USER_ROLES.MENTEE),
-    ScheduleController.getScheduleByMentee
+    auth(USER_ROLES.MENTOR,USER_ROLES.MENTEE),
+    ScheduleController.getMentorSchedule
   );
 
-router.route('/update-schedule')
-  .patch(
-    auth(USER_ROLES.MENTOR),
-    ScheduleController.updateSchedule
-  );
 
 export const ScheduleRoutes = router;

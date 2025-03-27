@@ -1,24 +1,32 @@
 import { Model, Types} from 'mongoose';
+import { PLAN_TYPE } from '../purchase/purchase.interface';
+
+export enum SESSION_STATUS {
+  PENDING = 'pending',
+  ACCEPTED = 'accepted',
+  CANCELLED = 'cancelled',
+  COMPLETED = 'completed',
+  RESCHEDULED = 'rescheduled'
+}
 
 export type ISession = {
+  _id: Types.ObjectId;
   mentor_id: Types.ObjectId;
   mentee_id: Types.ObjectId;
   scheduled_time: Date;
-  session_type: string;
+  session_plan_type: PLAN_TYPE;
   topic: string;
   duration: string;
+  cancel_reason?: string;
+  pay_per_session_id?: Types.ObjectId;
+  package_id?: Types.ObjectId;
+  subscription_id?: Types.ObjectId;
   expected_outcome: string;
-  fee: string;
-  status: 'pending' | 'accepted' | 'cancelled' | 'completed';
-  payment_type: 'subscription' | 'per_session';
-  stripe_payment_intent_id: string;
-  payment_status: 'pending'| 'held'| 'released'| 'refunded' | 'cancelled' | 'failed';
-  amount: number;
-  platform_fee: number;
-  meeting_id?: string;
-  meeting_url?: string;
-  //host_token?: string;
-  //participant_token?: string;
+  status: SESSION_STATUS;
+  meeting_token?: string;
+  purchased_plan?: Types.ObjectId;
+  created_at: Date;
+  updated_at: Date;
 };
 
 export type SessionModal = Model<ISession>;

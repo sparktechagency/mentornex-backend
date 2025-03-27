@@ -6,9 +6,9 @@ import auth from '../../middlewares/auth';
 import { USER_ROLES } from '../../../enums/user';
 
 const router = express.Router();
-router.post('/pay-per-session',auth(USER_ROLES.MENTEE), validateRequest(PurchaseValidations.purchasePayPerSession), PurchaseController.purchasePayPerSession);
-router.post('/package',auth(USER_ROLES.MENTEE), PurchaseController.purchasePackage);
-router.post('/subscription',auth(USER_ROLES.MENTEE), PurchaseController.purchaseSubscription);
-router.post('/cancel-subscription',auth(USER_ROLES.MENTEE), PurchaseController.cancelSubscription);
+router.post('/pay-per-session/:id',auth(USER_ROLES.MENTEE), validateRequest(PurchaseValidations.purchasePayPerSession), PurchaseController.purchasePayPerSession);
+router.post('/package/:id',auth(USER_ROLES.MENTEE), PurchaseController.purchasePackage);
+router.post('/subscription/:id',auth(USER_ROLES.MENTEE), PurchaseController.purchaseSubscription);
+router.post('/cancel-subscription/:id',auth(USER_ROLES.MENTEE), PurchaseController.cancelSubscription);
 
 export const PurchaseRoutes = router;

@@ -1,4 +1,4 @@
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 
 export type TimeSlot = {
   time: string;
@@ -12,7 +12,7 @@ export type DaySchedule = {
 };
 
 export type ISchedule = {
-  mentor_id: string;
+  mentor_id: Types.ObjectId;
   timeZone: string;
   schedule: DaySchedule[];
 };

@@ -1,38 +1,48 @@
 import { JwtPayload } from 'jsonwebtoken';
-import { PurchaseModel } from './purchase.interface';
+import { PURCHASE_PLAN_STATUS, PLAN_TYPE } from './purchase.interface';
 import { Types } from 'mongoose';
 import { Package, PayPerSession, Subscription } from '../plans/plans.model';
 import ApiError from '../../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
 import { StripeService } from './stripe.service';
-import { User } from '../user/user.model';
 import { Purchase } from './purchase.model';
 import { convertDate } from '../../../util/dateHelper';
 import { IUser } from '../user/user.interface';
+import { PLAN_STATUS } from '../plans/plans.interface';
+import { User } from '../user/user.model';
 
+const purchasePayPerSession = async(user:JwtPayload, id:Types.ObjectId, payload:{date:string, slot:string}) =>{
 
-const purchasePayPerSession = async(user:JwtPayload, id:Types.ObjectId, payload:{date:string, slot:string, timeZone:string}) =>{
-    const session = await PayPerSession.findById(id).populate<{mentor_id:Partial<IUser>}>({path:'mentor_id', select:{stripeCustomerId:1, stripe_account_id:1, _id:1}}).lean();
+    const [session, isUserExist] = await Promise.all([
+        PayPerSession.findById(id).populate<{mentor_id:Partial<IUser>}>({path:'mentor_id', select:{stripeCustomerId:1, stripe_account_id:1, _id:1, timeZone:1}}).lean(),
+        User.findById(user.id).select("timeZone status").lean()
+      ]);
+    
     if(!session){
         throw new ApiError(StatusCodes.NOT_FOUND, 'Requested session does not exist.')
     }
 
+    if(!session.mentor_id.stripe_account_id) throw new ApiError(StatusCodes.BAD_REQUEST, 'Mentor is not eligible to sell this session.');
+    console.log(isUserExist)
+    if(!isUserExist || isUserExist.status !== 'active') throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to purchase this session.');
+    if(session.status !== PLAN_STATUS.ACTIVE) throw new ApiError(StatusCodes.BAD_REQUEST, 'This session can not be purchased. It is not active.');
+
     const {stripeCustomerId, stripe_account_id, _id} = session.mentor_id;
 
-    const date = convertDate(payload.date, payload.slot, payload.timeZone);
+    const date = convertDate(payload.date, payload.slot, isUserExist.timeZone!);
 
     const purchasePayload = {
         mentor_id: session.mentor_id,
         mentee_id: user.id,
         pay_per_session_id: session._id,
-        plan_type: 'PayPerSession',
+        plan_type: PLAN_TYPE.PayPerSession,
         amount: session.amount,
         checkout_session_id: '',
         date: date,
     }
     
 
-    const payment = await StripeService.createCheckoutSession(stripeCustomerId!, user.id,_id!.toString(), session.title, 'PayPerSession', stripe_account_id as string, session.amount);
+    const payment = await StripeService.createCheckoutSession(stripeCustomerId!, user.id,_id!.toString(), session.title, PLAN_TYPE.PayPerSession, stripe_account_id as string, session.amount);
 
     if(!payment){
         throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create checkout session.')
@@ -47,10 +57,17 @@ const purchasePayPerSession = async(user:JwtPayload, id:Types.ObjectId, payload:
 }
 
 const purchasePackage = async(user:JwtPayload, id:Types.ObjectId) =>{
+
+
+    //check whether the requested user already have a package.
+    const isAlreadyPurchased = await Purchase.findOne({mentee_id: user.id, plan_type: PLAN_TYPE.Package, plan_status: PURCHASE_PLAN_STATUS.ACTIVE}).lean();
+    if(isAlreadyPurchased) throw new ApiError(StatusCodes.BAD_REQUEST, 'You already have a package with this mentor. After the package quota is over, you can purchase another package.');
+
     const pkg = await Package.findById(id).populate<{mentor_id:Partial<IUser>}>({path:'mentor_id', select:{stripeCustomerId:1, stripe_account_id:1, _id:1}}).lean();
     if(!pkg){
         throw new ApiError(StatusCodes.NOT_FOUND, 'Requested package does not exist.')
     }
+    if(pkg.status !== 'active') throw new ApiError(StatusCodes.BAD_REQUEST, 'Package is not active.');
 
     const {stripeCustomerId, stripe_account_id, _id} = pkg.mentor_id;
 
@@ -58,14 +75,14 @@ const purchasePackage = async(user:JwtPayload, id:Types.ObjectId) =>{
         mentor_id: pkg.mentor_id,
         mentee_id: user.id,
         package_id: pkg._id,
-        plan_type: 'Package',
+        plan_type: PLAN_TYPE.Package,
         amount: pkg.amount,
         checkout_session_id: '',
 
     }
     
 
-    const payment = await StripeService.createCheckoutSession(stripeCustomerId!, user.id,_id!.toString(), pkg.title, 'Package', stripe_account_id as string, pkg.amount);
+    const payment = await StripeService.createCheckoutSession(stripeCustomerId!, user.id,_id!.toString(), pkg.title, PLAN_TYPE.Package, stripe_account_id as string, pkg.amount);
 
     if(!payment){
         throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create checkout session.')
@@ -79,6 +96,11 @@ const purchasePackage = async(user:JwtPayload, id:Types.ObjectId) =>{
 }
 
 const purchaseSubscription = async(user:JwtPayload, id:Types.ObjectId) =>{
+
+    const isAlreadyPurchased = await Purchase.findOne({mentee_id: user.id, plan_type: PLAN_TYPE.Subscription, plan_status: PURCHASE_PLAN_STATUS.ACTIVE}).lean();
+
+    if(isAlreadyPurchased) throw new ApiError(StatusCodes.BAD_REQUEST, 'You already have a subscription with this mentor. In order to purchase another subscription, you need to cancel the existing subscription first.');
+
     const subscription = await Subscription.findById(id).populate<{mentor_id:Partial<IUser>}>({path:'mentor_id', select:{stripeCustomerId:1, stripe_account_id:1, _id:1}}).lean();
     if(!subscription){
         throw new ApiError(StatusCodes.NOT_FOUND, 'Requested subscription does not exist.')
@@ -90,14 +112,14 @@ const purchaseSubscription = async(user:JwtPayload, id:Types.ObjectId) =>{
         mentor_id: subscription.mentor_id,
         mentee_id: user.id,
         subscription_id: subscription._id,
-        plan_type: 'Subscription',
+        plan_type: PLAN_TYPE.Subscription,
         amount: subscription.amount,
         checkout_session_id: '',
         remaining_sessions: subscription.sessions,
     }
     
 
-    const payment = await StripeService.createCheckoutSession(stripeCustomerId!, user.id,_id!.toString(), subscription.title, 'Subscription', stripe_account_id as string, subscription.amount, subscription.stripe_price_id);
+    const payment = await StripeService.createCheckoutSession(stripeCustomerId!, user.id,_id!.toString(), subscription.title, PLAN_TYPE.Subscription, stripe_account_id as string, subscription.amount, subscription.stripe_price_id);
 
     if(!payment){
         throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create checkout session.')
@@ -110,12 +132,15 @@ const purchaseSubscription = async(user:JwtPayload, id:Types.ObjectId) =>{
 }
 
 
-const cancelSubscription = async(user:JwtPayload,id:Types.ObjectId) =>{
+const cancelSubscription = async(user:JwtPayload, id:Types.ObjectId) =>{
     const subscription = await Purchase.findById(id);
+
 
     if(!subscription){
         throw new ApiError(StatusCodes.NOT_FOUND, 'Requested subscription does not exist.')
     }
+
+    if(subscription.mentee_id.toString() !== user.id) throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to cancel this subscription');
 
     const canceledSubscription = await StripeService.cancelSubscription(subscription.stripe_subscription_id!);
 

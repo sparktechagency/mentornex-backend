@@ -44,8 +44,12 @@ const addTaskToDB = async (payload: ITask): Promise<ITask> => {
 
 const getAllTaskFromDB = async (user: JwtPayload, paginationOptions:IPaginationOptions) => {
 const { page, limit, skip, sortBy, sortOrder } = paginationHelper.calculatePagination(paginationOptions);
-  const result = await Task.find({ mentor_id: user.id }).populate({
+  const result = await Task.find({ $or: [{ mentee_id: user.id }, { mentor_id: user.id }] }).populate({
     path: 'mentee_id',
+    model: 'User',
+    select: 'name email',
+  }).populate({
+    path: 'mentor_id',
     model: 'User',
     select: 'name email',
   }).sort({ [sortBy]: sortOrder })
@@ -84,15 +88,23 @@ const getTaskByMenteeOrMentor = async (
 };
 
 const getSingleTask = async (taskId: string, user: JwtPayload): Promise<ITask> => {
-  const result = await Task.findById(taskId);
+  const result = await Task.findById(taskId).populate({
+    path: 'mentee_id',
+    model: 'User',
+    select: 'name email',
+  }).populate({
+    path: 'mentor_id',
+    model: 'User',
+    select: 'name email',
+  });
 
   if (!result) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Requested task not found!');
   }
 
-  if(result.mentor_id.toString() !== user.id && result.mentee_id.toString() !== user.id) {
-    throw new ApiError(StatusCodes.FORBIDDEN, 'You are not authorized to view this task.');
-  }
+  // if(result.mentor_id.toString() !== user.id && result.mentee_id.toString() !== user.id) {
+  //   throw new ApiError(StatusCodes.FORBIDDEN, 'You are not authorized to view this task.');
+  // }
   return result;
 };
 

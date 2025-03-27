@@ -1,5 +1,5 @@
 import { Schema, model } from 'mongoose';
-import { IPurchase, PurchaseModel } from './purchase.interface'; 
+import { IPurchase, PAYMENT_STATUS, PURCHASE_PLAN_STATUS, PurchaseModel } from './purchase.interface'; 
 
 const purchaseSchema = new Schema<IPurchase, PurchaseModel>({
   mentee_id: {
@@ -21,6 +21,10 @@ const purchaseSchema = new Schema<IPurchase, PurchaseModel>({
     type: Number,
     required: true,
   },
+  application_fee: {
+    type: Number,
+    required: true,
+  },
   is_active: {
     type: Boolean,
     default: false,
@@ -31,8 +35,13 @@ const purchaseSchema = new Schema<IPurchase, PurchaseModel>({
   },
   status: {
     type: String,
-    enum: ['PAID', 'PENDING', 'CANCELLED', 'FAILED' ],
-    default: 'PENDING',
+    enum: [PAYMENT_STATUS.PAID, PAYMENT_STATUS.PENDING, PAYMENT_STATUS.CANCELLED, PAYMENT_STATUS.FAILED],
+    default: PAYMENT_STATUS.PENDING,
+  },
+  plan_status: {
+    type: String,
+    enum: [PURCHASE_PLAN_STATUS.ACTIVE, PURCHASE_PLAN_STATUS.CANCELLED, PURCHASE_PLAN_STATUS.EXPIRED],
+    default: PURCHASE_PLAN_STATUS.ACTIVE,
   },
   checkout_session_id: {
     type: String,
@@ -53,9 +62,7 @@ const purchaseSchema = new Schema<IPurchase, PurchaseModel>({
     type: Schema.Types.ObjectId,
     ref: 'PayPerSession',
   },
-  remaining_sessions: {
-    type: Number,
-  },
+
   stripe_account_id: {
     type: String,
 

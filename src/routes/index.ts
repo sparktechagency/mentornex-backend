@@ -23,6 +23,8 @@ import { ContentRoutes } from '../app/modules/content/content.route';
 import { OthersRoutes } from '../app/modules/others/others.router';
 import { PlansRoutes } from '../app/modules/plans/plans.route';
 import { ChatRoutes } from '../app/modules/chat/chat.route';
+import { PurchaseRoutes } from '../app/modules/purchase/purchase.route';
+import { SessionRoutes } from '../app/modules/sessionBooking/session.route';
 const router = express.Router();
 
 router.use('/payment/webhook', express.raw({ type: 'application/json' }));
@@ -84,6 +86,14 @@ const apiRoutes = [
   {
     path: '/platform',
     route: PlatformReviewRoutes,
+  },
+  {
+    path: '/purchase',
+    route: PurchaseRoutes,
+  },
+  {
+    path: '/session',
+    route: SessionRoutes,
   },
   {
     path: '/schedule',

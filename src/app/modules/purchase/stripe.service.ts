@@ -4,6 +4,7 @@ import stripe from '../../../config/stripe';
 import ApiError from '../../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
 import { IPlanType } from '../../../types/plan';
+import { PLAN_TYPE } from './purchase.interface';
 
 
 
@@ -247,7 +248,7 @@ export const StripeService = {
     menteeId: string,
     mentorId: string,
     title: string,
-    planType: 'Subscription' | 'PayPerSession' | 'Package',
+    planType: PLAN_TYPE,
     accountId: string,
     amount: number,
     priceId?: string,

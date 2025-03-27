@@ -63,9 +63,9 @@ const getChatList = async(user:JwtPayload) =>{
     }).populate<IChat>({
         path: 'participants',
         select: {name: 1, image: 1, _id: 1}
-    }).populate<IMessage>({
+    }).populate<{latestMessage: IMessage}>({
         path: 'latestMessage',
-        select: {message: 1, type: 1, _id: 1}
+        select: {message: 1, isRead:1, type: 1, _id: 1}
     });
 
 
@@ -74,14 +74,21 @@ const getChatList = async(user:JwtPayload) =>{
         const returnableData = {
             _id: chat._id,
             participant: otherUser,
-            latestMessage: chat.latestMessage || '',
+            latestMessage: chat.latestMessage?.message ? chat.latestMessage.message : chat.latestMessage?.type || '',
+            isRead: chat.latestMessage?.isRead || false,
             isRequest: chat.isRequested,
             createdAt: chat.createdAt,
             updatedAt: chat.updatedAt
         }
         return returnableData;
     })
-    return formattedChatList;
+
+    
+    //create two chat list one for message with isRequest false and another for request with isRequest true
+    const messageChatList = formattedChatList.filter((chat,index) => !chat.isRequest || (chatList[index].participants[0]._id.toString() === user.id));
+    const requestChatList = formattedChatList.filter((chat, index) => chat.isRequest && chatList[index].participants[0]._id.toString() !== user.id);
+
+    return {messages:messageChatList, requests:requestChatList};
 }
 
 export const ChatServices = { createChat, getChatList };

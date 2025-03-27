@@ -5,6 +5,14 @@
 // import { StatusCodes } from 'http-status-codes';
 // import { paginationHelper } from '../../../helpers/paginationHelper';
 
+import { Request, Response } from "express"
+import catchAsync from "../../../shared/catchAsync"
+import { SessionService } from "./session.service";
+import sendResponse from "../../../shared/sendResponse";
+import { StatusCodes } from "http-status-codes";
+import { PLAN_TYPE } from "../purchase/purchase.interface";
+import { Types } from "mongoose";
+
 
 // const createSessionPaymentIntent = catchAsync(async (req: Request, res: Response) => {
 //   const mentee_id = req.user.id;
@@ -152,3 +160,36 @@
 //   MenteeUpcomingSession,
 //   MenteeCompletedSession
 // };
+
+
+const     createSessionRequest
+= catchAsync(async (req: Request, res: Response) => {
+    const { ...payload } = req.body;
+    const mentorId = new Types.ObjectId(req.params.mentorId);
+    payload.mentor_id = mentorId;
+    const result = await SessionService.createSessionRequest(req.user, payload, payload.session_plan_type === PLAN_TYPE.PayPerSession);
+    sendResponse(res, {
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: 'Session created successfully',
+        data: result,
+    });
+})
+
+const getSession = catchAsync(async (req: Request, res: Response) => {
+    const { sessionId } = req.params;
+    const result = await SessionService.getSession(req.user, new Types.ObjectId(sessionId));
+    sendResponse(res, {
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: 'Session retrieved successfully',
+        data: result,
+    });
+})
+
+
+export const SessionController = {
+    createSessionRequest,
+    getSession
+    
+}

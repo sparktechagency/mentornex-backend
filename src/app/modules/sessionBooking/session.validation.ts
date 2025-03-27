@@ -1,5 +1,8 @@
 // import { z } from 'zod';
 
+import { z } from "zod"
+import { PLAN_TYPE } from "../purchase/purchase.interface"
+
 // const bookSessionZodSchema = z.object({
 //   body: z.object({
 //     mentee_id: z.string().optional(),
@@ -38,3 +41,21 @@
 //   updateSessionStatusZodSchema,
 //   updateUserZodSchema,
 // };
+
+const createSessionZodSchema = z.object({
+    body:z.object({
+        topic: z.string({ required_error: 'Topic is required' }),
+        duration: z.string({ required_error: 'Type is required' }),
+        expected_outcome: z.string({ required_error: 'Expected outcome is required' }),
+        date:z.string({ required_error: 'Date is required' }),
+        slot:z.string({ required_error: 'Slot is required' }),
+        session_plan_type: z.enum([PLAN_TYPE.Package, PLAN_TYPE.Subscription, PLAN_TYPE.PayPerSession], { required_error: 'Session plan type is required' }),
+        package_id: z.string().optional(),
+        subscription_id: z.string().optional(),
+        pay_per_session_id: z.string().optional(),
+    })
+})
+
+export const SessionValidation = {
+    createSessionZodSchema
+}

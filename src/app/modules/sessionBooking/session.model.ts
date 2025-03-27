@@ -1,5 +1,6 @@
 import { model, Schema } from 'mongoose';
-import { ISession, SessionModal } from './session.interface';
+import { ISession, SESSION_STATUS, SessionModal } from './session.interface';
+import { PLAN_TYPE } from '../purchase/purchase.interface';
 
 const sessionSchema = new Schema<ISession, SessionModal>(
   {
@@ -17,10 +18,15 @@ const sessionSchema = new Schema<ISession, SessionModal>(
       type: Date,
       required: true,
     },
-    session_type: {
+    session_plan_type: {
       type: String,
+      enum: [PLAN_TYPE.Package, PLAN_TYPE.Subscription, PLAN_TYPE.PayPerSession],
       required: true,
     },
+    pay_per_session_id: { type: Schema.Types.ObjectId, ref: 'PayPerSession' },
+    package_id: { type: Schema.Types.ObjectId, ref: 'Package' },
+    subscription_id: { type: Schema.Types.ObjectId, ref: 'Subscription' },
+    cancel_reason: { type: String },
     topic: {
       type: String,
       required: true,
@@ -33,41 +39,18 @@ const sessionSchema = new Schema<ISession, SessionModal>(
       type: String,
       required: true,
     },
-    fee: {
-      type: String,
-    },
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'cancelled', 'completed'],
-      default: 'pending',
+      enum: [SESSION_STATUS.PENDING, SESSION_STATUS.ACCEPTED, SESSION_STATUS.CANCELLED, SESSION_STATUS.COMPLETED],
+      default: SESSION_STATUS.PENDING,
     },
-    payment_type: {
-      type: String,
-      enum: ['subscription', 'per_session'],
-      required: true,
-    },
-    stripe_payment_intent_id: {
-      type: String,
-    },
-    payment_status: {
-      type: String,
-      enum: ['pending', 'held', 'released', 'refunded', 'cancelled', 'failed'],
-      default: 'pending',
-    },
-    amount: {
-      type: Number,
-      required: true,
-    },
-    platform_fee: {
-      type: Number,
-      required: true,
-    },
-    meeting_id: {
+    meeting_token: {
       type: String
     },
-    meeting_url: {
-      type: String
-    }
+    purchased_plan: {
+      type: Schema.Types.ObjectId,
+      ref: 'Purchase',
+    },
   },
   { timestamps: true }
 );

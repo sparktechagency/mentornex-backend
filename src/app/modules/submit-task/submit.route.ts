@@ -11,7 +11,7 @@ router
   .post(
     auth(USER_ROLES.MENTEE),
     fileUploadHandler(),
-    SubmitController.createSubmit
+    SubmitController.createOrUpdateSubmit
   );
 
 router.get('/submit/:taskId',auth(USER_ROLES.MENTEE, USER_ROLES.MENTOR), SubmitController.getSubmissionByTask);

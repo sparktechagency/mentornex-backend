@@ -25,7 +25,7 @@ const sendMessage = async(user:JwtPayload,chatId:Types.ObjectId,payload:Partial<
         throw new ApiError(StatusCodes.BAD_REQUEST,'Requested chat not found.');
     }
     const stringParticipantIds = chat.participants.map((participant: any) => participant._id.toString());
-    if(!stringParticipantIds.includes(requestedUserId)){
+    if(!stringParticipantIds.includes(requestedUserId.toString())){
         throw new ApiError(StatusCodes.BAD_REQUEST,'You are not authorized to send message in this chat.');
     }
 
@@ -90,10 +90,14 @@ const getMessagesByChatId = async(user:JwtPayload,chatId:Types.ObjectId, paginat
     if(!stringParticipantIds.includes(requestedUserId)){
         throw new ApiError(StatusCodes.BAD_REQUEST,'You are not authorized to access this chat messages.');
     }
+
+    //update all the messages isRead to true
+    await Message.updateMany({chatId, receiver: requestedUserId}, {isRead: true}, { new: true });
+
     const messages = await Message.find({chatId}).populate({
         path: 'receiver',
         select: {name: 1, image: 1, _id: 1}
-    }).skip(skip).limit(limit).sort({[sortBy]: sortOrder});
+    }).skip(skip).limit(1000).sort({createdAt:'asc'});
 
     const total = await Message.countDocuments({chatId});
     return {

@@ -1,5 +1,5 @@
 import { Schema, model } from 'mongoose';
-import { IPayPerSession, IPackage, ISubscription, IPayPerSessionModel, IPackageModel, ISubscriptionModel } from './plans.interface';
+import { IPayPerSession, IPackage, ISubscription, IPayPerSessionModel, IPackageModel, ISubscriptionModel, PLAN_STATUS } from './plans.interface';
 
 const payPerSessionSchema = new Schema<IPayPerSession, IPayPerSessionModel>({
   mentor_id: {
@@ -27,8 +27,8 @@ const payPerSessionSchema = new Schema<IPayPerSession, IPayPerSessionModel>({
   },
   status: {
     type: String,
-    enum: ['active', 'inactive'],
-    default: 'active'
+    enum: [PLAN_STATUS.ACTIVE, PLAN_STATUS.INACTIVE],
+    default: PLAN_STATUS.ACTIVE
   },
 
 }, { timestamps: true });
@@ -59,8 +59,8 @@ const packageSchema = new Schema<IPackage, IPackageModel>({
   },
   status: {
     type: String,
-    enum: ['active', 'inactive'],
-    default: 'active'
+    enum: [PLAN_STATUS.ACTIVE, PLAN_STATUS.INACTIVE],
+    default: PLAN_STATUS.ACTIVE
   },
 
 }, { timestamps: true });
@@ -110,8 +110,8 @@ const subscriptionSchema = new Schema<ISubscription, ISubscriptionModel>({
   },
   status: {
     type: String,
-    enum: ['active', 'inactive'],
-    default: 'active'
+    enum: [PLAN_STATUS.ACTIVE, PLAN_STATUS.INACTIVE],
+    default: PLAN_STATUS.ACTIVE
   },
   type: {
     type: String,

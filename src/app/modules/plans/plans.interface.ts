@@ -1,5 +1,9 @@
 import { Model, Types } from 'mongoose';
 
+export enum PLAN_STATUS {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive'
+}
 
 export type IPayPerSession = {
   _id:Types.ObjectId;
@@ -9,7 +13,7 @@ export type IPayPerSession = {
   duration:string;
   description:string;
   features:string[];
-  status:'active' | 'inactive';
+  status:PLAN_STATUS;
   created_at:Date;
   updated_at:Date;
 }
@@ -22,7 +26,7 @@ export type IPackage ={
   sessions:number;
   description:string;
   features:string[];
-  status:'active' | 'inactive';
+  status:PLAN_STATUS;
   created_at:Date;
   updated_at:Date;
 }
@@ -40,7 +44,7 @@ export type ISubscription = {
   description:string;
   features:string[];
   sessions?:number;
-  status:'active' | 'inactive';
+  status:PLAN_STATUS;
   type:'basic' | 'pro' | 'premium';
   created_at:Date;
   updated_at:Date;

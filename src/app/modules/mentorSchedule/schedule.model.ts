@@ -28,7 +28,7 @@ const DayScheduleSchema = new Schema({
 const ScheduleSchema = new Schema<ISchedule, ScheduleModel>(
   {
     mentor_id: {
-      type: String,
+      type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },

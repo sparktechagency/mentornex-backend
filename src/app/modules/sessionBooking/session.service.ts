@@ -5,6 +5,18 @@
 // import stripe from '../../../config/stripe';
 // import { StripeService } from '../purchase/stripe.service';
 
+import { JwtPayload } from "jsonwebtoken"
+import { ISession, SESSION_STATUS } from "./session.interface"
+import { User } from "../user/user.model"
+import ApiError from "../../../errors/ApiError"
+import { StatusCodes } from "http-status-codes"
+import { convertSessionTimeToLocal, convertSessionTimeToUTC, convertSlotTimeToUTC } from "../../../helpers/date.helper"
+import { DateTime } from "luxon"
+import { Session } from "./session.model"
+import mongoose, { Types } from "mongoose"
+import sendNotification from "../../../helpers/sendNotificationHelper"
+import { getActivePackageOrSubscription } from "./session.utils"
+
 // const createPaymentIntent = async (sessionData: any) => {
 //   try {
 //     const mentor = await User.findById(sessionData.mentor_id);
@@ -316,3 +328,163 @@
 //   updateSessionStatus,
 //   completeSession,
 // };
+
+
+const createSessionRequest = async (
+    user: JwtPayload,
+    payload: ISession & { slot: string, date: string },
+    payPerSession?: boolean
+) => {
+   
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        
+        const isUserExist = await User.findById(user.id).lean();
+        if (!isUserExist || isUserExist.status !== 'active') {
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to purchase this session.');
+        }
+
+        // Convert slot to UTC with proper date reference
+        const convertedSlot = convertSessionTimeToUTC(payload.slot, isUserExist.timeZone, payload.date);
+        const convertedDate = new Date(convertedSlot.isoString);
+
+        //now see if the requested slot is available or not
+
+
+
+        // if (isSlotAvailable) {
+        //     throw new ApiError(StatusCodes.BAD_REQUEST, 'The requested slot is not available.');
+        // }
+        
+        const { pkg, subscription } = await getActivePackageOrSubscription(isUserExist._id);
+    
+        if(pkg && payload.package_id){
+            payload.package_id = pkg.package_id;
+        }
+        if(subscription && payload.subscription_id){
+            payload.subscription_id = subscription.subscription_id;
+        }
+    
+
+        const sessionData = {
+            mentor_id: payload.mentor_id,
+            mentee_id: user.id,
+            scheduled_time: convertedDate,
+            topic: payload.topic,
+            duration: payload.duration,
+            expected_outcome: payload.expected_outcome,
+            session_plan_type: payload.session_plan_type,
+            status: SESSION_STATUS.PENDING,
+            ...(payPerSession && { pay_per_session_id: payload.pay_per_session_id }),
+            ...(payload.package_id && { package_id: payload.package_id }),
+            ...(payload.subscription_id && { subscription_id: payload.subscription_id })
+        };
+    
+    
+    
+    
+        const bookedSession = await Session.create([sessionData], { session });
+    
+        await sendNotification('getNotification',{
+            senderId: user.id.toString(),
+            receiverId: payload.mentor_id.toString(),
+            title: `You have a new session request from ${isUserExist.name}`,
+            message: `You have a new session request from ${isUserExist.name} at ${payload.date} ${payload.slot} on ${payload.topic}, please respond to accept or reject `,
+        })
+    
+        await session.commitTransaction();
+
+        return bookedSession;
+    } catch (error) {
+        console.error('Error creating session request:', error);
+        await session.abortTransaction();
+
+        throw error;
+    } finally {
+        await session.endSession();
+    }
+};
+
+
+const updateBookedSession = async (user: JwtPayload, sessionId: Types.ObjectId, payload: ISession & { slot: string, date: string }) => {
+    const isUserExist = await User.findById(user.id).lean();
+    if (!isUserExist || isUserExist.status !== 'active') {
+        throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to access this session.');
+    }
+
+    const session = await Session.findById(sessionId).populate<{mentee_id: {name: string, timeZone: string, _id: Types.ObjectId}}>('mentee_id', 'name timeZone _id').populate<{mentor_id: {name: string, timeZone: string, _id: Types.ObjectId}}>('mentor_id', 'name timeZone _id');
+    if (!session || session.mentee_id._id.toString() !== user.id || session.mentor_id._id.toString() !== user.id) {
+        throw new ApiError(StatusCodes.NOT_FOUND, 'You are not authorized to access this session.');
+    }
+
+    const generateNotificationData = (sender: string, receiver: string, status: SESSION_STATUS, topic: string,date:Date,  timeZone: string, message?: string)=>{
+        return {
+            senderId: sender,
+            receiverId: receiver,
+            title: `Your session request has been ${status} by ${session.mentee_id.name}`,
+            message: `Your session request has been ${status} by ${session.mentee_id.name} at ${convertSessionTimeToLocal(date, timeZone)} on ${topic}. ${message && 'Cancellation reason: ' + message}`,
+        }
+    }
+
+    if(payload.status === SESSION_STATUS.ACCEPTED){
+        session.status = payload.status;
+        await session.save();
+        await sendNotification('getNotification', generateNotificationData(user.id.toString(), session.mentee_id._id.toString(), SESSION_STATUS.ACCEPTED, session.topic, session.scheduled_time, session.mentee_id.timeZone));
+    }
+
+    if(payload.status === SESSION_STATUS.CANCELLED){
+        session.status = payload.status;
+        session.cancel_reason = payload.cancel_reason;
+        await session.save();
+        await sendNotification('getNotification', generateNotificationData(user.id.toString(), session.mentee_id._id.toString(), SESSION_STATUS.CANCELLED, session.topic, session.scheduled_time, session.mentee_id.timeZone, payload.cancel_reason));
+    }
+
+    if(payload.status === SESSION_STATUS.RESCHEDULED && !(session.status === SESSION_STATUS.CANCELLED || session.status === SESSION_STATUS.ACCEPTED)){
+       throw new ApiError(StatusCodes.BAD_REQUEST, 'Only cancelled or accepted sessions can be rescheduled.');
+    }
+
+    if(payload.status === SESSION_STATUS.RESCHEDULED && (session.status === SESSION_STATUS.CANCELLED  || session.status === SESSION_STATUS.ACCEPTED)){
+        if(user.id !== session.mentee_id.toString() && user.id !== session.mentor_id.toString()){
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to reschedule this session.');
+        }
+        if(payload.date && payload.slot){
+            session.status = payload.status;
+            const convertedSlot = convertSessionTimeToUTC(payload.slot, isUserExist.timeZone, payload.date);
+            const convertedDate = new Date(convertedSlot.isoString);
+            session.scheduled_time = convertedDate;
+            await session.save();
+            await sendNotification('getNotification', generateNotificationData(user.id.toString(), session.mentee_id._id.toString(), SESSION_STATUS.RESCHEDULED, session.topic, session.scheduled_time, session.mentee_id.timeZone));
+        }else{
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'Date and slot are required to reschedule the session.');
+        }
+    }
+
+    return session;
+};
+
+const getSession = async (user: JwtPayload, sessionId: Types.ObjectId) => {
+    const isUserExist = await User.findById(user.id).lean();
+    if (!isUserExist || isUserExist.status !== 'active') {
+        throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to access this session.');
+    }
+
+    const session = await Session.findById(sessionId).lean();
+    if (!session) {
+        throw new ApiError(StatusCodes.NOT_FOUND, 'Session not found');
+    }
+
+    const displayTime = convertSessionTimeToLocal(session.scheduled_time, isUserExist.timeZone);
+   
+
+    return { 
+        ...session, 
+        scheduled_time: displayTime 
+    };
+};
+
+export const SessionService = {
+    createSessionRequest,
+    getSession
+}

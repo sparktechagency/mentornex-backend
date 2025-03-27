@@ -1,13 +1,34 @@
 import { Model, Types } from 'mongoose';
 
+export enum PLAN_TYPE {
+  Package = 'Package',
+  Subscription = 'Subscription',
+  PayPerSession = 'PayPerSession'
+}
+
+export enum PURCHASE_PLAN_STATUS {
+  PENDING = 'PENDING',
+  ACTIVE = 'ACTIVE',
+  CANCELLED = 'CANCELLED',
+  EXPIRED = 'EXPIRED'
+}
+
+export enum PAYMENT_STATUS {
+  PAID = 'PAID',
+  PENDING = 'PENDING',
+  CANCELLED = 'CANCELLED',
+  FAILED = 'FAILED'
+}
+
 export type IPurchase = {
   mentee_id:Types.ObjectId;
   mentor_id:Types.ObjectId;
-  plan_type:'Package' | 'Subscription' | 'PayPerSession';
+  plan_type:PLAN_TYPE;
   amount:number;
-  status:"PAID"|"PENDING" | "CANCELLED" | "FAILED" ;
+  application_fee:number;
+  status:PAYMENT_STATUS;
+  plan_status:PURCHASE_PLAN_STATUS;
   subscription_cancelled?:boolean;
-  date?:Date;
   checkout_session_id:string;
   stripe_subscription_id?:string;
   package_id?:Types.ObjectId;
@@ -16,7 +37,6 @@ export type IPurchase = {
   stripe_account_id?:string;
   starting_date?:Date;
   ending_date?:Date;
-  remaining_sessions?:number;
   is_active?:boolean;
   created_at:Date;
   updated_at:Date;

@@ -1,6 +1,6 @@
 import { StatusCodes } from "http-status-codes";
 import ApiError from "../../../errors/ApiError";
-import { IPackage, IPayPerSession, ISubscription } from "./plans.interface";
+import { IPackage, IPayPerSession, ISubscription, PLAN_STATUS } from "./plans.interface";
 import { Package, PayPerSession, Subscription } from "./plans.model";
 import { Types } from "mongoose";
 import { JwtPayload } from "jsonwebtoken";
@@ -39,6 +39,9 @@ const deletePayPerSession = async (id: Types.ObjectId, user:JwtPayload) => {
 }
 
 const createPackage = async (payload: IPackage, user:JwtPayload) => {
+  const isMaxed = await Package.countDocuments({ mentor_id: user.id, status: PLAN_STATUS.ACTIVE }) >= 3;
+
+  if(isMaxed) throw new ApiError(StatusCodes.BAD_REQUEST, 'You can only have 3 active packages');
 payload.mentor_id = user.id;
   const result = await Package.create(payload);
   if(!result) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create package');
@@ -70,7 +73,7 @@ const deletePackage = async (id: Types.ObjectId, user:JwtPayload) => {
 const createSubscriptionPlan = async (payload: ISubscription, user: JwtPayload) => {
   // Fetch existing plans and Stripe account ID in parallel
   const [existingPlan, stripeAccountId] = await Promise.all([
-    Subscription.find({ mentor_id: user.id, status: 'active' }).lean(),
+    Subscription.find({ mentor_id: user.id, status: PLAN_STATUS.ACTIVE }).lean(),
     User.findOne({ _id: user.id }).select('stripe_account_id').lean()
   ]);
 
@@ -239,9 +242,9 @@ const deleteSubscriptionPlan = async (id: Types.ObjectId, user: JwtPayload) => {
 
 const getPricingPlans = async (mentorId: Types.ObjectId) => {
     const [payPerSession, packages, subscriptions] = await Promise.all([
-        PayPerSession.find({status: 'active', mentor_id: mentorId}).lean(),
-        Package.find({status: 'active', mentor_id: mentorId}).lean(),
-        Subscription.find({status: 'active', mentor_id: mentorId},{stripe_product_id: 0, stripe_price_id: 0, stripe_account_id: 0}).lean()
+        PayPerSession.find({status: PLAN_STATUS.ACTIVE, mentor_id: mentorId}).lean(),
+        Package.find({status: PLAN_STATUS.ACTIVE, mentor_id: mentorId}).lean(),
+        Subscription.find({status: PLAN_STATUS.ACTIVE, mentor_id: mentorId},{stripe_product_id: 0, stripe_price_id: 0, stripe_account_id: 0}).lean()
     ]);
     if(!payPerSession || !packages || !subscriptions) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to get pricing plans');
     return {payPerSession, packages, subscriptions};

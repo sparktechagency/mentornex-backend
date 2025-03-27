@@ -6,6 +6,7 @@ export type IMessage = {
   message:string;
   files:string[];
   type:'text' | 'file' | 'both';
+  isRead:boolean;
   createdAt:Date;
   updatedAt:Date;
 }
