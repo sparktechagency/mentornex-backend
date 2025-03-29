@@ -2,6 +2,7 @@
 
 import { z } from "zod"
 import { PLAN_TYPE } from "../purchase/purchase.interface"
+import { SESSION_STATUS } from "./session.interface"
 
 // const bookSessionZodSchema = z.object({
 //   body: z.object({
@@ -45,7 +46,7 @@ import { PLAN_TYPE } from "../purchase/purchase.interface"
 const createSessionZodSchema = z.object({
     body:z.object({
         topic: z.string({ required_error: 'Topic is required' }),
-        duration: z.string({ required_error: 'Type is required' }),
+        // duration: z.string({ required_error: 'Type is required' }),
         expected_outcome: z.string({ required_error: 'Expected outcome is required' }),
         date:z.string({ required_error: 'Date is required' }),
         slot:z.string({ required_error: 'Slot is required' }),
@@ -56,6 +57,15 @@ const createSessionZodSchema = z.object({
     })
 })
 
+const updateSessionZodSchema = z.object({
+    body: z.object({
+        date: z.string().optional(),
+        slot: z.string().optional(),
+        status: z.enum([SESSION_STATUS.ACCEPTED, SESSION_STATUS.CANCELLED, SESSION_STATUS.COMPLETED]).optional(),
+    })
+})
+
 export const SessionValidation = {
-    createSessionZodSchema
+    createSessionZodSchema,
+    updateSessionZodSchema
 }

@@ -252,6 +252,7 @@ export const StripeService = {
     accountId: string,
     amount: number,
     priceId?: string,
+    planId?: string
   ) {
     try {
       // Get or create customer on connected account
@@ -309,6 +310,9 @@ export const StripeService = {
             mentor_id: mentorId,
             plan_type: planType,
             stripe_account_id: accountId,
+            ...(isPayPerSession && { session_id: planId }),
+            ...(isPackage && { package_id: planId }),
+            ...(isSubscription && { subscription_id: planId }),
             amount,
           },
         },

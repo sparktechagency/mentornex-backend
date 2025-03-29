@@ -6,8 +6,8 @@ import { StatusCodes } from 'http-status-codes';
 import sendResponse from '../../../shared/sendResponse';
 
 const purchasePayPerSession = catchAsync(async(req: Request, res: Response) => {
-  const payload = req.body;
-  const result = await PurchaseServices.purchasePayPerSession(req.user, new Types.ObjectId(req.params.id), payload);
+  const {purchaseId} = req.query;
+  const result = await PurchaseServices.purchasePayPerSession(req.user, new Types.ObjectId(req.params.id));
  sendResponse(res, {
   success: true,
   statusCode: StatusCodes.OK,

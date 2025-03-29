@@ -18,6 +18,10 @@ const sessionSchema = new Schema<ISession, SessionModal>(
       type: Date,
       required: true,
     },
+    end_time: {
+      type: Date,
+      required: true,
+    },
     session_plan_type: {
       type: String,
       enum: [PLAN_TYPE.Package, PLAN_TYPE.Subscription, PLAN_TYPE.PayPerSession],
@@ -31,6 +35,7 @@ const sessionSchema = new Schema<ISession, SessionModal>(
       type: String,
       required: true,
     },
+    payment_required: { type: Boolean, default: true },
     duration: {
       type: String,
       required: true,

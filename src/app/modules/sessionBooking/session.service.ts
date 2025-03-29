@@ -10,12 +10,12 @@ import { ISession, SESSION_STATUS } from "./session.interface"
 import { User } from "../user/user.model"
 import ApiError from "../../../errors/ApiError"
 import { StatusCodes } from "http-status-codes"
-import { convertSessionTimeToLocal, convertSessionTimeToUTC, convertSlotTimeToUTC } from "../../../helpers/date.helper"
+import { calculateEndTime, convertSessionTimeToLocal, convertSessionTimeToUTC, convertSlotTimeToUTC } from "../../../helpers/date.helper"
 import { DateTime } from "luxon"
 import { Session } from "./session.model"
 import mongoose, { Types } from "mongoose"
 import sendNotification from "../../../helpers/sendNotificationHelper"
-import { getActivePackageOrSubscription } from "./session.utils"
+import { getActivePackageOrSubscription, getRemainingQuotaForPackageOrSubscription, handleNotificationAndDataSendForSocket, isSlotAvailable } from "./session.utils"
 
 // const createPaymentIntent = async (sessionData: any) => {
 //   try {
@@ -338,7 +338,7 @@ const createSessionRequest = async (
    
     const session = await mongoose.startSession();
     session.startTransaction();
-
+    const duration = 45;
     try {
         
         const isUserExist = await User.findById(user.id).lean();
@@ -349,34 +349,54 @@ const createSessionRequest = async (
         // Convert slot to UTC with proper date reference
         const convertedSlot = convertSessionTimeToUTC(payload.slot, isUserExist.timeZone, payload.date);
         const convertedDate = new Date(convertedSlot.isoString);
-
-        //now see if the requested slot is available or not
-
+        const endTime = calculateEndTime(convertedDate, duration);
 
 
-        // if (isSlotAvailable) {
-        //     throw new ApiError(StatusCodes.BAD_REQUEST, 'The requested slot is not available.');
-        // }
-        
-        const { pkg, subscription } = await getActivePackageOrSubscription(isUserExist._id);
-    
-        if(pkg && payload.package_id){
-            payload.package_id = pkg.package_id;
+        //need to check if the slot is available //TODO
+        const isRequestedSlotAvailable = await isSlotAvailable(payload.mentor_id as Types.ObjectId, payload.date, payload.slot, duration);
+        if (!isRequestedSlotAvailable) {
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'The requested slot is not available.');
         }
-        if(subscription && payload.subscription_id){
-            payload.subscription_id = subscription.subscription_id;
+
+        const mentorId = payload.mentor_id as Types.ObjectId;
+        if(!payload.package_id || !payload.subscription_id) {
+            if(payload.package_id){
+                const pkg = await getActivePackageOrSubscription(isUserExist._id, mentorId, payload.package_id, undefined);
+ 
+                if(!pkg) throw new ApiError(StatusCodes.BAD_REQUEST, 'Package data not found, please try again.');
+                //check if the quota is over
+                const pkgQuota = await getRemainingQuotaForPackageOrSubscription(isUserExist._id, pkg.package_id!._id, undefined);
+                //@ts-ignore
+                if(pkgQuota >= pkg?.package_id!.sessions!) throw new ApiError(StatusCodes.BAD_REQUEST, 'Package quota is over. Please purchase a new package.');
+                payload.package_id = pkg.package_id!._id;
+                payload.payment_required = false;
+            }
+            if( payload.subscription_id){
+                const subscription = await getActivePackageOrSubscription(isUserExist._id, mentorId, undefined, payload.subscription_id);
+                if(!subscription) throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscription data not found, please try again.');
+                //check if the quota is over
+                const subscriptionQuota = await getRemainingQuotaForPackageOrSubscription(isUserExist._id, undefined, subscription.subscription_id!._id);
+                //@ts-ignore
+                if(subscriptionQuota >= subscription?.subscription_id!.sessions!) throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscription quota is over. Please purchase a new subscription.');
+                payload.subscription_id = subscription.subscription_id!._id;
+                payload.payment_required = false;
+            }
         }
-    
+
+
+
 
         const sessionData = {
             mentor_id: payload.mentor_id,
             mentee_id: user.id,
             scheduled_time: convertedDate,
+            end_time: endTime,
             topic: payload.topic,
             duration: payload.duration,
             expected_outcome: payload.expected_outcome,
             session_plan_type: payload.session_plan_type,
             status: SESSION_STATUS.PENDING,
+            payment_required: payload.payment_required,
             ...(payPerSession && { pay_per_session_id: payload.pay_per_session_id }),
             ...(payload.package_id && { package_id: payload.package_id }),
             ...(payload.subscription_id && { subscription_id: payload.subscription_id })
@@ -386,15 +406,13 @@ const createSessionRequest = async (
     
     
         const bookedSession = await Session.create([sessionData], { session });
-    
-        await sendNotification('getNotification',{
-            senderId: user.id.toString(),
-            receiverId: payload.mentor_id.toString(),
-            title: `You have a new session request from ${isUserExist.name}`,
-            message: `You have a new session request from ${isUserExist.name} at ${payload.date} ${payload.slot} on ${payload.topic}, please respond to accept or reject `,
-        })
-    
+        
+        if(!bookedSession[0]) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create session request.');
+
         await session.commitTransaction();
+
+        await handleNotificationAndDataSendForSocket(user.id.toString(), payload.mentor_id.toString(), SESSION_STATUS.PENDING, bookedSession[0]._id.toString());
+    
 
         return bookedSession;
     } catch (error) {
@@ -409,36 +427,42 @@ const createSessionRequest = async (
 
 
 const updateBookedSession = async (user: JwtPayload, sessionId: Types.ObjectId, payload: ISession & { slot: string, date: string }) => {
+    const duration = 45;
     const isUserExist = await User.findById(user.id).lean();
     if (!isUserExist || isUserExist.status !== 'active') {
         throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to access this session.');
     }
 
     const session = await Session.findById(sessionId).populate<{mentee_id: {name: string, timeZone: string, _id: Types.ObjectId}}>('mentee_id', 'name timeZone _id').populate<{mentor_id: {name: string, timeZone: string, _id: Types.ObjectId}}>('mentor_id', 'name timeZone _id');
-    if (!session || session.mentee_id._id.toString() !== user.id || session.mentor_id._id.toString() !== user.id) {
+    console.log(user.id, session?.mentee_id._id.toString(), session?.mentor_id._id.toString())
+    if (!session || session.mentee_id._id.toString() !== user.id && session.mentor_id._id.toString() !== user.id) {
         throw new ApiError(StatusCodes.NOT_FOUND, 'You are not authorized to access this session.');
     }
 
-    const generateNotificationData = (sender: string, receiver: string, status: SESSION_STATUS, topic: string,date:Date,  timeZone: string, message?: string)=>{
-        return {
-            senderId: sender,
-            receiverId: receiver,
-            title: `Your session request has been ${status} by ${session.mentee_id.name}`,
-            message: `Your session request has been ${status} by ${session.mentee_id.name} at ${convertSessionTimeToLocal(date, timeZone)} on ${topic}. ${message && 'Cancellation reason: ' + message}`,
-        }
-    }
+   
 
     if(payload.status === SESSION_STATUS.ACCEPTED){
+        if( user.id !== session.mentor_id._id.toString()){
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'Only mentor can accept the session.');
+        }
+
+        if(session.status !== SESSION_STATUS.PENDING) throw new ApiError(StatusCodes.BAD_REQUEST, 'Session can be only booked after mentor accepts the session request.');
         session.status = payload.status;
         await session.save();
-        await sendNotification('getNotification', generateNotificationData(user.id.toString(), session.mentee_id._id.toString(), SESSION_STATUS.ACCEPTED, session.topic, session.scheduled_time, session.mentee_id.timeZone));
+
+        await handleNotificationAndDataSendForSocket(user.id.toString(), session.mentee_id._id.toString(), SESSION_STATUS.ACCEPTED, session._id.toString(), session);
     }
 
     if(payload.status === SESSION_STATUS.CANCELLED){
+        if( user.id !== session.mentor_id._id.toString() && session.status !== SESSION_STATUS.PENDING){
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'Only mentor can cancel the session.');
+        }
         session.status = payload.status;
         session.cancel_reason = payload.cancel_reason;
         await session.save();
-        await sendNotification('getNotification', generateNotificationData(user.id.toString(), session.mentee_id._id.toString(), SESSION_STATUS.CANCELLED, session.topic, session.scheduled_time, session.mentee_id.timeZone, payload.cancel_reason));
+        const receiver = user.id === session.mentor_id._id.toString() ? session.mentee_id._id.toString() : session.mentor_id._id.toString();
+        await handleNotificationAndDataSendForSocket(user.id.toString(), receiver, SESSION_STATUS.CANCELLED, session._id.toString(), session);
+
     }
 
     if(payload.status === SESSION_STATUS.RESCHEDULED && !(session.status === SESSION_STATUS.CANCELLED || session.status === SESSION_STATUS.ACCEPTED)){
@@ -453,9 +477,13 @@ const updateBookedSession = async (user: JwtPayload, sessionId: Types.ObjectId, 
             session.status = payload.status;
             const convertedSlot = convertSessionTimeToUTC(payload.slot, isUserExist.timeZone, payload.date);
             const convertedDate = new Date(convertedSlot.isoString);
+
+            const endTime = calculateEndTime(convertedDate, duration);
             session.scheduled_time = convertedDate;
+            session.end_time = endTime;
             await session.save();
-            await sendNotification('getNotification', generateNotificationData(user.id.toString(), session.mentee_id._id.toString(), SESSION_STATUS.RESCHEDULED, session.topic, session.scheduled_time, session.mentee_id.timeZone));
+            const receiver = user.id === session.mentor_id._id.toString() ? session.mentee_id._id.toString() : session.mentor_id._id.toString();
+            await handleNotificationAndDataSendForSocket(user.id.toString(), receiver, SESSION_STATUS.RESCHEDULED, session._id.toString(), session);
         }else{
             throw new ApiError(StatusCodes.BAD_REQUEST, 'Date and slot are required to reschedule the session.');
         }
@@ -476,15 +504,17 @@ const getSession = async (user: JwtPayload, sessionId: Types.ObjectId) => {
     }
 
     const displayTime = convertSessionTimeToLocal(session.scheduled_time, isUserExist.timeZone);
-   
+    const displayEndTime = convertSessionTimeToLocal(session.end_time, isUserExist.timeZone);
 
     return { 
         ...session, 
-        scheduled_time: displayTime 
+        scheduled_time: displayTime,
+        end_time: displayEndTime
     };
 };
 
 export const SessionService = {
     createSessionRequest,
-    getSession
+    getSession,
+    updateBookedSession
 }

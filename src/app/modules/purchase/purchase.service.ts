@@ -1,58 +1,48 @@
 import { JwtPayload } from 'jsonwebtoken';
-import { PURCHASE_PLAN_STATUS, PLAN_TYPE } from './purchase.interface';
+import { PURCHASE_PLAN_STATUS, PLAN_TYPE, PAYMENT_STATUS } from './purchase.interface';
 import { Types } from 'mongoose';
 import { Package, PayPerSession, Subscription } from '../plans/plans.model';
 import ApiError from '../../../errors/ApiError';
 import { StatusCodes } from 'http-status-codes';
 import { StripeService } from './stripe.service';
 import { Purchase } from './purchase.model';
-import { convertDate } from '../../../util/dateHelper';
 import { IUser } from '../user/user.interface';
-import { PLAN_STATUS } from '../plans/plans.interface';
+import { IPackage, IPayPerSession, ISubscription } from '../plans/plans.interface';
 import { User } from '../user/user.model';
+import { Session } from '../sessionBooking/session.model';
+import { SESSION_STATUS } from '../sessionBooking/session.interface';
+import { getRemainingQuotaForPackageOrSubscription } from '../sessionBooking/session.utils';
 
-const purchasePayPerSession = async(user:JwtPayload, id:Types.ObjectId, payload:{date:string, slot:string}) =>{
 
-    const [session, isUserExist] = await Promise.all([
-        PayPerSession.findById(id).populate<{mentor_id:Partial<IUser>}>({path:'mentor_id', select:{stripeCustomerId:1, stripe_account_id:1, _id:1, timeZone:1}}).lean(),
-        User.findById(user.id).select("timeZone status").lean()
-      ]);
+const purchasePayPerSession = async(user:JwtPayload, id:Types.ObjectId) =>{
+
+
+        const [session, isUserExist] = await Promise.all([
+            Session.findById(id).populate<{pay_per_session_id:IPayPerSession, mentor_id:Partial<IUser>}>({path:'pay_per_session_id', select:{stripe_price_id:1, amount:1, duration:1, title:1, _id:1}}).populate<{mentor_id:Partial<IUser>}>({path:'mentor_id', select:{stripeCustomerId:1, stripe_account_id:1, _id:1, timeZone:1}}).lean(),
+            User.findById(user.id).select("timeZone status").lean()
+          ]);
+        
+        if(!session){
+            throw new ApiError(StatusCodes.NOT_FOUND, 'Requested session does not exist.')
+        }
+
+        if(!session.mentor_id.stripe_account_id) throw new ApiError(StatusCodes.BAD_REQUEST, 'Mentor is not eligible to sell this session.');
     
-    if(!session){
-        throw new ApiError(StatusCodes.NOT_FOUND, 'Requested session does not exist.')
-    }
-
-    if(!session.mentor_id.stripe_account_id) throw new ApiError(StatusCodes.BAD_REQUEST, 'Mentor is not eligible to sell this session.');
-    console.log(isUserExist)
-    if(!isUserExist || isUserExist.status !== 'active') throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to purchase this session.');
-    if(session.status !== PLAN_STATUS.ACTIVE) throw new ApiError(StatusCodes.BAD_REQUEST, 'This session can not be purchased. It is not active.');
-
-    const {stripeCustomerId, stripe_account_id, _id} = session.mentor_id;
-
-    const date = convertDate(payload.date, payload.slot, isUserExist.timeZone!);
-
-    const purchasePayload = {
-        mentor_id: session.mentor_id,
-        mentee_id: user.id,
-        pay_per_session_id: session._id,
-        plan_type: PLAN_TYPE.PayPerSession,
-        amount: session.amount,
-        checkout_session_id: '',
-        date: date,
-    }
+        if(!isUserExist || isUserExist.status !== 'active') throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to purchase this session.');
+        if(session.status !== SESSION_STATUS.ACCEPTED) throw new ApiError(StatusCodes.BAD_REQUEST, 'Session can be only booked after mentor accepts the session request.');
     
-
-    const payment = await StripeService.createCheckoutSession(stripeCustomerId!, user.id,_id!.toString(), session.title, PLAN_TYPE.PayPerSession, stripe_account_id as string, session.amount);
-
-    if(!payment){
-        throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create checkout session.')
-    }
-
-    purchasePayload.checkout_session_id = payment.sessionId;
-
-    const result = await Purchase.create(purchasePayload);
-    if(!result) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create purchase.');
-    return payment.url;
+        const {stripeCustomerId, stripe_account_id, _id} = session.mentor_id;
+        
+    
+        const payment = await StripeService.createCheckoutSession(stripeCustomerId!, user.id,_id!.toString(), session.topic, PLAN_TYPE.PayPerSession, stripe_account_id as string, session.pay_per_session_id.amount, undefined, session._id.toString());
+    
+        if(!payment){
+            throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create checkout session.')
+        }
+    
+    
+        return payment.url;
+    
 
 }
 
@@ -78,11 +68,11 @@ const purchasePackage = async(user:JwtPayload, id:Types.ObjectId) =>{
         plan_type: PLAN_TYPE.Package,
         amount: pkg.amount,
         checkout_session_id: '',
-
+        application_fee: pkg.amount * 0.1
     }
     
 
-    const payment = await StripeService.createCheckoutSession(stripeCustomerId!, user.id,_id!.toString(), pkg.title, PLAN_TYPE.Package, stripe_account_id as string, pkg.amount);
+    const payment = await StripeService.createCheckoutSession(stripeCustomerId!, user.id,_id!.toString(), pkg.title, PLAN_TYPE.Package, stripe_account_id as string, pkg.amount, undefined, pkg._id.toString());
 
     if(!payment){
         throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create checkout session.')
@@ -116,10 +106,11 @@ const purchaseSubscription = async(user:JwtPayload, id:Types.ObjectId) =>{
         amount: subscription.amount,
         checkout_session_id: '',
         remaining_sessions: subscription.sessions,
+        application_fee: subscription.amount * 0.1
     }
     
 
-    const payment = await StripeService.createCheckoutSession(stripeCustomerId!, user.id,_id!.toString(), subscription.title, PLAN_TYPE.Subscription, stripe_account_id as string, subscription.amount, subscription.stripe_price_id);
+    const payment = await StripeService.createCheckoutSession(stripeCustomerId!, user.id,_id!.toString(), subscription.title, PLAN_TYPE.Subscription, stripe_account_id as string, subscription.amount, subscription.stripe_price_id, subscription._id.toString());
 
     if(!payment){
         throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create checkout session.')

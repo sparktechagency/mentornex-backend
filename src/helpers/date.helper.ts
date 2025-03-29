@@ -30,6 +30,14 @@ console.log(utcTime)
     };
 };
 
+
+export const calculateEndTime = (startTime: Date, durationMinutes: number): Date => {
+    // Create new Date object to avoid modifying the original
+    const endTime = new Date(startTime);
+    endTime.setMinutes(endTime.getMinutes() + durationMinutes);
+    return endTime;
+  };
+
 export const convertSessionTimeToLocal = (time: Date, timeZone: string) => {
       // 1. Get the UTC time from MongoDB
       const utcTime = DateTime.fromJSDate(time).toUTC();

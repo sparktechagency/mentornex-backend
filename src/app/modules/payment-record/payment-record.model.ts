@@ -1,19 +1,9 @@
 import { model, Schema } from 'mongoose';
 import { IPaymentRecord, PaymentRecordModel } from './payment-record.interface';
+import { PLAN_TYPE } from '../purchase/purchase.interface';
 
 const paymentRecordSchema = new Schema<IPaymentRecord, PaymentRecordModel>(
   {
-    subscribed_plan_id: {
-      type: String,
-      ref: 'Subscription',
-      required: true,
-      index: true,
-    },
-    payment_intent_id: {
-      type: String,
-      required: true,
-      unique: true,
-    },
     mentee_id: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -26,18 +16,37 @@ const paymentRecordSchema = new Schema<IPaymentRecord, PaymentRecordModel>(
       required: true,
       index: true,
     },
+    package_id: {
+      type: Schema.Types.ObjectId,
+      ref: 'Package',
+
+    },
+    invoice_id: {
+      type: String,
+      
+    },
+    subscription_id: {
+      type: Schema.Types.ObjectId,
+      ref: 'Subscription',
+
+    },
+    pay_per_session_id: {
+      type: Schema.Types.ObjectId,
+      ref: 'PayPerSession',
+
+    },
     amount: {
       type: Number,
       required: true,
     },
-    status: {
-      type: String,
-      enum: ['succeeded', 'failed'],
+    application_fee: {
+      type: Number,
       required: true,
     },
-    created_at: {
-      type: Date,
-      default: Date.now,
+    type: {
+      type: String,
+      enum: [PLAN_TYPE.Package, PLAN_TYPE.Subscription, PLAN_TYPE.PayPerSession],
+      required: true,
     },
   },
   { timestamps: true }

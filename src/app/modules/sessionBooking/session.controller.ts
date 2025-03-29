@@ -162,8 +162,7 @@ import { Types } from "mongoose";
 // };
 
 
-const     createSessionRequest
-= catchAsync(async (req: Request, res: Response) => {
+const createSessionRequest = catchAsync(async (req: Request, res: Response) => {
     const { ...payload } = req.body;
     const mentorId = new Types.ObjectId(req.params.mentorId);
     payload.mentor_id = mentorId;
@@ -187,9 +186,21 @@ const getSession = catchAsync(async (req: Request, res: Response) => {
     });
 })
 
+const updateSession = catchAsync(async (req: Request, res: Response) => {
+    const { sessionId } = req.params;
+    const { ...payload } = req.body;
+    const result = await SessionService.updateBookedSession(req.user, new Types.ObjectId(sessionId), payload);
+    sendResponse(res, {
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: 'Session updated successfully',
+        data: result,
+    });
+})
 
 export const SessionController = {
     createSessionRequest,
-    getSession
+    getSession,
+    updateSession
     
 }

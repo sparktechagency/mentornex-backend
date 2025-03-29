@@ -5,6 +5,10 @@ import stripe from '../config/stripe';
 import { Purchase } from '../app/modules/purchase/purchase.model';
 import { IPlanType } from '../types/plan';
 import { PAYMENT_STATUS, PLAN_TYPE, PURCHASE_PLAN_STATUS } from '../app/modules/purchase/purchase.interface';
+import { Session } from '../app/modules/sessionBooking/session.model';
+import { SESSION_STATUS } from '../app/modules/sessionBooking/session.interface';
+import { Types } from 'mongoose';
+import { PaymentRecord } from '../app/modules/payment-record/payment-record.model';
 
 
 const handleWebhook = async (req: Request, res: Response) => {
@@ -22,11 +26,11 @@ const handleWebhook = async (req: Request, res: Response) => {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
+        console.log(session,"👍👍👍👍👍👍")
         const metadata = session.metadata || {};
+        const { plan_type } = metadata;
 
-        const { planType, stripe_account_id: accountId } = metadata;
-
-        if(planType === PLAN_TYPE.Subscription) {
+        if(plan_type === PLAN_TYPE.Subscription) {
           const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
           const starting_date = new Date(subscription.current_period_start * 1000);
           const ending_date = new Date(subscription.current_period_end * 1000);
@@ -44,19 +48,31 @@ const handleWebhook = async (req: Request, res: Response) => {
             }, {
               new: true
             })
-        
-        }else{
-          const [invoice, updatedPurchase] = await Promise.all([
-            StripeService.createInvoice({
-              customerId: session.customer as string,
-              amount: Number(metadata.amount) * 100,
-              metadata: {
-                purchaseId: metadata.purchaseId,
-                checkout_session_id: session.id,
-                planType: planType as IPlanType
-              },
-              accountId: accountId
-            }),
+
+            if(updatedPurchase){
+              await createPaymentRecord(updatedPurchase.mentee_id, updatedPurchase.mentor_id, updatedPurchase.amount, PLAN_TYPE.Subscription, updatedPurchase.subscription_id!, session.invoice as string);
+            }
+        }else if(plan_type === PLAN_TYPE.PayPerSession && metadata.session_id) {
+          console.log(session,"👍👍👍👍👍👍",session.invoice)
+   
+          const updatedSession = await Session.findByIdAndUpdate(metadata.session_id, {
+            $set: {
+             payment_required: false,
+            }
+          }, {new: true});
+          
+          console.log('Updated session:', updatedSession);
+
+
+         
+            await createPaymentRecord(new Types.ObjectId(metadata.mentee_id), new Types.ObjectId(metadata.mentor_id), Number(metadata.amount), PLAN_TYPE.PayPerSession, new Types.ObjectId(metadata.session_id), session.invoice as string);
+          
+        }
+          else{
+        console.log(session,"👍👍👍👍👍👍")
+
+          const [updatedPurchase] = await Promise.all([
+
             //handle pay per session and package
             Purchase.findOneAndUpdate({
               checkout_session_id: session.id
@@ -69,6 +85,10 @@ const handleWebhook = async (req: Request, res: Response) => {
               new: true
           })
         ]);
+
+        if(updatedPurchase){
+          await createPaymentRecord(updatedPurchase.mentee_id, updatedPurchase.mentor_id, updatedPurchase.amount, PLAN_TYPE.Package, updatedPurchase._id, session.invoice as string);
+        }
         }
 
         
@@ -99,12 +119,18 @@ const handleWebhook = async (req: Request, res: Response) => {
         break;
       }
       case 'invoice.payment_succeeded': {
+        
         const invoice = event.data.object as Stripe.Invoice;
         console.log(`Invoice payment succeeded: ${invoice.id}`);
         const subscriptionId = invoice.subscription as string;
 
+        console.log(invoice,"👍👍👍👍👍👍")
+        //check if payment is already created
+        const paymentRecord = await PaymentRecord.findOne({
+          invoice_id: invoice.id
+        })
 
-        if(subscriptionId){
+        if(subscriptionId && !paymentRecord){
           const updatedPurchase = await Purchase.findOneAndUpdate({
             stripe_subscription_id: subscriptionId
           }, {
@@ -119,6 +145,10 @@ const handleWebhook = async (req: Request, res: Response) => {
           }, {
             new: true
           })
+
+          if(updatedPurchase){
+            await createPaymentRecord(updatedPurchase.mentee_id, updatedPurchase.mentor_id, updatedPurchase.amount, PLAN_TYPE.Subscription, updatedPurchase._id, invoice.id);
+          }
         }
         
         break;
@@ -203,6 +233,22 @@ const handleWebhook = async (req: Request, res: Response) => {
 };
 
 
+
+const createPaymentRecord = async (menteeId: Types.ObjectId, mentorId: Types.ObjectId, amount: number, planType: PLAN_TYPE, planId: Types.ObjectId, invoiceId?: string) => {
+  console.log('Creating payment record for mentee:', menteeId, 'mentor:', mentorId, 'amount:', amount, 'planType:', planType, 'planId:', planId, 'invoiceId:', invoiceId);
+  const paymentRecord = await PaymentRecord.create({
+    mentee_id: menteeId,
+    mentor_id: mentorId,
+    ...(planType === PLAN_TYPE.Subscription && { subscription_id: planId }),
+    ...(planType === PLAN_TYPE.Package && { package_id: planId }),
+    ...(planType === PLAN_TYPE.PayPerSession && { pay_per_session_id: planId }),
+    amount: amount,
+    type: planType,
+    application_fee: amount * 0.1,
+    ...(invoiceId && { invoice_id: invoiceId }),
+  });
+  return paymentRecord;
+}
 
 export const WebhookHelper = {
   handleWebhook,

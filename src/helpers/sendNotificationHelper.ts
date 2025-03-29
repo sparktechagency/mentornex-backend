@@ -34,3 +34,15 @@ const sendNotification = async(namespace: string,{senderId, receiverId, title,me
 }
 
 export default sendNotification;
+
+
+export const sendDataWithSocket = (namespace: string,  receiverId: string, data: any) => {
+    try{
+        //send data
+        //@ts-ignore
+        const socket = global.io;
+        socket.emit(`${namespace}::${receiverId}`, {data});
+    }catch(error){
+        logger.error('Failed to send data with socket:', error);
+    }
+}
