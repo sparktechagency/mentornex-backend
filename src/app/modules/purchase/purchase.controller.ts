@@ -49,11 +49,31 @@ const cancelSubscription = catchAsync(async(req: Request, res: Response) => {
   })
 })
 
+const getMenteeAvailablePlansAndRemainingQuota = catchAsync(async(req: Request, res: Response) => {
+  const result = await PurchaseServices.getMenteeAvailablePlansAndRemainingQuota(req.user, new Types.ObjectId(req.params.id));
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Mentee available plans and remaining quota',
+    data: result
+  })
+})
 
+const getAllPackageAndSubscription = catchAsync(async(req: Request, res: Response) => {
+  const result = await PurchaseServices.getAllPackageAndSubscription(req.user);
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Mentee available plans and remaining quota',
+    data: result
+  })
+})
 
 export const PurchaseController = { 
   purchasePayPerSession,
   purchasePackage,
   purchaseSubscription,
-  cancelSubscription
+  cancelSubscription,
+  getMenteeAvailablePlansAndRemainingQuota,
+  getAllPackageAndSubscription
  };

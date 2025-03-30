@@ -10,5 +10,6 @@ router.post('/pay-per-session/:id',auth(USER_ROLES.MENTEE), PurchaseController.p
 router.post('/package/:id',auth(USER_ROLES.MENTEE), PurchaseController.purchasePackage);
 router.post('/subscription/:id',auth(USER_ROLES.MENTEE), PurchaseController.purchaseSubscription);
 router.post('/cancel-subscription/:id',auth(USER_ROLES.MENTEE), PurchaseController.cancelSubscription);
-
+router.get('/mentee-available-plans-and-remaining-quota/:id',auth(USER_ROLES.MENTEE), PurchaseController.getMenteeAvailablePlansAndRemainingQuota);
+router.get('/all-package-and-subscription/',auth(USER_ROLES.MENTEE), PurchaseController.getAllPackageAndSubscription);
 export const PurchaseRoutes = router;

@@ -345,7 +345,6 @@ const createSessionRequest = async (
         if (!isUserExist || isUserExist.status !== 'active') {
             throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to purchase this session.');
         }
-
         // Convert slot to UTC with proper date reference
         const convertedSlot = convertSessionTimeToUTC(payload.slot, isUserExist.timeZone, payload.date);
         const convertedDate = new Date(convertedSlot.isoString);
@@ -353,7 +352,7 @@ const createSessionRequest = async (
 
 
         //need to check if the slot is available //TODO
-        const isRequestedSlotAvailable = await isSlotAvailable(payload.mentor_id as Types.ObjectId, payload.date, payload.slot, duration);
+        const isRequestedSlotAvailable = await isSlotAvailable(payload.mentor_id as Types.ObjectId, convertedDate, endTime, duration);
         if (!isRequestedSlotAvailable) {
             throw new ApiError(StatusCodes.BAD_REQUEST, 'The requested slot is not available.');
         }
@@ -365,7 +364,7 @@ const createSessionRequest = async (
  
                 if(!pkg) throw new ApiError(StatusCodes.BAD_REQUEST, 'Package data not found, please try again.');
                 //check if the quota is over
-                const pkgQuota = await getRemainingQuotaForPackageOrSubscription(isUserExist._id, pkg.package_id!._id, undefined);
+                const pkgQuota = await getRemainingQuotaForPackageOrSubscription(isUserExist._id, mentorId, pkg.package_id!._id, undefined);
                 //@ts-ignore
                 if(pkgQuota >= pkg?.package_id!.sessions!) throw new ApiError(StatusCodes.BAD_REQUEST, 'Package quota is over. Please purchase a new package.');
                 payload.package_id = pkg.package_id!._id;
@@ -375,7 +374,7 @@ const createSessionRequest = async (
                 const subscription = await getActivePackageOrSubscription(isUserExist._id, mentorId, undefined, payload.subscription_id);
                 if(!subscription) throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscription data not found, please try again.');
                 //check if the quota is over
-                const subscriptionQuota = await getRemainingQuotaForPackageOrSubscription(isUserExist._id, undefined, subscription.subscription_id!._id);
+                const subscriptionQuota = await getRemainingQuotaForPackageOrSubscription(isUserExist._id, mentorId, undefined, subscription.subscription_id!._id);
                 //@ts-ignore
                 if(subscriptionQuota >= subscription?.subscription_id!.sessions!) throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscription quota is over. Please purchase a new subscription.');
                 payload.subscription_id = subscription.subscription_id!._id;

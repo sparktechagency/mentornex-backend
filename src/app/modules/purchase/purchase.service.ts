@@ -141,9 +141,36 @@ const cancelSubscription = async(user:JwtPayload, id:Types.ObjectId) =>{
  
 }
 
+
+const getMenteeAvailablePlansAndRemainingQuota = async(user:JwtPayload, mentorId:Types.ObjectId) =>{
+    const [isPackageExist, isSubscriptionExist] = await Promise.all([
+        Purchase.findOne({mentee_id: user.id, mentor_id: mentorId, plan_type: PLAN_TYPE.Package, plan_status: PURCHASE_PLAN_STATUS.ACTIVE, is_active: true}).populate<{package_id:Partial<IPackage>}>({path:'package_id', select:{_id:1, sessions:1}}).lean(),
+        Purchase.findOne({mentee_id: user.id, mentor_id: mentorId, plan_type: PLAN_TYPE.Subscription, plan_status: PURCHASE_PLAN_STATUS.ACTIVE, is_active: true}).populate<{subscription_id:Partial<ISubscription>}>({path:'subscription_id', select:{_id:1, sessions:1}}).lean()
+    ]);
+    //now get the remaining quota for the package and subscription
+
+    if(!isPackageExist && !isSubscriptionExist) throw new ApiError(StatusCodes.BAD_REQUEST, 'You have no active packages or subscriptions with this mentor.');
+    
+    const [bookedPackageSessionCount, bookedSubscriptionSessionCount] = await Promise.all([
+        getRemainingQuotaForPackageOrSubscription(user.id, mentorId, isPackageExist?.package_id?._id),
+        getRemainingQuotaForPackageOrSubscription(user.id, mentorId, undefined,isSubscriptionExist?.subscription_id?._id)
+    ]);
+    return { package: {...isPackageExist, totalSession: isPackageExist?.package_id!.sessions, remainingSession: (isPackageExist?.package_id!.sessions! || 0)  - bookedPackageSessionCount}, subscription: {...isSubscriptionExist, totalSession: isSubscriptionExist?.subscription_id!.sessions, remainingSession: (isSubscriptionExist?.subscription_id!.sessions! || 0)  - bookedSubscriptionSessionCount}};
+}
+
+const getAllPackageAndSubscription = async(user:JwtPayload) =>{
+    const [isPackageExist, isSubscriptionExist] = await Promise.all([
+        Purchase.find({mentee_id: user.id,  plan_type: PLAN_TYPE.Package, plan_status: PURCHASE_PLAN_STATUS.ACTIVE, is_active: true}).populate({path:'mentor_id', select:{_id:1, name:1, image:1}}).populate<{package_id:Partial<IPackage>}>({path:'package_id', select:{_id:1, title:1, sessions:1}}).lean(),
+        Purchase.find({mentee_id: user.id,  plan_type: PLAN_TYPE.Subscription, plan_status: PURCHASE_PLAN_STATUS.ACTIVE, is_active: true}).populate({path:'mentor_id', select:{_id:1, name:1, image:1}}).populate<{subscription_id:Partial<ISubscription>}>({path:'subscription_id', select:{_id:1, title:1,sessions:1}}).lean()
+    ]);
+    return { package: isPackageExist, subscription: isSubscriptionExist };
+}
+
 export const PurchaseServices = { 
     purchasePayPerSession,
     purchasePackage,
     purchaseSubscription,
-    cancelSubscription
+    cancelSubscription,
+    getMenteeAvailablePlansAndRemainingQuota,
+    getAllPackageAndSubscription
 };

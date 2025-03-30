@@ -259,18 +259,18 @@ export const StripeService = {
       const connectCustomerId = await this.getOrCreateConnectCustomer(customerId, accountId);
 
       
-      if (planType === 'Subscription' && !priceId) {
+      if (planType === PLAN_TYPE.Subscription && !priceId) {
         throw new ApiError(StatusCodes.BAD_REQUEST, 'priceId required for subscriptions');
       }
       // Validate price for non-subscription plans
-      if (planType === 'Subscription' && priceId) {
+      if (planType === PLAN_TYPE.Subscription && priceId) {
         await this.verifyPrice(priceId, accountId);
       }
   
       // Determine mode and line items based on plan type
-      const isSubscription = planType === 'Subscription';
-      const isPayPerSession = planType === 'PayPerSession';
-      const isPackage = planType === 'Package';
+      const isSubscription = planType === PLAN_TYPE.Subscription;
+      const isPayPerSession = planType === PLAN_TYPE.PayPerSession;
+      const isPackage = planType === PLAN_TYPE.Package;
       const mode = isSubscription ? 'subscription' : 'payment';
   
       const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = isSubscription
@@ -291,7 +291,7 @@ export const StripeService = {
         {
           payment_method_types: ['card'],
           mode,
-          customer: connectCustomerId,
+          // customer: connectCustomerId,
           line_items,
           success_url: `${process.env.FRONTEND_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${process.env.FRONTEND_URL}/payment/cancel`,

@@ -27,21 +27,25 @@ export const getActivePackageOrSubscription = async (menteeId: Types.ObjectId,me
 }
 
 
-export const getRemainingQuotaForPackageOrSubscription = async (menteeId: Types.ObjectId, packageId?: Types.ObjectId, subscriptionId?: Types.ObjectId) => {
-   if(packageId){
-    return await Session.countDocuments({ mentee_id: menteeId, status: SESSION_STATUS.ACCEPTED, session_plan_type: PLAN_TYPE.Package, package_id: packageId });
-   }
-   if(subscriptionId){
-    return await Session.countDocuments({ mentee_id: menteeId, status: SESSION_STATUS.ACCEPTED, session_plan_type: PLAN_TYPE.Subscription, subscription_id: subscriptionId });
-   }
+export const getRemainingQuotaForPackageOrSubscription = async (menteeId: Types.ObjectId, mentorId: Types.ObjectId, packageId?: Types.ObjectId, subscriptionId?: Types.ObjectId) => {
+    console.log(menteeId, mentorId, packageId, subscriptionId);
+    const test = await Session.find({ mentee_id: new Types.ObjectId(menteeId), mentor_id: new Types.ObjectId(mentorId), status: { $in: [SESSION_STATUS.ACCEPTED, SESSION_STATUS.RESCHEDULED, SESSION_STATUS.COMPLETED] }, package_id: new Types.ObjectId(packageId) });
+    console.log(test);
+    if(packageId){
+        const value = await Session.countDocuments({ mentee_id: new Types.ObjectId(menteeId), mentor_id: new Types.ObjectId(mentorId), status: { $in: [SESSION_STATUS.ACCEPTED, SESSION_STATUS.RESCHEDULED, SESSION_STATUS.COMPLETED] }, package_id: new Types.ObjectId(packageId) });
+        return value;
+    }
+    if(subscriptionId){
+        return await Session.countDocuments({ mentee_id: new Types.ObjectId(menteeId), mentor_id: new Types.ObjectId(mentorId), status: { $in: [SESSION_STATUS.ACCEPTED, SESSION_STATUS.RESCHEDULED, SESSION_STATUS.COMPLETED] }, subscription_id: new Types.ObjectId(subscriptionId) });
+    }
 
    return 0;
 }
 
 export const isSlotAvailable = async (
     mentorId: Types.ObjectId,
-    date: string,
-    slot: string,
+    sessionStartTime: Date,
+    sessionEndTime: Date,
     duration: number
 ): Promise<boolean> => {
     try {
@@ -53,13 +57,12 @@ export const isSlotAvailable = async (
         }
 
         // 2. Convert the requested slot to UTC
-        const convertedSlot = convertSessionTimeToUTC(slot, mentorSchedule.timeZone, date);
-        const sessionStartTime = new Date(convertedSlot.isoString);
-        const sessionEndTime = calculateEndTime(sessionStartTime, duration);
+        // const convertedSlot = convertSessionTimeToUTC(slot, mentorSchedule.timeZone, date);
+        // const sessionStartTime = new Date(convertedSlot.isoString);
+        // const sessionEndTime = calculateEndTime(sessionStartTime, duration);
 
         // 3. Check if the slot falls within mentor's working hours
         // (You might want to add this validation if you have working hours in mentorSchedule)
-        console.log(sessionEndTime,sessionStartTime, mentorSchedule.timeZone)
         // 4. Check for overlapping sessions
         const overlappingSessions = await Session.countDocuments({
             mentor_id: mentorId,
@@ -67,7 +70,7 @@ export const isSlotAvailable = async (
               {scheduled_time: { $lte: sessionEndTime }},
               {end_time: { $gte: sessionStartTime }}
             ],
-            status: { $in: [SESSION_STATUS.ACCEPTED] } // Only check against accepted sessions
+            status: { $in: [SESSION_STATUS.ACCEPTED, SESSION_STATUS.PENDING, SESSION_STATUS.RESCHEDULED] } // Only check against accepted sessions
         });
         console.log(overlappingSessions)
         return overlappingSessions === 0;
