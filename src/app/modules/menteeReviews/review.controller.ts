@@ -3,6 +3,8 @@ import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import { StatusCodes } from "http-status-codes";
 import {  ReviewService } from "./review.service";
+import pick from "../../../shared/pick";
+import { paginationConstants } from "../../../types/pagination";
 
 
 const addReviewMentorbyMentee = catchAsync(async (req: Request, res: Response) => {
@@ -56,5 +58,31 @@ const deleteReviewByMentee = catchAsync(
   }
 )
 
+const getAllMentorForMentee = catchAsync(
+  async (req: Request, res: Response) => {
+    const pagination = pick(req.query, paginationConstants);
+    const filters = pick(req.query, ['searchTerm'])
+    const result = await ReviewService.getAllMentorForMentee(req.user, filters, pagination);
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Mentor list fetched successfully',
+      data: result,
+    });
+  }
+)
 
-  export const ReviewController = { addReviewMentorbyMentee, getAllReviewsByMentor , deleteReviewByMentee };
+const getAvailableContent = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await ReviewService.getAvailableContent(req.user, req.params.mentor_id);
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Content list fetched successfully',
+      data: result,
+    });
+  }
+)
+
+
+  export const ReviewController = { addReviewMentorbyMentee, getAllReviewsByMentor , deleteReviewByMentee, getAllMentorForMentee, getAvailableContent };

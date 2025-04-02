@@ -21,6 +21,7 @@ import { PaymentRecord } from "../payment-record/payment-record.model";
 import { IUserFilterableFields } from "../user/user.interface";
 import { Package, PayPerSession, Subscription } from "../plans/plans.model";
 import { Session } from "../sessionBooking/session.model";
+import { Types } from "mongoose";
 
 
 const getAllMentorsFromDB = async (paginationOptions: IPaginationOptions, filterOptions: IUserFilterableFields) => {
@@ -258,24 +259,25 @@ const getMenteeByMentor = async(user:JwtPayload, paginationOptions: IPaginationO
     const {searchTerm} = filters;
     const {page, limit, skip, sortBy, sortOrder} = paginationHelper.calculatePagination(paginationOptions);
 
-        const isUserExist = await User.findById(user.id).lean();
-        if(!isUserExist){
-            throw new ApiError(StatusCodes.NOT_FOUND, 'User not found');
-        }
-        const {status} = isUserExist;
-        if(status === 'delete'){
-            throw new ApiError(StatusCodes.BAD_REQUEST, 'The account has been deleted.');
-        }
-
+    
     const anyCondition = [];
     if (searchTerm) {
         anyCondition.push({ name: { $regex: searchTerm, $options: 'i' } });
     }
+    anyCondition.push({ mentor_id: user.id });
+    const whereCondition = anyCondition.length > 0 ? { $and: anyCondition } : { mentor_id: user.id };
+    //get all the subscripted or purchased mentee for mentor and reply only the mentor info not the payment
+    const mentees = await PaymentRecord.find(whereCondition).populate<{mentee_id: {_id: Types.ObjectId, name: string, image: string}}>({path:'mentee_id', select:{_id:1,name:1,image:1}}).lean();
     
-    anyCondition.push({  role: 'MENTEE', status: 'active' });
-    const whereCondition = anyCondition.length > 0 ? { $and: anyCondition } : {  role: 'MENTEE', status: 'active' };
-    const mentees = await User.find(whereCondition, {stripeCustomerId:0}).skip(skip).limit(limit);
-    const total = await User.countDocuments(whereCondition);
+    const returnable = mentees.map(mentee=>{
+        return {
+            _id: mentee._id,
+            name: mentee.mentee_id.name,
+            image: mentee.mentee_id.image
+        }
+    })
+    
+    const total = await PaymentRecord.countDocuments(whereCondition);
     return {
         meta: {
             page,
@@ -283,7 +285,7 @@ const getMenteeByMentor = async(user:JwtPayload, paginationOptions: IPaginationO
             total,
             totalPages: Math.ceil(total / limit)
         },
-        data: mentees
+        data: returnable
     };
 
 }

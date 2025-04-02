@@ -102,6 +102,20 @@ const getAvailableSlots = async (user: JwtPayload, mentorId: string, date: strin
     status: { $in: [SESSION_STATUS.PENDING, SESSION_STATUS.ACCEPTED,SESSION_STATUS.RESCHEDULED] }
   }).populate<{mentee_id: {_id: Types.ObjectId, timeZone: string}}>({path:'mentee_id', select:{_id:1,timeZone:1}}).lean();
 
+  // Handle case when there are no sessions
+  if (sessions.length === 0) {
+    return slotCount.map(bookings => {
+      return {
+        ...bookings,
+        slots: schedule.schedule.find(scheduleDay => scheduleDay.day.toLowerCase() === bookings.day.toLowerCase())?.times.map(timeSlot => {
+          return {
+            time: timeSlot.timeCode.toString(), // or any default time format you prefer
+            isAvailable: true // all slots are available when there are no sessions
+          };
+        }) || []
+      };
+    });
+  }
 
   // now count total booking for each day and calculate each day remaining slot by subtracting total booking from slot 
   const totalBookings = slotCount.map(day => {
