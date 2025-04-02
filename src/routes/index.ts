@@ -25,6 +25,7 @@ import { PlansRoutes } from '../app/modules/plans/plans.route';
 import { ChatRoutes } from '../app/modules/chat/chat.route';
 import { PurchaseRoutes } from '../app/modules/purchase/purchase.route';
 import { SessionRoutes } from '../app/modules/sessionBooking/session.route';
+import { TodoRoutes } from '../app/modules/todo/todo.route';
 const router = express.Router();
 
 router.use('/payment/webhook', express.raw({ type: 'application/json' }));
@@ -106,6 +107,10 @@ const apiRoutes = [
   {
     path: '/faq',
     route: FaqRoutes,
+  },
+  {
+    path: '/todo',
+    route: TodoRoutes,
   },
   {
     path: '/list',

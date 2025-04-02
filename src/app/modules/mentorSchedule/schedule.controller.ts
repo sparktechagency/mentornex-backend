@@ -52,9 +52,25 @@ const updateSchedule = catchAsync(
   }
 );
 
+const getAvailableSlots = catchAsync(
+  async (req: Request, res: Response) => {
+    const mentorId = req.params.mentorId;
+    const date = req.query.date;
+    const result = await ScheduleService.getAvailableSlots(req.user, mentorId as string, date as string);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Available slots retrieved successfully',
+      data: result,
+    });
+  }
+);
+
 export const ScheduleController = {
   createSchedule,
   getMentorSchedule,
 
   updateSchedule,
+  getAvailableSlots
 };

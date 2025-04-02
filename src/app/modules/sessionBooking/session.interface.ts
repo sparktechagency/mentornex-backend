@@ -33,4 +33,14 @@ export type ISession = {
   updated_at: Date;
 };
 
+
+export type ISessionFilter = {
+ searchTerm?: string;
+ status?: SESSION_STATUS;
+ 
+ mentee_id?: Types.ObjectId;
+ mentor_id?: Types.ObjectId;
+
+}
+
 export type SessionModal = Model<ISession>;

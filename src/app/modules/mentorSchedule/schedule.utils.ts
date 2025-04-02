@@ -41,6 +41,8 @@ export const formatSchedule = (schedule: ISchedule, timeZone: string) => {
 
 
 
+    
+
     return {
       day: daySchedule.day,
       times: formattedTimes,
@@ -49,6 +51,52 @@ export const formatSchedule = (schedule: ISchedule, timeZone: string) => {
 
   return formattedSchedule;
 }
+
+
+
+export function getNextThreeDates(date?: string) {
+  // If no `date` provided, use the current date/time,
+  // otherwise parse the given date as dd-MM-yyyy
+  const base = date
+    ? DateTime.fromFormat(date, "dd-MM-yyyy")
+    : DateTime.now();
+
+  // If the base date is invalid, handle it (e.g., throw error)
+  if (!base.isValid) {
+    throw new Error("Invalid date format. Expect dd-MM-yyyy.");
+  }
+
+  // Build an array of three dates, each including date and day
+  const nextThreeDates = [];
+  for (let i = 0; i < 3; i++) {
+    const currentDate = base.plus({ days: i });
+    nextThreeDates.push({
+      date: currentDate.toFormat("dd-MM-yyyy"),
+      day: currentDate.toFormat("cccc"), // e.g. "Saturday", "Sunday"
+    });
+  }
+
+  return nextThreeDates;
+}
+
+export const getTimeCodes = (startTime:Date, endTime:Date, timeZone:string) => {
+  const startLocalTime = DateTime.fromJSDate(startTime).setZone(timeZone);
+  const endLocalTime = DateTime.fromJSDate(endTime).setZone(timeZone);
+  const startUTC = startLocalTime.toUTC();
+  const endUTC = endLocalTime.toUTC();
+  const startTimeCode = startUTC.hour * 100 + startUTC.minute;
+  const endTimeCode = endUTC.hour * 100 + endUTC.minute;
+  return { startTimeCode, endTimeCode };
+};
+
+export const getDateWiseSlotCount = (schedule: ISchedule, dates: { date: string; day: string }[]) => {
+  return dates.map(({ date, day }) => {
+    console.log(date, day);
+    const daySchedule = schedule.schedule.find(d => d.day.toLowerCase() === day.toLowerCase());
+    const slotCount = daySchedule?.times?.length || 0;
+    return { date, day, slotCount };
+  });
+};
 
   // This function will convert the schedule times based on the user's requested time zone
 //  export const convertScheduleToUserTimeZone = (schedule:ISchedule, userTimeZone:string) => {
@@ -85,6 +133,7 @@ export function convertScheduleToLocal(scheduleData:ISchedule, userTimeZone:stri
         // Parse the UTC time (stored time is in UTC)
         //@ts-ignore
         const [hour, minute] = timeSlot.timeCode.toString().padStart(4, '0').match(/.{1,2}/g);
+        
         const utcTime = DateTime.utc().set({
           hour: parseInt(hour),
           minute: parseInt(minute),

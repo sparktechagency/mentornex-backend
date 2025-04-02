@@ -49,21 +49,7 @@ export const isSlotAvailable = async (
     duration: number
 ): Promise<boolean> => {
     try {
-        // 1. Get mentor's schedule
-        const mentorSchedule = await Schedule.findOne({ mentor_id: mentorId }).lean();
-    
-        if (!mentorSchedule) {
-            throw new ApiError(StatusCodes.NOT_FOUND, 'Mentor schedule not found');
-        }
 
-        // 2. Convert the requested slot to UTC
-        // const convertedSlot = convertSessionTimeToUTC(slot, mentorSchedule.timeZone, date);
-        // const sessionStartTime = new Date(convertedSlot.isoString);
-        // const sessionEndTime = calculateEndTime(sessionStartTime, duration);
-
-        // 3. Check if the slot falls within mentor's working hours
-        // (You might want to add this validation if you have working hours in mentorSchedule)
-        // 4. Check for overlapping sessions
         const overlappingSessions = await Session.countDocuments({
             mentor_id: mentorId,
             $and: [

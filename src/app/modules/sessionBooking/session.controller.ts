@@ -12,6 +12,9 @@ import sendResponse from "../../../shared/sendResponse";
 import { StatusCodes } from "http-status-codes";
 import { PLAN_TYPE } from "../purchase/purchase.interface";
 import { Types } from "mongoose";
+import pick from "../../../shared/pick";
+import { paginationConstants } from "../../../types/pagination";
+import { sessionFilterOptions, sessionSearchableFields } from "./session.constants";
 
 
 // const createSessionPaymentIntent = catchAsync(async (req: Request, res: Response) => {
@@ -198,9 +201,24 @@ const updateSession = catchAsync(async (req: Request, res: Response) => {
     });
 })
 
+const getSessionBookingsByUser = catchAsync(async (req: Request, res: Response) => {
+
+    const paginationOptions = pick(req.query, paginationConstants);
+    const filterableFields = pick(req.query, sessionFilterOptions);
+
+    const result = await SessionService.getSessionBookingsByUser(req.user, paginationOptions, filterableFields);
+    sendResponse(res, {
+        success: true,
+        statusCode: StatusCodes.OK,
+        message: 'Session bookings retrieved successfully',
+        data: result,
+    });
+})
+
 export const SessionController = {
     createSessionRequest,
     getSession,
-    updateSession
+    updateSession,
+    getSessionBookingsByUser
     
 }

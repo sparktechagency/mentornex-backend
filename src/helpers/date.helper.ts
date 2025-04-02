@@ -22,7 +22,6 @@ export const convertSessionTimeToUTC = (slot: string, timeZone: string, referenc
     }
 
     const utcTime = localTime.toUTC();
-console.log(utcTime)
     return {
         timeCode: utcTime.hour * 100 + utcTime.minute,
         time: utcTime.toFormat('h:mm a'),
@@ -50,6 +49,7 @@ export const convertSessionTimeToLocal = (time: Date, timeZone: string) => {
 }
 
 export const convertSlotTimeToLocal = (slot: string, timeZone: string) => {
+  
     //@ts-ignore
     const [hour, minute] = slot.toString().padStart(4, '0').match(/.{1,2}/g);
     const utcTime = DateTime.utc().set({

@@ -17,5 +17,11 @@ router.route('/')
     ScheduleController.getMentorSchedule
   );
 
+router.route('/available-slots/:mentorId')
+  .get(
+    auth(USER_ROLES.MENTEE),
+    ScheduleController.getAvailableSlots
+  );
+
 
 export const ScheduleRoutes = router;
