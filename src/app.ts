@@ -12,7 +12,9 @@ app.use(Morgan.successHandler);
 app.use(Morgan.errorHandler);
 
 //body parser
-app.use(cors());
+app.use(cors({
+  origin: "*",
+}));
 
 app.use('/api/v1/webhook', express.raw({ type: 'application/json' }), WebhookHelper.handleWebhook);
 
