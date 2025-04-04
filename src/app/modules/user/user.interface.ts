@@ -4,13 +4,13 @@ import { USER_ROLES } from '../../../enums/user';
 export type ISocial = {
   platform: string;
   username: string;
-}
+};
 
 export type IZoomToken = {
   access_token: string;
   refresh_token: string;
   expires_at: Date;
-}
+};
 
 export type IUser = {
   _id: Types.ObjectId;
@@ -39,7 +39,7 @@ export type IUser = {
   website_url?: string;
   image?: string;
   banner?: string;
-  status: 'active' | 'inactive' |'delete';
+  status: 'active' | 'inactive' | 'delete';
   stripe_account_id?: string;
   verified: boolean;
   isConnected?: boolean;
@@ -57,9 +57,6 @@ export type UserModal = {
   isMatchPassword(password: string, hashPassword: string): boolean;
 } & Model<IUser>;
 
-
-
-
 export type IUserFilterableFields = {
   searchTerm?: string;
   focus_area?: string[];
@@ -69,4 +66,5 @@ export type IUserFilterableFields = {
   minPrice?: number;
   maxPrice?: number;
   availability?: string[];
-}
+  role?: USER_ROLES;
+};

@@ -15,7 +15,6 @@ import { MessageRoutes } from '../app/modules/message/message.route';
 import { PlatformReviewRoutes } from '../app/modules/platformReview/platformReview.route';
 import { ScheduleRoutes } from '../app/modules/mentorSchedule/schedule.route';
 import { ContactRoutes } from '../app/modules/contact-us/contact.route';
-import { MentorDashboardRoutes } from '../app/modules/mentorDashboard/mentorDashboard.route.';
 import { SubmitRoutes } from '../app/modules/submit-task/submit.route';
 import { MentorRoutes } from '../app/modules/all-mentors/mentor.route';
 import { IndustryRoutes } from '../app/modules/industry/industry.route';
@@ -116,10 +115,10 @@ const apiRoutes = [
     path: '/list',
     route: MentorRoutes,
   },
-  { path: "/message", route: MessageRoutes },
+  { path: '/message', route: MessageRoutes },
   { path: '/faq', route: FaqRoutes },
   { path: '/rule', route: RuleRoutes },
-  { path: "/contact", route: ContactRoutes },
+  { path: '/contact', route: ContactRoutes },
   { path: '/industry', route: IndustryRoutes },
   { path: '/content', route: ContentRoutes },
   { path: '/others', route: OthersRoutes },

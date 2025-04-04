@@ -6,9 +6,15 @@ import { emailHelper } from '../../../helpers/emailHelper';
 import { emailTemplate } from '../../../shared/emailTemplate';
 import unlinkFile from '../../../shared/unlinkFile';
 import generateOTP from '../../../util/generateOTP';
-import { IUser } from '../user/user.interface';
+import { IUser, IUserFilterableFields } from '../user/user.interface';
 import { User } from '../user/user.model';
 import { PaymentRecord } from '../payment-record/payment-record.model';
+import { monthNames } from './admin.utils';
+import { IPaginationOptions } from '../../../types/pagination';
+import { paginationHelper } from '../../../helpers/paginationHelper';
+import { USER_SEARCHABLE_FIELDS } from '../user/user.constants';
+import { Session } from '../sessionBooking/session.model';
+import { SESSION_STATUS } from '../sessionBooking/session.interface';
 
 const createAdminToDB = async (payload: Partial<IUser>): Promise<IUser> => {
   //set role
@@ -108,124 +114,389 @@ const updateProfileToDB = async (
   return updateDoc;
 };
 
-const getTotalMentorFromDB = async (): Promise<number> => {
+// ADMIN DASHBOARD API'S
+
+const getMentorAndMenteeCountStats = async (year?: number) => {
+  const currentYear = new Date().getFullYear();
+  const startDate = new Date(year || currentYear, 0, 1);
+  const endDate = new Date(year || currentYear, 11, 31, 23, 59, 59, 999);
+
   const result = await User.aggregate([
     {
       $match: {
-        role: 'MENTOR',
+        createdAt: { $gte: startDate, $lte: endDate },
+        role: { $in: [USER_ROLES.MENTOR, USER_ROLES.MENTEE] },
       },
     },
     {
-      $count: 'totalMentors',
+      $group: {
+        _id: {
+          month: { $month: '$createdAt' },
+          role: '$role',
+        },
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $group: {
+        _id: '$_id.month',
+        mentor: {
+          $sum: {
+            $cond: [{ $eq: ['$_id.role', USER_ROLES.MENTOR] }, '$count', 0],
+          },
+        },
+        mentee: {
+          $sum: {
+            $cond: [{ $eq: ['$_id.role', USER_ROLES.MENTEE] }, '$count', 0],
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        month: '$_id',
+        mentor: 1,
+        mentee: 1,
+      },
+    },
+    {
+      $sort: { month: 1 },
     },
   ]);
-  return result[0]?.totalMentors || 0;
+
+  //format result
+  const formattedResult = Array.from({ length: 12 }, (_, i) => ({
+    monthName: monthNames[i],
+    mentor: result.find((r: any) => r.month === i + 1)?.mentor || 0,
+    mentee: result.find((r: any) => r.month === i + 1)?.mentee || 0,
+  }));
+
+  return formattedResult;
 };
 
-const getTotalActiveMentorFromDB = async (): Promise<number> => {
-  const result = await User.aggregate([
+const getEarningStats = async (year?: number) => {
+  const currentYear = new Date().getFullYear();
+  const startDate = new Date(year || currentYear, 0, 1);
+  const endDate = new Date(year || currentYear, 11, 31, 23, 59, 59, 999);
+
+  const result = await PaymentRecord.aggregate([
     {
       $match: {
-        role: 'MENTOR',
-        status: 'active',
+        createdAt: { $gte: startDate, $lte: endDate },
       },
     },
     {
-      $count: 'totalActiveMentors',
-    },
-  ]);
-  return result[0]?.totalActiveMentors || 0;
-};
-
-const getTotalInactiveMentorFromDB = async (): Promise<number> => {
-  const result = await User.aggregate([
-    {
-      $match: {
-        role: 'MENTOR',
-        status: 'inactive',
+      $group: {
+        _id: {
+          month: { $month: '$createdAt' },
+        },
+        totalEarning: { $sum: '$application_fee' },
       },
     },
-    {
-      $count: 'totalInActiveMentors',
-    },
   ]);
-  return result[0]?.totalInActiveMentors || 0;
+
+  //format result
+  const formattedResult = Array.from({ length: 12 }, (_, i) => ({
+    monthName: monthNames[i],
+    totalEarning:
+      result.find((r: any) => r._id.month === i + 1)?.totalEarning || 0,
+  }));
+
+  return formattedResult;
 };
 
-const getTotalMenteeFromDB = async (): Promise<number> => {
-  const result = await User.aggregate([
-    {
-      $match: {
-        role: 'MENTEE',
+const getDashboardStats = async (year?: number) => {
+  const currentYear = year || new Date().getFullYear();
+  const startDate = new Date(currentYear, 0, 1);
+  const endDate = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+
+  // Previous year dates for comparison
+  const previousYear = currentYear - 1;
+  const previousYearStart = new Date(previousYear, 0, 1);
+  const previousYearEnd = new Date(previousYear, 11, 31, 23, 59, 59, 999);
+
+  // Get current year counts
+  const [totalMentor, totalMentee, totalSessions, totalEarnings] =
+    await Promise.all([
+      User.countDocuments({
+        role: USER_ROLES.MENTOR,
+        createdAt: { $gte: startDate, $lte: endDate },
+      }),
+      User.countDocuments({
+        role: USER_ROLES.MENTEE,
+        createdAt: { $gte: startDate, $lte: endDate },
+      }),
+      PaymentRecord.countDocuments({
+        createdAt: { $gte: startDate, $lte: endDate },
+      }),
+      PaymentRecord.aggregate([
+        {
+          $match: {
+            createdAt: { $gte: startDate, $lte: endDate },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: '$application_fee' },
+          },
+        },
+      ]),
+    ]);
+
+  // Get previous year data for comparison
+  const [
+    previousYearMentor,
+    previousYearMentee,
+    previousYearSessions,
+    previousYearEarnings,
+  ] = await Promise.all([
+    User.countDocuments({
+      role: USER_ROLES.MENTOR,
+      createdAt: { $gte: previousYearStart, $lte: previousYearEnd },
+    }),
+    User.countDocuments({
+      role: USER_ROLES.MENTEE,
+      createdAt: { $gte: previousYearStart, $lte: previousYearEnd },
+    }),
+    PaymentRecord.countDocuments({
+      createdAt: { $gte: previousYearStart, $lte: previousYearEnd },
+    }),
+    PaymentRecord.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: previousYearStart, $lte: previousYearEnd },
+        },
       },
-    },
-    {
-      $count: 'totalMentees',
-    },
-  ]);
-  return result[0]?.totalMentees || 0;
-};
-
-const getTotalActiveMenteeFromDB = async (): Promise<number> => {
-  const result = await User.aggregate([
-    {
-      $match: {
-        role: 'MENTEE',
-        status: 'active',
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$application_fee' },
+        },
       },
-    },
-    {
-      $count: 'totalActiveMentees',
-    },
+    ]),
   ]);
-  return result[0]?.totalActiveMentees || 0;
+
+  // Calculate growth rates
+  const calculateGrowthRate = (current: number, previous: number) => {
+    if (previous === 0) return 100;
+    return ((current - previous) / previous) * 100;
+  };
+
+  return {
+    totalStats: {
+      mentors: totalMentor,
+      mentees: totalMentee,
+      sessions: totalSessions,
+      earnings: totalEarnings[0]?.total || 0,
+    },
+    growthRates: {
+      mentorGrowth: calculateGrowthRate(totalMentor, previousYearMentor),
+      menteeGrowth: calculateGrowthRate(totalMentee, previousYearMentee),
+      sessionGrowth: calculateGrowthRate(totalSessions, previousYearSessions),
+      earningGrowth: calculateGrowthRate(
+        totalEarnings[0]?.total || 0,
+        previousYearEarnings[0]?.total || 0
+      ),
+    },
+  };
 };
 
-const getTotalInactiveMenteeFromDB = async (): Promise<number> => {
-  const result = await User.aggregate([
-    {
-      $match: {
-        role: 'MENTEE',
-        status: 'inactive',
-      },
-    },
-    {
-      $count: 'totalInActiveMentees',
-    },
+const getUserStats = async (role?: USER_ROLES, year?: number) => {
+  const currentYear = year || new Date().getFullYear();
+  const currentDate = new Date();
+  const startDate = new Date(currentYear, 0, 1);
+  const endDate = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+  console.log(startDate, endDate);
+  // Last month dates for comparison
+  const lastMonthStart = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth() - 1,
+    1
+  );
+  const lastMonthEnd = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth(),
+    0,
+    23,
+    59,
+    59,
+    999
+  );
+
+  // Current month dates
+  const currentMonthStart = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth(),
+    1
+  );
+  const currentMonthEnd = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth() + 1,
+    0,
+    23,
+    59,
+    59,
+    999
+  );
+
+  // Base query for role
+  const roleQuery = role
+    ? { role }
+    : { role: { $in: [USER_ROLES.MENTOR, USER_ROLES.MENTEE] } };
+
+  // Get last month stats for comparison
+  const [
+    totalUsers,
+    activeUsers,
+    inactiveUsers,
+    totalSessions,
+    lastMonthTotalUsers,
+    lastMonthActiveUsers,
+    lastMonthInactiveUsers,
+    lastMonthSessions,
+    currentMonthTotalUsers,
+    currentMonthActiveUsers,
+    currentMonthInactiveUsers,
+    currentMonthSessions,
+  ] = await Promise.all([
+    User.countDocuments({
+      ...roleQuery,
+      createdAt: { $gte: startDate, $lte: endDate },
+    }),
+    User.countDocuments({
+      ...roleQuery,
+      createdAt: { $gte: startDate, $lte: endDate },
+      status: 'active',
+    }),
+    User.countDocuments({
+      ...roleQuery,
+      createdAt: { $gte: startDate, $lte: endDate },
+      status: 'inactive',
+    }),
+    Session.countDocuments({
+      status: { $ne: SESSION_STATUS.CANCELLED },
+      createdAt: { $gte: startDate, $lte: endDate },
+    }),
+    User.countDocuments({
+      ...roleQuery,
+      createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd },
+    }),
+    User.countDocuments({
+      ...roleQuery,
+      createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd },
+      status: 'active',
+    }),
+    User.countDocuments({
+      ...roleQuery,
+      createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd },
+      status: 'inactive',
+    }),
+    PaymentRecord.countDocuments({
+      createdAt: { $gte: lastMonthStart, $lte: lastMonthEnd },
+    }),
+    User.countDocuments({
+      ...roleQuery,
+      createdAt: { $gte: currentMonthStart, $lte: currentMonthEnd },
+    }),
+    User.countDocuments({
+      ...roleQuery,
+      createdAt: { $gte: currentMonthStart, $lte: currentMonthEnd },
+      status: 'active',
+    }),
+    User.countDocuments({
+      ...roleQuery,
+      createdAt: { $gte: currentMonthStart, $lte: currentMonthEnd },
+      status: 'inactive',
+    }),
+    Session.countDocuments({
+      createdAt: { $gte: currentMonthStart, $lte: currentMonthEnd },
+      status: { $ne: SESSION_STATUS.CANCELLED },
+    }),
   ]);
-  return result[0]?.totalInActiveMentees || 0;
+
+  // Calculate growth rates
+  const calculateGrowthRate = (current: number, previous: number) => {
+    console.log(current, previous);
+    if (previous === 0) return 100;
+    return ((current - previous) / previous) * 100;
+  };
+
+  return {
+    totalStats: {
+      total: totalUsers,
+      active: activeUsers,
+      inactive: inactiveUsers,
+      sessions: totalSessions,
+    },
+    growthRates: {
+      totalGrowth: calculateGrowthRate(
+        currentMonthTotalUsers,
+        lastMonthTotalUsers
+      ),
+      activeGrowth: calculateGrowthRate(
+        currentMonthActiveUsers,
+        lastMonthActiveUsers
+      ),
+      inactiveGrowth: calculateGrowthRate(
+        currentMonthInactiveUsers,
+        lastMonthInactiveUsers
+      ),
+      sessionGrowth: calculateGrowthRate(
+        currentMonthSessions,
+        lastMonthSessions
+      ),
+    },
+  };
 };
 
-const getAllTransactionForMentorFromDB = async (mentor_id: string) => {
-  const result = await PaymentRecord.find({
-    mentor_id: mentor_id,
-    status: 'succeeded'
-  })
-  .populate('mentee_id', 'name email image')
-  .sort({ created_at: -1 })
-  .lean();
+const getMentorOrMentee = async (
+  filters: IUserFilterableFields,
+  pagination: IPaginationOptions
+) => {
+  const { page, limit, skip, sortBy, sortOrder } =
+    paginationHelper.calculatePagination(pagination);
+  const { searchTerm, ...filtersData } = filters;
+  const andConditions = [];
 
-  if (!result) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'No transactions found');
+  if (searchTerm) {
+    USER_SEARCHABLE_FIELDS.map(field => {
+      andConditions.push({
+        [field]: {
+          $regex: searchTerm,
+          $options: 'i',
+        },
+      });
+    });
+  }
+  if (Object.keys(filtersData).length) {
+    andConditions.push({
+      $and: Object.entries(filtersData).map(([field, value]) => ({
+        [field]: value,
+      })),
+    });
   }
 
-  return result;
-};
+  const whereConditions =
+    andConditions.length > 0 ? { $and: andConditions } : {};
 
-const getAllTransactionForMenteeFromDB = async (mentee_id: string) => {
-  const result = await PaymentRecord.find({
-    mentee_id: mentee_id,
-    status: 'succeeded'
-  })
-  .populate('mentor_id', 'name email image')
-  .sort({ created_at: -1 })
-  .lean();
+  const result = await User.find(whereConditions)
+    .sort({ [sortBy]: sortOrder })
+    .skip(skip)
+    .limit(limit);
 
-  if (!result) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'No transactions found');
-  }
+  const total = await User.countDocuments(whereConditions);
 
-  return result;
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data: result,
+  };
 };
 
 export const AdminService = {
@@ -235,12 +506,10 @@ export const AdminService = {
   getUserProfileFromDB,
   updateProfileToDB,
   deleteAdminBySuperAdminToDB,
-  getTotalMentorFromDB,
-  getTotalActiveMentorFromDB,
-  getTotalInactiveMentorFromDB,
-  getTotalMenteeFromDB,
-  getTotalActiveMenteeFromDB,
-  getTotalInactiveMenteeFromDB,
-  getAllTransactionForMentorFromDB,
-  getAllTransactionForMenteeFromDB
+  // ADMIN DASHBOARD API'S
+  getMentorAndMenteeCountStats,
+  getEarningStats,
+  getDashboardStats,
+  getMentorOrMentee,
+  getUserStats,
 };
