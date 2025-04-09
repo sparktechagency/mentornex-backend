@@ -25,6 +25,8 @@ import { ChatRoutes } from '../app/modules/chat/chat.route';
 import { PurchaseRoutes } from '../app/modules/purchase/purchase.route';
 import { SessionRoutes } from '../app/modules/sessionBooking/session.route';
 import { TodoRoutes } from '../app/modules/todo/todo.route';
+import { CommunityRoutes } from '../app/modules/community/community.route';
+
 const router = express.Router();
 
 router.use('/payment/webhook', express.raw({ type: 'application/json' }));
@@ -46,6 +48,10 @@ const apiRoutes = [
   //   path: '/session',
   //   route: SessionRoutes,
   // },
+  {
+    path: '/community',
+    route: CommunityRoutes,
+  },
   {
     path: '/chat',
     route: ChatRoutes,
