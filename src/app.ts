@@ -12,11 +12,17 @@ app.use(Morgan.successHandler);
 app.use(Morgan.errorHandler);
 
 //body parser
-app.use(cors({
-  origin: "*",
-}));
+app.use(
+  cors({
+    origin: '*',
+  })
+);
 
-app.use('/api/v1/webhook', express.raw({ type: 'application/json' }), WebhookHelper.handleWebhook);
+app.use(
+  '/api/v1/webhook',
+  express.raw({ type: 'application/json' }),
+  WebhookHelper.handleWebhook
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -41,7 +47,7 @@ app.get('/', (req: Request, res: Response) => {
 app.use(globalErrorHandler);
 
 //handle not found route;
-app.use((req:Request, res:Response) => {
+app.use((req: Request, res: Response) => {
   res.status(StatusCodes.NOT_FOUND).json({
     success: false,
     message: 'Not found',
