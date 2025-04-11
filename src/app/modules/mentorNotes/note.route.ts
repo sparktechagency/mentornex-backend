@@ -23,6 +23,7 @@ router.post(
 router.patch(
   '/update-note/:id',
   auth(USER_ROLES.MENTOR),
+  fileUploadHandler(),
   (req: Request, res: Response, next: NextFunction) => {
     if (req.body.data) {
       req.body = NoteValidation.updateNoteZodSchema.parse(

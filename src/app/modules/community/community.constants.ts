@@ -1,1 +1,3 @@
-export const COMMUNITY_CONSTANT = 'someValue';
+export const communityPostSearchableFields = ['title', 'description'];
+
+export const communityPostFilterableFields = ['isApproved'];

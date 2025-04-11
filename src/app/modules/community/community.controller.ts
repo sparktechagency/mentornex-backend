@@ -3,12 +3,19 @@ import { CommunityServices } from './community.service';
 import catchAsync from '../../../shared/catchAsync';
 import sendResponse from '../../../shared/sendResponse';
 import { StatusCodes } from 'http-status-codes';
+import pick from '../../../shared/pick';
+import { paginationConstants } from '../../../types/pagination';
+import { communityPostFilterableFields } from './community.constants';
+import { getSingleFilePath } from '../../../shared/getFilePath';
 
 const createPost = catchAsync(async (req: Request, res: Response) => {
-  const result = await CommunityServices.createCommunityPost(
-    req.user,
-    req.body
-  );
+  const payload = req.body;
+
+  payload.image = getSingleFilePath(req.files, 'image');
+
+  console.log(payload);
+
+  const result = await CommunityServices.createCommunityPost(req.user, payload);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
@@ -19,6 +26,8 @@ const createPost = catchAsync(async (req: Request, res: Response) => {
 });
 
 const updatePost = catchAsync(async (req: Request, res: Response) => {
+  req.body.image = getSingleFilePath(req.files, 'image');
+
   const result = await CommunityServices.updatePost(
     req.user,
     req.params.id,
@@ -46,7 +55,7 @@ const votePost = catchAsync(async (req: Request, res: Response) => {
   const result = await CommunityServices.votePost(
     req.user,
     req.params.id,
-    req.body
+    req.body.voteType
   );
   sendResponse(res, {
     statusCode: StatusCodes.OK,
@@ -60,7 +69,7 @@ const voteReply = catchAsync(async (req: Request, res: Response) => {
   const result = await CommunityServices.voteReply(
     req.user,
     req.params.id,
-    req.body
+    req.body.voteType
   );
   sendResponse(res, {
     statusCode: StatusCodes.OK,
@@ -132,6 +141,31 @@ const toggleApprovalForPost = catchAsync(
   }
 );
 
+const getAllPosts = catchAsync(async (req: Request, res: Response) => {
+  const pagination = pick(req.query, paginationConstants);
+  const filters = pick(req.query, communityPostFilterableFields);
+  const result = await CommunityServices.getAllPosts(filters, pagination);
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Posts retrieved successfully',
+    data: result,
+  });
+});
+
+const getReplyByReplyId = catchAsync(async (req: Request, res: Response) => {
+  const result = await CommunityServices.getReplyByReplyId(
+    req.user,
+    req.params.id
+  );
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Reply retrieved successfully',
+    data: result,
+  });
+});
+
 export const CommunityController = {
   createPost,
   updatePost,
@@ -143,4 +177,6 @@ export const CommunityController = {
   editReply,
   deleteReply,
   toggleApprovalForPost,
+  getAllPosts,
+  getReplyByReplyId,
 };

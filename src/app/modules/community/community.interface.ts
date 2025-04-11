@@ -37,3 +37,8 @@ export type IVote = {
 export type PostModel = Model<IPost>;
 export type ReplyModel = Model<IReply>;
 export type VoteModel = Model<IVote>;
+
+export type IPostFilters = {
+  searchTerm?: string;
+  isApproved?: boolean;
+};

@@ -25,10 +25,14 @@ const updateReplyZodSchema = z.object({
 });
 
 const createVoteZodSchema = z.object({
-  voteType: z.enum(['upVote', 'downVote']),
+  body: z.object({
+    voteType: z.enum(['upVote', 'downVote']),
+  }),
 });
 const updateVoteZodSchema = z.object({
-  voteType: z.enum(['upVote', 'downVote']).optional(),
+  body: z.object({
+    voteType: z.enum(['upVote', 'downVote']).optional(),
+  }),
 });
 
 export const CommunityValidations = {

@@ -13,8 +13,8 @@ router.post(
   fileUploadHandler(),
   (req: Request, res: Response, next: NextFunction) => {
     if (req.body.data) {
-      req.body.data = CommunityValidations.createPostZodSchema.parse(
-        req.body.data
+      req.body = CommunityValidations.createPostZodSchema.parse(
+        JSON.parse(req.body.data)
       );
     }
     CommunityController.createPost(req, res, next);
@@ -26,11 +26,11 @@ router.patch(
   fileUploadHandler(),
   (req: Request, res: Response, next: NextFunction) => {
     if (req.body.data) {
-      req.body.data = CommunityValidations.updatePostZodSchema.parse(
-        req.body.data
+      req.body = CommunityValidations.updatePostZodSchema.parse(
+        JSON.parse(req.body.data)
       );
     }
-    CommunityController.createPost(req, res, next);
+    CommunityController.updatePost(req, res, next);
   }
 );
 router.delete(
@@ -73,8 +73,46 @@ router.delete(
 
 router.post(
   '/toggle-approval/:id',
-  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
+  auth(
+    USER_ROLES.ADMIN,
+    USER_ROLES.SUPER_ADMIN,
+    USER_ROLES.MENTEE,
+    USER_ROLES.MENTOR
+  ),
   CommunityController.toggleApprovalForPost
 );
+
+router.get(
+  '/all-posts',
+  auth(
+    USER_ROLES.MENTEE,
+    USER_ROLES.MENTOR,
+    USER_ROLES.SUPER_ADMIN,
+    USER_ROLES.ADMIN
+  ),
+  CommunityController.getAllPosts
+);
+
+router.get(
+  '/replies/:id',
+  auth(
+    USER_ROLES.MENTEE,
+    USER_ROLES.MENTOR,
+    USER_ROLES.SUPER_ADMIN,
+    USER_ROLES.ADMIN
+  ),
+  CommunityController.getReplyByReplyId
+);
+// router.get(
+//   '/my-posts',
+//   auth(USER_ROLES.MENTEE, USER_ROLES.MENTOR),
+//   CommunityController.getMyPosts
+// );
+// router.get('/post/:id', CommunityController.getSinglePost);
+// router.get(
+//   '/my-replies',
+//   auth(USER_ROLES.MENTEE, USER_ROLES.MENTOR),
+//   CommunityController.getMyReplies
+// );
 
 export const CommunityRoutes = router;

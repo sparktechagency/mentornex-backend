@@ -1,8 +1,11 @@
 import { JwtPayload } from 'jsonwebtoken';
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
-import { IPost, IReply } from './community.interface';
+import { IPost, IPostFilters, IReply } from './community.interface';
 import { Post, Reply, Vote } from './community.model';
+import { IPaginationOptions } from '../../../types/pagination';
+import { paginationHelper } from '../../../helpers/paginationHelper';
+import { communityPostSearchableFields } from './community.constants';
 
 const createCommunityPost = async (
   user: JwtPayload,
@@ -229,7 +232,7 @@ const votePost = async (
           {
             postId,
             votedBy: user.id,
-            voteType,
+            voteType: voteType,
           },
         ],
         { session }
@@ -273,7 +276,7 @@ const votePost = async (
     await Vote.create(
       [
         {
-          postId,
+          postId: postId,
           votedBy: user.id,
           voteType,
         },
@@ -328,8 +331,7 @@ const voteReply = async (
       await Vote.create(
         [
           {
-            post: existingReply.post,
-            replyId,
+            replyId: replyId,
             votedBy: user.id,
             voteType,
           },
@@ -375,7 +377,7 @@ const voteReply = async (
     await Vote.create(
       [
         {
-          post: existingReply.post,
+          replyId: replyId,
           votedBy: user.id,
           voteType,
         },
@@ -405,6 +407,115 @@ const voteReply = async (
   }
 };
 
+const getAllPosts = async (
+  filters: IPostFilters,
+  paginationOptions: IPaginationOptions
+) => {
+  const { page, skip, sortBy, sortOrder, limit } =
+    paginationHelper.calculatePagination(paginationOptions);
+
+  const { searchTerm, ...filtersData } = filters;
+  const andConditions = [];
+
+  if (searchTerm) {
+    andConditions.push({
+      $or: communityPostSearchableFields.map(field => ({
+        [field]: {
+          $regex: searchTerm,
+          $options: 'i',
+        },
+      })),
+    });
+  }
+  if (Object.keys(filtersData).length) {
+    andConditions.push({
+      $and: Object.entries(filtersData).map(([field, value]) => ({
+        [field]: value,
+      })),
+    });
+  }
+
+  andConditions.push({
+    isApproved: true,
+  });
+
+  const whereConditions =
+    andConditions.length > 0 ? { $and: andConditions } : {};
+  const result = await Post.find(whereConditions)
+    .populate({
+      path: 'postedBy',
+      select: 'name image',
+    })
+    .limit(limit)
+    .skip(skip)
+    .sort({ [sortBy]: sortOrder })
+    .lean();
+
+  const postIds = result.map(post => post._id);
+
+  const replies = await Reply.find(
+    {
+      post: { $in: postIds },
+      parentReply: null,
+    },
+    { parentReply: 0, __v: 0 }
+  ).populate({
+    path: 'repliedBy',
+    select: 'name image',
+  });
+
+  //now attach replies to posts
+  const postsWithReplies = result.map(post => {
+    const postReplies = replies.filter(
+      reply => reply.post.toString() === post._id.toString()
+    );
+    return {
+      ...post,
+      replies: postReplies,
+    };
+  });
+
+  const total = await Post.countDocuments(whereConditions);
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+    data: postsWithReplies,
+  };
+};
+
+const getMyPosts = async (user: JwtPayload) => {
+  const result = await Post.find({ postedBy: user.id })
+    .populate({
+      path: 'postedBy',
+      select: 'name image',
+    })
+    .lean();
+  return result;
+};
+const getSinglePost = async (id: string) => {
+  const result = await Post.findById(id)
+    .populate({
+      path: 'postedBy',
+      select: 'name image',
+    })
+    .lean();
+  return result;
+};
+
+const getReplyByReplyId = async (user: JwtPayload, id: string) => {
+  const result = await Reply.find({ parentReply: id })
+    .populate({
+      path: 'repliedBy',
+      select: 'name image',
+    })
+    .lean();
+  return result;
+};
+
 export const CommunityServices = {
   createCommunityPost,
   toggleApprovalForPost,
@@ -416,4 +527,6 @@ export const CommunityServices = {
   replyToReply,
   editReply,
   deleteReply,
+  getAllPosts,
+  getReplyByReplyId,
 };
