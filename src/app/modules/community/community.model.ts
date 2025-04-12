@@ -26,6 +26,12 @@ const postSchema = new Schema<IPost, PostModel>(
       ref: 'User',
       required: true,
     },
+    replies: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Reply',
+      },
+    ],
     isApproved: {
       type: Boolean,
       default: false,
@@ -58,6 +64,18 @@ const replySchema = new Schema<IReply, ReplyModel>(
       type: String,
       required: true,
     },
+    repliesOfReply: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Reply',
+        // replies: [
+        //   {
+        //     type: Schema.Types.ObjectId,
+        //     ref: 'Reply',
+        //   },
+        // ],
+      },
+    ],
     upVotes: {
       type: Number,
       default: 0,

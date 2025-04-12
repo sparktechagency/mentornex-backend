@@ -7,6 +7,7 @@ export type IReply = {
   comment: string;
   upVotes: number;
   downVotes: number;
+  repliesOfReply?: IReply[];
   parentReply?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -21,6 +22,7 @@ export type IPost = {
   isApproved: boolean;
   upVotes: number;
   downVotes: number;
+  replies?: IReply[];
   createdAt: Date;
   updatedAt: Date;
 };

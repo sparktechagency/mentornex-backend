@@ -1,3 +1,4 @@
+import { populate } from 'dotenv';
 import { JwtPayload } from 'jsonwebtoken';
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
@@ -6,6 +7,7 @@ import { Post, Reply, Vote } from './community.model';
 import { IPaginationOptions } from '../../../types/pagination';
 import { paginationHelper } from '../../../helpers/paginationHelper';
 import { communityPostSearchableFields } from './community.constants';
+import { startSession } from 'mongoose';
 
 const createCommunityPost = async (
   user: JwtPayload,
@@ -107,19 +109,49 @@ const replyToPost = async (
   if (!post) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Post not found');
   }
+  const session = await startSession();
+  try {
+    session.startTransaction();
 
-  const result = await Reply.create([
-    {
-      post: postId,
-      comment: payload.comment,
-      repliedBy: user.id,
-    },
-  ]);
-  if (!result) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      `Failed to reply to ${post.title}`
+    const result = await Reply.create(
+      [
+        {
+          post: postId,
+          comment: payload.comment,
+          repliedBy: user.id,
+        },
+      ],
+      { session }
     );
+
+    if (!result.length) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        `Failed to reply to ${post.title}`
+      );
+    }
+
+    //push the newly created reply to the post's replies array
+    const isPostUpdated = await Post.findByIdAndUpdate(
+      postId,
+      { $push: { replies: result[0]._id } },
+      { session, new: true }
+    );
+
+    if (!isPostUpdated) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        `Failed to update ${post.title} post replies array with new reply id.`
+      );
+    }
+
+    await session.commitTransaction();
+    return 'Reply added successfully.';
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
   }
 };
 
@@ -132,21 +164,51 @@ const replyToReply = async (
   if (!existingReply) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Reply not found');
   }
-  const result = await Reply.create([
-    {
-      post: existingReply.post,
-      reply: replyId,
-      comment: payload.comment,
-      repliedBy: user.id,
-      parentReply: replyId,
-    },
-  ]);
 
-  if (!result.length) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      `Failed to reply to ${existingReply.comment}`
+  const session = await startSession();
+  try {
+    session.startTransaction();
+
+    const result = await Reply.create(
+      [
+        {
+          post: existingReply.post,
+          comment: payload.comment,
+          repliedBy: user.id,
+          parentReply: replyId,
+        },
+      ],
+      { session }
     );
+
+    if (!result.length) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        `Failed to reply to ${existingReply.comment}`
+      );
+    }
+
+    //push the newly created reply to the post's replies array
+    const isReplyUpdated = await Reply.findByIdAndUpdate(
+      existingReply._id,
+      { $push: { repliesOfReply: result[0]._id } },
+      { session, new: true }
+    );
+
+    if (!isReplyUpdated) {
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        `Failed to update ${existingReply.comment} reply replies array with new reply id.`
+      );
+    }
+
+    await session.commitTransaction();
+    return 'Reply added successfully.';
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
   }
 };
 
@@ -183,30 +245,42 @@ const deleteReply = async (user: JwtPayload, replyId: string) => {
   if (!reply) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Reply not found');
   }
-  if (reply.repliedBy.toString() !== user.id) {
-    throw new ApiError(
-      StatusCodes.FORBIDDEN,
-      'You are not authorized to delete this reply.'
-    );
-  }
+  // if (reply.repliedBy.toString() !== user.id) {
+  //   throw new ApiError(
+  //     StatusCodes.FORBIDDEN,
+  //     'You are not authorized to delete this reply.'
+  //   );
+  // }
   //delete all replies with this replyId and their children
-  const session = await Post.startSession();
+  const session = await startSession();
   try {
     session.startTransaction();
     await Promise.all([
       reply.deleteOne({ session }),
       Reply.deleteMany({ parentReply: replyId }, { session }),
-      Vote.deleteMany({ reply: replyId }, { session }),
+      Vote.deleteMany({ replyId: replyId }, { session }),
+      // Handle parent reference update separately
+      reply.parentReply
+        ? Reply.findByIdAndUpdate(
+            reply.parentReply,
+            { $pull: { repliesOfReply: replyId } },
+            { session }
+          )
+        : Post.findByIdAndUpdate(
+            reply.post,
+            { $pull: { replies: replyId } },
+            { session }
+          ),
     ]);
 
     await session.commitTransaction();
-    session.endSession();
+
     return 'Reply deleted successfully.';
   } catch (error) {
-    session.abortTransaction();
+    await session.abortTransaction();
     throw error;
   } finally {
-    session.endSession();
+    await session.endSession();
   }
 };
 
@@ -216,7 +290,7 @@ const votePost = async (
   postId: string,
   voteType: 'upVote' | 'downVote'
 ) => {
-  const session = await Post.startSession();
+  const session = await startSession();
   try {
     session.startTransaction();
 
@@ -311,7 +385,7 @@ const voteReply = async (
   replyId: string,
   voteType: 'upVote' | 'downVote'
 ) => {
-  const session = await Post.startSession();
+  const session = await startSession();
   try {
     session.startTransaction();
 
@@ -446,34 +520,37 @@ const getAllPosts = async (
       path: 'postedBy',
       select: 'name image',
     })
+    .populate({
+      path: 'replies',
+      populate: [
+        {
+          path: 'repliedBy',
+          select: 'name  image ',
+        },
+        {
+          path: 'repliesOfReply',
+          select: 'comment repliedBy createdAt updatedAt upVotes downVotes',
+          populate: [
+            {
+              path: 'repliedBy',
+              select: 'name  image ',
+            },
+            {
+              path: 'repliesOfReply',
+              select: 'comment repliedBy createdAt updatedAt upVotes downVotes',
+              populate: {
+                path: 'repliedBy',
+                select: 'name  image ',
+              },
+            },
+          ],
+        },
+      ],
+    })
     .limit(limit)
     .skip(skip)
     .sort({ [sortBy]: sortOrder })
     .lean();
-
-  const postIds = result.map(post => post._id);
-
-  const replies = await Reply.find(
-    {
-      post: { $in: postIds },
-      parentReply: null,
-    },
-    { parentReply: 0, __v: 0 }
-  ).populate({
-    path: 'repliedBy',
-    select: 'name image',
-  });
-
-  //now attach replies to posts
-  const postsWithReplies = result.map(post => {
-    const postReplies = replies.filter(
-      reply => reply.post.toString() === post._id.toString()
-    );
-    return {
-      ...post,
-      replies: postReplies,
-    };
-  });
 
   const total = await Post.countDocuments(whereConditions);
   return {
@@ -483,7 +560,7 @@ const getAllPosts = async (
       total,
       totalPages: Math.ceil(total / limit),
     },
-    data: postsWithReplies,
+    data: result,
   };
 };
 
