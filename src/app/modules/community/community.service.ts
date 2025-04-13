@@ -8,6 +8,9 @@ import { IPaginationOptions } from '../../../types/pagination';
 import { paginationHelper } from '../../../helpers/paginationHelper';
 import { communityPostSearchableFields } from './community.constants';
 import { startSession } from 'mongoose';
+import sendNotification, {
+  sendDataWithSocket,
+} from '../../../helpers/sendNotificationHelper';
 
 const createCommunityPost = async (
   user: JwtPayload,
@@ -23,13 +26,25 @@ const createCommunityPost = async (
   return result;
 };
 
-const toggleApprovalForPost = async (id: string) => {
-  const post = await Post.findById(id);
+const toggleApprovalForPost = async (user: JwtPayload, id: string) => {
+  const post = await Post.findById(id).populate('postedBy', 'name image');
   if (!post) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Post not found');
   }
   post.isApproved = !post.isApproved;
   await post.save();
+
+  sendNotification('getNotification', {
+    senderId: user.id,
+    receiverId: post.postedBy.toString(),
+    title: post.title,
+    message: post.isApproved
+      ? `Hello ${name}, your post with ${post.title} has been approved.`
+      : `Hello ${name}, your post with ${post.title} has been rejected.`,
+  });
+
+  sendDataWithSocket('newPost', 'newPost', post);
+
   return post.isApproved
     ? 'Post approved successfully.'
     : 'Post approved successfully.';
@@ -40,7 +55,7 @@ const updatePost = async (
   id: string,
   payload: Partial<IPost>
 ) => {
-  const post = await Post.findById(id);
+  const post = await Post.findById(id).populate('postedBy', 'name image');
   if (!post) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Post not found');
   }
@@ -62,11 +77,13 @@ const updatePost = async (
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to update post.');
   }
 
+  sendDataWithSocket('updatedPost', 'updatedPost', updatedPost);
+
   return 'Post updated successfully.';
 };
 
 const deletePost = async (user: JwtPayload, id: string) => {
-  const post = await Post.findById(id);
+  const post = await Post.findById(id).populate('postedBy', 'name image');
   if (!post) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Post not found');
   }
@@ -90,7 +107,7 @@ const deletePost = async (user: JwtPayload, id: string) => {
     ]);
 
     await session.commitTransaction();
-    session.endSession();
+    sendDataWithSocket('deletedPost', 'deletedPost', post);
   } catch (error) {
     session.abortTransaction();
     throw error;
@@ -105,7 +122,9 @@ const replyToPost = async (
   postId: string,
   payload: IReply
 ) => {
-  const post = await Post.findById(postId);
+  const post = await Post.findById(postId).populate<{
+    postedBy: { name: string; image: string };
+  }>('postedBy', 'name image');
   if (!post) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Post not found');
   }
@@ -146,6 +165,19 @@ const replyToPost = async (
     }
 
     await session.commitTransaction();
+
+    const replyPopulatedData = await result[0].populate<{
+      repliedBy: { name: string; image: string };
+    }>('repliedBy', 'name image');
+
+    sendNotification('getNotification', {
+      senderId: user.id,
+      receiverId: post.postedBy.toString(),
+      title: post.title,
+      message: `Hello ${post.postedBy.name}, ${replyPopulatedData.repliedBy.name} has replied to your post.`,
+    });
+    sendDataWithSocket('newReply', post._id.toString(), replyPopulatedData);
+
     return 'Reply added successfully.';
   } catch (error) {
     await session.abortTransaction();
@@ -160,9 +192,18 @@ const replyToReply = async (
   replyId: string,
   payload: IReply
 ) => {
-  const existingReply = await Reply.findById(replyId);
+  const existingReply = await Reply.findById(replyId).populate<{
+    repliedBy: { name: string; image: string };
+  }>('repliedBy', 'name image');
   if (!existingReply) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Reply not found');
+  }
+
+  const post = await Post.findById(existingReply.post, { title: 1 }).populate<{
+    postedBy: { name: string; image: string };
+  }>('postedBy', 'name image');
+  if (!post) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Post not found');
   }
 
   const session = await startSession();
@@ -203,6 +244,23 @@ const replyToReply = async (
     }
 
     await session.commitTransaction();
+
+    const replyPopulatedData = await result[0].populate<{
+      repliedBy: { name: string; image: string };
+    }>('repliedBy', 'name image');
+    sendNotification('getNotification', {
+      senderId: user.id,
+      receiverId: existingReply.repliedBy.toString(),
+      title: existingReply.comment,
+      message: `Hello ${existingReply.repliedBy.name}, ${replyPopulatedData.repliedBy.name} has replied to your reply in ${post.title}.`,
+    });
+
+    sendDataWithSocket(
+      'newReply',
+      existingReply.post.toString(),
+      replyPopulatedData
+    ); // Assuming postId is the ID of the post to which the reply belongs, not the ID of the reply itself. If you want to send the reply itself, you can use replyPopulatedData her
+
     return 'Reply added successfully.';
   } catch (error) {
     await session.abortTransaction();
@@ -217,7 +275,9 @@ const editReply = async (
   replyId: string,
   payload: Partial<IReply>
 ) => {
-  const reply = await Reply.findById(replyId);
+  const reply = await Reply.findById(replyId).populate<{
+    repliedBy: { name: string; image: string };
+  }>('repliedBy', 'name image');
   if (!reply) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Reply not found');
   }
@@ -237,6 +297,11 @@ const editReply = async (
   if (!updatedReply) {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to update reply.');
   }
+
+  reply.comment = updatedReply.comment || reply.comment;
+
+  sendDataWithSocket('updatedReply', reply.post.toString(), reply);
+
   return 'Reply updated successfully.';
 };
 
@@ -275,6 +340,8 @@ const deleteReply = async (user: JwtPayload, replyId: string) => {
 
     await session.commitTransaction();
 
+    sendDataWithSocket('deletedReply', reply.post.toString(), reply);
+
     return 'Reply deleted successfully.';
   } catch (error) {
     await session.abortTransaction();
@@ -312,7 +379,7 @@ const votePost = async (
         { session }
       );
 
-      await Post.findByIdAndUpdate(
+      const updatedVote = await Post.findByIdAndUpdate(
         postId,
         {
           $inc: {
@@ -323,6 +390,10 @@ const votePost = async (
       );
 
       await session.commitTransaction();
+      sendDataWithSocket('votedPost', postId, {
+        upVotes: updatedVote?.upVotes,
+        downVotes: updatedVote?.downVotes,
+      });
       return 'Post voted successfully.';
     }
 
@@ -330,7 +401,7 @@ const votePost = async (
     if (existingVote.voteType === voteType) {
       await existingVote.deleteOne({ session });
 
-      await Post.findByIdAndUpdate(
+      const updatedVote = await Post.findByIdAndUpdate(
         postId,
         {
           $inc: {
@@ -341,6 +412,10 @@ const votePost = async (
       );
 
       await session.commitTransaction();
+      sendDataWithSocket('votedPost', postId, {
+        upVotes: updatedVote?.upVotes,
+        downVotes: updatedVote?.downVotes,
+      });
       return 'Post unvoted successfully.';
     }
 
@@ -359,7 +434,7 @@ const votePost = async (
     );
 
     // Single update operation for switching vote types
-    await Post.findByIdAndUpdate(
+    const updatedVote = await Post.findByIdAndUpdate(
       postId,
       {
         $inc: {
@@ -371,6 +446,10 @@ const votePost = async (
     );
 
     await session.commitTransaction();
+    sendDataWithSocket('votedPost', postId, {
+      upVotes: updatedVote?.upVotes,
+      downVotes: updatedVote?.downVotes,
+    });
     return 'Post vote updated successfully.';
   } catch (error) {
     await session.abortTransaction();
