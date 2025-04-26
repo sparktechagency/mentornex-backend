@@ -1,93 +1,163 @@
-import { StatusCodes } from "http-status-codes";
-import ApiError from "../../../errors/ApiError";
-import { IPackage, IPayPerSession, ISubscription, PLAN_STATUS } from "./plans.interface";
-import { Package, PayPerSession, Subscription } from "./plans.model";
-import { Types } from "mongoose";
-import { JwtPayload } from "jsonwebtoken";
-import { User } from "../user/user.model";
-import { StripeService } from "../purchase/stripe.service";
+import { StatusCodes } from 'http-status-codes';
+import ApiError from '../../../errors/ApiError';
+import {
+  IPackage,
+  IPayPerSession,
+  ISubscription,
+  PLAN_STATUS,
+} from './plans.interface';
+import { Package, PayPerSession, Subscription } from './plans.model';
+import { Types } from 'mongoose';
+import { JwtPayload } from 'jsonwebtoken';
+import { User } from '../user/user.model';
+import { StripeService } from '../purchase/stripe.service';
 
-
-const createPayPerSession = async (payload: IPayPerSession, user:JwtPayload) => {
+const createPayPerSession = async (
+  payload: IPayPerSession,
+  user: JwtPayload
+) => {
   payload.mentor_id = user.id;
   const result = await PayPerSession.create(payload);
-  if(!result) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create pay per session');
+  if (!result)
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Failed to create pay per session'
+    );
   return result;
-}
+};
 
-const updatePayPerSession = async (id: Types.ObjectId, payload: IPayPerSession, user:JwtPayload) => {
-
- const isPayPerSessionExist = await PayPerSession.findById(id).lean();
- if(!isPayPerSessionExist) throw new ApiError(StatusCodes.BAD_REQUEST, 'Pay per session not found');
-
- if(isPayPerSessionExist.mentor_id.toString() !== user.id) throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to update this pay per session');
- 
-
-  const result = await PayPerSession.findByIdAndUpdate(id, {$set: payload}, { new: true });
-  if(!result) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to update pay per session');
-  return result;
-}
-
-const deletePayPerSession = async (id: Types.ObjectId, user:JwtPayload) => {
+const updatePayPerSession = async (
+  id: Types.ObjectId,
+  payload: IPayPerSession,
+  user: JwtPayload
+) => {
   const isPayPerSessionExist = await PayPerSession.findById(id).lean();
-  if(!isPayPerSessionExist) throw new ApiError(StatusCodes.BAD_REQUEST, 'Pay per session not found');
-  if(isPayPerSessionExist.mentor_id.toString() !== user.id) throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to delete this pay per session');
-  
-  const result = await PayPerSession.findByIdAndUpdate(id, {$set: {status: 'inactive'}}, { new: true });
-  if(!result) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to delete pay per session');
+  if (!isPayPerSessionExist)
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Pay per session not found');
+
+  if (isPayPerSessionExist.mentor_id.toString() !== user.id)
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'You are not authorized to update this pay per session'
+    );
+
+  const result = await PayPerSession.findByIdAndUpdate(
+    id,
+    { $set: payload },
+    { new: true }
+  );
+  if (!result)
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Failed to update pay per session'
+    );
   return result;
-}
+};
 
-const createPackage = async (payload: IPackage, user:JwtPayload) => {
-  const isMaxed = await Package.countDocuments({ mentor_id: user.id, status: PLAN_STATUS.ACTIVE }) >= 3;
+const deletePayPerSession = async (id: Types.ObjectId, user: JwtPayload) => {
+  const isPayPerSessionExist = await PayPerSession.findById(id).lean();
+  if (!isPayPerSessionExist)
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Pay per session not found');
+  if (isPayPerSessionExist.mentor_id.toString() !== user.id)
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'You are not authorized to delete this pay per session'
+    );
 
-  if(isMaxed) throw new ApiError(StatusCodes.BAD_REQUEST, 'You can only have 3 active packages');
-payload.mentor_id = user.id;
+  const result = await PayPerSession.findByIdAndUpdate(
+    id,
+    { $set: { status: 'inactive' } },
+    { new: true }
+  );
+  if (!result)
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Failed to delete pay per session'
+    );
+  return result;
+};
+
+const createPackage = async (payload: IPackage, user: JwtPayload) => {
+  const isMaxed =
+    (await Package.countDocuments({
+      mentor_id: user.id,
+      status: PLAN_STATUS.ACTIVE,
+    })) >= 3;
+
+  if (isMaxed)
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'You can only have 3 active packages'
+    );
+  payload.mentor_id = user.id;
   const result = await Package.create(payload);
-  if(!result) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create package');
+  if (!result)
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create package');
   return result;
-}
+};
 
-const updatePackage = async (id: Types.ObjectId, payload: IPackage, user:JwtPayload) => {
+const updatePackage = async (
+  id: Types.ObjectId,
+  payload: IPackage,
+  user: JwtPayload
+) => {
   const isPackageExist = await Package.findById(id).lean();
-  if(!isPackageExist) throw new ApiError(StatusCodes.BAD_REQUEST, 'Package not found');
-  if(isPackageExist.mentor_id.toString() !== user.id) throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to update this package');
-  
-  const result = await Package.findByIdAndUpdate(id, {$set: payload}, { new: true });
-  if(!result) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to update package');
-  return result;
-}
+  if (!isPackageExist)
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Package not found');
+  if (isPackageExist.mentor_id.toString() !== user.id)
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'You are not authorized to update this package'
+    );
 
-const deletePackage = async (id: Types.ObjectId, user:JwtPayload) => {
+  const result = await Package.findByIdAndUpdate(
+    id,
+    { $set: payload },
+    { new: true }
+  );
+  if (!result)
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to update package');
+  return result;
+};
+
+const deletePackage = async (id: Types.ObjectId, user: JwtPayload) => {
   const isPackageExist = await Package.findById(id).lean();
-  if(!isPackageExist) throw new ApiError(StatusCodes.BAD_REQUEST, 'Package not found');
-  if(isPackageExist.mentor_id.toString() !== user.id) throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to delete this package');
-  
-  const result = await Package.findByIdAndUpdate(id, {$set: {status: 'inactive'}}, { new: true });
-  if(!result) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to delete package');
+  if (!isPackageExist)
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Package not found');
+  if (isPackageExist.mentor_id.toString() !== user.id)
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'You are not authorized to delete this package'
+    );
+
+  const result = await Package.findByIdAndUpdate(
+    id,
+    { $set: { status: 'inactive' } },
+    { new: true }
+  );
+  if (!result)
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to delete package');
   return result;
-}
+};
 
-
-
-const createSubscriptionPlan = async (payload: ISubscription, user: JwtPayload) => {
+const createSubscriptionPlan = async (
+  payload: ISubscription,
+  user: JwtPayload
+) => {
   // Fetch existing plans and Stripe account ID in parallel
   const [existingPlan, stripeAccountId] = await Promise.all([
-    Subscription.find({ mentor_id: user.id, status: PLAN_STATUS.ACTIVE }).lean(),
-    User.findOne({ _id: user.id }).select('stripe_account_id').lean()
+    Subscription.find({
+      mentor_id: user.id,
+      status: PLAN_STATUS.ACTIVE,
+    }).lean(),
+    User.findOne({ _id: user.id }).select('stripe_account_id').lean(),
   ]);
 
   // Ensure that the mentor doesn't already have 3 plans
-  if (existingPlan.length >= 3) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'You can only have 3 subscription plans');
-  }
-
-  const isSamePlanType = existingPlan?.find((plan) => plan.type === payload.type);
-  // Ensure that a subscription with the same type doesn't already exist
-  if (isSamePlanType) {
+  if (existingPlan.length >= 1) {
     throw new ApiError(
-      StatusCodes.BAD_REQUEST, 
-      `Subscription plan with type "${payload.type}" already exists`
+      StatusCodes.BAD_REQUEST,
+      'You can only have 1 subscription plans at a time.'
     );
   }
 
@@ -103,10 +173,8 @@ const createSubscriptionPlan = async (payload: ISubscription, user: JwtPayload) 
   const product = await StripeService.createProduct({
     title: `${payload.title}`,
     description: payload.description,
-    metadata: {
-      sessions: Number(payload.sessions)
-    },
-    accountId: stripeAccountId.stripe_account_id
+    metadata: {},
+    accountId: stripeAccountId.stripe_account_id,
   });
 
   // Create the price for the product in Stripe
@@ -115,8 +183,8 @@ const createSubscriptionPlan = async (payload: ISubscription, user: JwtPayload) 
     amount: Number(payload.amount),
     accountId: stripeAccountId.stripe_account_id,
     recurring: {
-      interval: 'month'  // Set the interval as monthly
-    }
+      interval: 'month', // Set the interval as monthly
+    },
   });
 
   // Assign Stripe product and price IDs to the payload
@@ -130,65 +198,79 @@ const createSubscriptionPlan = async (payload: ISubscription, user: JwtPayload) 
 
   // If subscription creation failed, throw an error
   if (!result) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to create subscription plan');
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Failed to create subscription plan'
+    );
   }
 
   // Return the newly created subscription plan
   return result;
 };
 
+const updateSubscriptionPlan = async (
+  id: Types.ObjectId,
+  payload: ISubscription,
+  user: JwtPayload
+) => {
+  const isSubscriptionPlanExist = await Subscription.findById(id).lean();
+  if (!isSubscriptionPlanExist)
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscription plan not found');
+  if (isSubscriptionPlanExist.mentor_id.toString() !== user.id)
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'You are not authorized to update this subscription plan'
+    );
 
-const updateSubscriptionPlan = async (id: Types.ObjectId, payload: ISubscription, user:JwtPayload) => {
-    
-    const isSubscriptionPlanExist = await Subscription.findById(id).lean();
-    if(!isSubscriptionPlanExist) throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscription plan not found');
-    if(isSubscriptionPlanExist.mentor_id.toString() !== user.id) throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to update this subscription plan');
-    
-    //check if price is updated
-    if(payload.amount && payload.amount !== isSubscriptionPlanExist.amount) {
-        const price = await StripeService.createPrice({
-            productId: isSubscriptionPlanExist.stripe_product_id,
-            amount: Number(payload.amount),
-            accountId: isSubscriptionPlanExist.stripe_account_id, 
-            recurring: {
-                interval: 'month'  // Set the interval as monthly,
-                
-            }
-        });
-        if(!price) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to update price');
-        payload.stripe_price_id = price.id;
-    }
+  //check if price is updated
+  if (payload.amount && payload.amount !== isSubscriptionPlanExist.amount) {
+    const price = await StripeService.createPrice({
+      productId: isSubscriptionPlanExist.stripe_product_id,
+      amount: Number(payload.amount),
+      accountId: isSubscriptionPlanExist.stripe_account_id,
+      recurring: {
+        interval: 'month', // Set the interval as monthly,
+      },
+    });
+    if (!price)
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to update price');
+    payload.stripe_price_id = price.id;
+  }
 
-    if(payload.title || payload.description || payload.sessions){
-        const product = await StripeService.updateProduct({
-            productId: isSubscriptionPlanExist.stripe_product_id,
-            title: payload.title || isSubscriptionPlanExist.title,
-            description: payload.description || isSubscriptionPlanExist.description,
-            metadata: {
-                sessions: Number(payload.sessions || isSubscriptionPlanExist.sessions)
-            },
-            accountId: isSubscriptionPlanExist.stripe_account_id
-        });
-        if(!product) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to update product');
-    }
+  if (payload.title || payload.description) {
+    const product = await StripeService.updateProduct({
+      productId: isSubscriptionPlanExist.stripe_product_id,
+      title: payload.title || isSubscriptionPlanExist.title,
+      description: payload.description || isSubscriptionPlanExist.description,
+      metadata: {},
+      accountId: isSubscriptionPlanExist.stripe_account_id,
+    });
+    if (!product)
+      throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to update product');
+  }
 
-    const result = await Subscription.findByIdAndUpdate(id, {$set: payload}, { new: true });
-    if(!result) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to update subscription plan');
-    return result;
-   
-}
+  const result = await Subscription.findByIdAndUpdate(
+    id,
+    { $set: payload },
+    { new: true }
+  );
+  if (!result)
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'Failed to update subscription plan'
+    );
+  return result;
+};
 
 // const deleteSubscriptionPlan = async (id: Types.ObjectId, user:JwtPayload) => {
 //     const isSubscriptionPlanExist = await Subscription.findById(id).lean();
 //     if(!isSubscriptionPlanExist) throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscription plan not found');
 //     if(isSubscriptionPlanExist.mentor_id.toString() !== user.id) throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to delete this subscription plan');
-    
 
 //     const removePrice = await StripeService.removePrice(isSubscriptionPlanExist.stripe_price_id, isSubscriptionPlanExist.stripe_account_id);
 //     const deleteProduct = await StripeService.deleteProduct(isSubscriptionPlanExist.stripe_product_id, isSubscriptionPlanExist.stripe_account_id);
 
 //     if(!removePrice || !deleteProduct) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to delete subscription plan');
-
 
 //     const result = await Subscription.findByIdAndUpdate(id, {$set: {status: 'inactive'}}, { new: true });
 //     if(!result) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to delete subscription plan');
@@ -201,7 +283,10 @@ const deleteSubscriptionPlan = async (id: Types.ObjectId, user: JwtPayload) => {
     throw new ApiError(StatusCodes.BAD_REQUEST, 'Subscription plan not found');
   }
   if (isSubscriptionPlanExist.mentor_id.toString() !== user.id) {
-    throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to delete this subscription plan');
+    throw new ApiError(
+      StatusCodes.BAD_REQUEST,
+      'You are not authorized to delete this subscription plan'
+    );
   }
 
   try {
@@ -218,7 +303,10 @@ const deleteSubscriptionPlan = async (id: Types.ObjectId, user: JwtPayload) => {
     );
 
     if (!deleteProduct) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to delete subscription plan');
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Failed to delete subscription plan'
+      );
     }
 
     // Step 3: Update the subscription plan status to 'inactive'
@@ -229,27 +317,49 @@ const deleteSubscriptionPlan = async (id: Types.ObjectId, user: JwtPayload) => {
     );
 
     if (!result) {
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to delete subscription plan');
+      throw new ApiError(
+        StatusCodes.BAD_REQUEST,
+        'Failed to delete subscription plan'
+      );
     }
 
     return result;
   } catch (error) {
     //@ts-ignore
     console.error('Error deleting subscription plan:', error.message);
-    throw new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'An error occurred while deleting the subscription plan');
+    throw new ApiError(
+      StatusCodes.INTERNAL_SERVER_ERROR,
+      'An error occurred while deleting the subscription plan'
+    );
   }
 };
 
 const getPricingPlans = async (mentorId: Types.ObjectId) => {
-    const [payPerSession, packages, subscriptions] = await Promise.all([
-        PayPerSession.find({status: PLAN_STATUS.ACTIVE, mentor_id: mentorId}).lean(),
-        Package.find({status: PLAN_STATUS.ACTIVE, mentor_id: mentorId}).lean(),
-        Subscription.find({status: PLAN_STATUS.ACTIVE, mentor_id: mentorId},{stripe_product_id: 0, stripe_price_id: 0, stripe_account_id: 0}).lean()
-    ]);
-    if(!payPerSession || !packages || !subscriptions) throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to get pricing plans');
-    return {payPerSession, packages, subscriptions};
-}
+  const [payPerSession, packages, subscriptions] = await Promise.all([
+    PayPerSession.find({
+      status: PLAN_STATUS.ACTIVE,
+      mentor_id: mentorId,
+    }).lean(),
+    Package.find({ status: PLAN_STATUS.ACTIVE, mentor_id: mentorId }).lean(),
+    Subscription.find(
+      { status: PLAN_STATUS.ACTIVE, mentor_id: mentorId },
+      { stripe_product_id: 0, stripe_price_id: 0, stripe_account_id: 0 }
+    ).lean(),
+  ]);
+  if (!payPerSession || !packages || !subscriptions)
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to get pricing plans');
+  return { payPerSession, packages, subscriptions };
+};
 
-
-  
-export const PlansServices = { createPayPerSession, updatePayPerSession, deletePayPerSession, createPackage, updatePackage, deletePackage, createSubscriptionPlan, updateSubscriptionPlan, deleteSubscriptionPlan, getPricingPlans };
+export const PlansServices = {
+  createPayPerSession,
+  updatePayPerSession,
+  deletePayPerSession,
+  createPackage,
+  updatePackage,
+  deletePackage,
+  createSubscriptionPlan,
+  updateSubscriptionPlan,
+  deleteSubscriptionPlan,
+  getPricingPlans,
+};

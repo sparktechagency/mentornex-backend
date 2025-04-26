@@ -13,8 +13,6 @@ const createPost = catchAsync(async (req: Request, res: Response) => {
 
   payload.image = getSingleFilePath(req.files, 'image');
 
-  console.log(payload);
-
   const result = await CommunityServices.createCommunityPost(req.user, payload);
 
   sendResponse(res, {

@@ -1,69 +1,81 @@
 import { Schema, model } from 'mongoose';
-import { IPayPerSession, IPackage, ISubscription, IPayPerSessionModel, IPackageModel, ISubscriptionModel, PLAN_STATUS } from './plans.interface';
+import {
+  IPayPerSession,
+  IPackage,
+  ISubscription,
+  IPayPerSessionModel,
+  IPackageModel,
+  ISubscriptionModel,
+  PLAN_STATUS,
+} from './plans.interface';
 
-const payPerSessionSchema = new Schema<IPayPerSession, IPayPerSessionModel>({
-  mentor_id: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
+const payPerSessionSchema = new Schema<IPayPerSession, IPayPerSessionModel>(
+  {
+    mentor_id: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    title: {
+      type: String,
+      required: true,
+    },
+    amount: {
+      type: Number,
+      required: true,
+    },
+    duration: {
+      type: String,
+      required: true,
+    },
+    description: {
+      type: String,
+    },
+    features: {
+      type: [String],
+    },
+    status: {
+      type: String,
+      enum: [PLAN_STATUS.ACTIVE, PLAN_STATUS.INACTIVE],
+      default: PLAN_STATUS.ACTIVE,
+    },
   },
-  title: {
-    type: String,
-    required: true,
-  },
-  amount: {
-    type: Number,
-    required: true,
-  },
-  duration: {
-    type: String,
-    required: true,
-  },
-  description: {
-    type: String,
-  },
-  features: {
-    type: [String],
-  },
-  status: {
-    type: String,
-    enum: [PLAN_STATUS.ACTIVE, PLAN_STATUS.INACTIVE],
-    default: PLAN_STATUS.ACTIVE
-  },
+  { timestamps: true }
+);
 
-}, { timestamps: true });
-
-const packageSchema = new Schema<IPackage, IPackageModel>({
-  mentor_id: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
+const packageSchema = new Schema<IPackage, IPackageModel>(
+  {
+    mentor_id: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    title: {
+      type: String,
+      required: true,
+    },
+    amount: {
+      type: Number,
+      required: true,
+    },
+    sessions: {
+      type: Number,
+      required: true,
+    },
+    description: {
+      type: String,
+    },
+    features: {
+      type: [String],
+    },
+    status: {
+      type: String,
+      enum: [PLAN_STATUS.ACTIVE, PLAN_STATUS.INACTIVE],
+      default: PLAN_STATUS.ACTIVE,
+    },
   },
-  title: {
-    type: String,
-    required: true,
-  },
-  amount: {
-    type: Number,
-    required: true,
-  },
-  sessions: {
-    type: Number,
-    required: true,
-  },
-  description: {
-    type: String,
-  },
-  features: {
-    type: [String],
-  },
-  status: {
-    type: String,
-    enum: [PLAN_STATUS.ACTIVE, PLAN_STATUS.INACTIVE],
-    default: PLAN_STATUS.ACTIVE
-  },
-
-}, { timestamps: true });
+  { timestamps: true }
+);
 
 const subscriptionSchema = new Schema<ISubscription, ISubscriptionModel>({
   mentor_id: {
@@ -79,13 +91,7 @@ const subscriptionSchema = new Schema<ISubscription, ISubscriptionModel>({
     type: Number,
     required: true,
   },
-  sessions: {
-    type: Number,
-  },
-  isContent:{
-    type: Boolean,
-    default: false
-  },
+
   stripe_product_id: {
     type: String,
     required: true,
@@ -106,21 +112,26 @@ const subscriptionSchema = new Schema<ISubscription, ISubscriptionModel>({
   },
   features: {
     type: [String],
-    required:true
+    required: true,
   },
   status: {
     type: String,
     enum: [PLAN_STATUS.ACTIVE, PLAN_STATUS.INACTIVE],
-    default: PLAN_STATUS.ACTIVE
+    default: PLAN_STATUS.ACTIVE,
   },
   type: {
     type: String,
-    enum: ['basic', 'pro', 'premium'],
-    default: 'basic',
-    required: true
+    default: 'content',
+    required: true,
   },
 });
 
-export const PayPerSession = model<IPayPerSession, IPayPerSessionModel>('PayPerSession', payPerSessionSchema);
+export const PayPerSession = model<IPayPerSession, IPayPerSessionModel>(
+  'PayPerSession',
+  payPerSessionSchema
+);
 export const Package = model<IPackage, IPackageModel>('Package', packageSchema);
-export const Subscription = model<ISubscription, ISubscriptionModel>('Subscription', subscriptionSchema);
+export const Subscription = model<ISubscription, ISubscriptionModel>(
+  'Subscription',
+  subscriptionSchema
+);

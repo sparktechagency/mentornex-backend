@@ -7,7 +7,7 @@ import { Post, Reply, Vote } from './community.model';
 import { IPaginationOptions } from '../../../types/pagination';
 import { paginationHelper } from '../../../helpers/paginationHelper';
 import { communityPostSearchableFields } from './community.constants';
-import { startSession } from 'mongoose';
+import mongoose, { Types, startSession } from 'mongoose';
 import sendNotification, {
   sendDataWithSocket,
 } from '../../../helpers/sendNotificationHelper';
@@ -55,11 +55,13 @@ const updatePost = async (
   id: string,
   payload: Partial<IPost>
 ) => {
-  const post = await Post.findById(id).populate('postedBy', 'name image');
+  const post = await Post.findById(id).populate<{
+    postedBy: { _id: Types.ObjectId; name: string; image: string };
+  }>('postedBy', '_id,name image');
   if (!post) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Post not found');
   }
-  if (post.postedBy.toString() !== user.id) {
+  if (post.postedBy._id.toString() !== user.id) {
     throw new ApiError(
       StatusCodes.FORBIDDEN,
       'You are not authorized to update this post.'
@@ -276,12 +278,12 @@ const editReply = async (
   payload: Partial<IReply>
 ) => {
   const reply = await Reply.findById(replyId).populate<{
-    repliedBy: { name: string; image: string };
+    repliedBy: { _id: Types.ObjectId; name: string; image: string };
   }>('repliedBy', 'name image');
   if (!reply) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Reply not found');
   }
-  if (reply.repliedBy.toString() !== user.id) {
+  if (reply.repliedBy._id.toString() !== user.id) {
     throw new ApiError(
       StatusCodes.FORBIDDEN,
       'You are not authorized to update this reply.'
@@ -306,25 +308,26 @@ const editReply = async (
 };
 
 const deleteReply = async (user: JwtPayload, replyId: string) => {
-  const reply = await Reply.findById(replyId);
-  if (!reply) {
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Reply not found');
-  }
-  // if (reply.repliedBy.toString() !== user.id) {
-  //   throw new ApiError(
-  //     StatusCodes.FORBIDDEN,
-  //     'You are not authorized to delete this reply.'
-  //   );
-  // }
-  //delete all replies with this replyId and their children
-  const session = await startSession();
+  const session = await mongoose.startSession();
   try {
     session.startTransaction();
+
+    const reply = await Reply.findById(replyId).session(session);
+    if (!reply) {
+      throw new ApiError(StatusCodes.NOT_FOUND, 'Reply not found');
+    }
+    if (reply.repliedBy.toString() !== user.id) {
+      throw new ApiError(
+        StatusCodes.FORBIDDEN,
+        'You are not authorized to delete this reply.'
+      );
+    }
+
+    // Delete operations within the transaction
     await Promise.all([
-      reply.deleteOne({ session }),
+      Reply.deleteOne({ _id: replyId }, { session }),
       Reply.deleteMany({ parentReply: replyId }, { session }),
       Vote.deleteMany({ replyId: replyId }, { session }),
-      // Handle parent reference update separately
       reply.parentReply
         ? Reply.findByIdAndUpdate(
             reply.parentReply,
@@ -340,14 +343,14 @@ const deleteReply = async (user: JwtPayload, replyId: string) => {
 
     await session.commitTransaction();
 
+    // Emit socket event after successful commit
     sendDataWithSocket('deletedReply', reply.post.toString(), reply);
-
     return 'Reply deleted successfully.';
   } catch (error) {
     await session.abortTransaction();
     throw error;
   } finally {
-    await session.endSession();
+    await session.endSession(); // End session once here
   }
 };
 
@@ -560,6 +563,19 @@ const voteReply = async (
   }
 };
 
+const populateReplies = (depth: number) => {
+  const populateObject: any = {
+    path: 'repliesOfReply',
+    populate: [{ path: 'repliedBy', select: 'name image' }],
+  };
+
+  if (depth > 1) {
+    populateObject.populate.push(populateReplies(depth - 1));
+  }
+
+  return populateObject;
+};
+
 const getAllPosts = async (
   filters: IPostFilters,
   paginationOptions: IPaginationOptions
@@ -602,28 +618,8 @@ const getAllPosts = async (
     .populate({
       path: 'replies',
       populate: [
-        {
-          path: 'repliedBy',
-          select: 'name  image ',
-        },
-        {
-          path: 'repliesOfReply',
-          select: 'comment repliedBy createdAt updatedAt upVotes downVotes',
-          populate: [
-            {
-              path: 'repliedBy',
-              select: 'name  image ',
-            },
-            {
-              path: 'repliesOfReply',
-              select: 'comment repliedBy createdAt updatedAt upVotes downVotes',
-              populate: {
-                path: 'repliedBy',
-                select: 'name  image ',
-              },
-            },
-          ],
-        },
+        { path: 'repliedBy', select: 'name image' },
+        populateReplies(100), // Populate 5 levels deep
       ],
     })
     .limit(limit)
