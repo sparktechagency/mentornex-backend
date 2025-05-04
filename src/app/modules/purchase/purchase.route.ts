@@ -1,7 +1,5 @@
 import express from 'express';
 import { PurchaseController } from './purchase.controller';
-import { PurchaseValidations } from './purchase.validation';
-import validateRequest from '../../middlewares/validateRequest';
 import auth from '../../middlewares/auth';
 import { USER_ROLES } from '../../../enums/user';
 

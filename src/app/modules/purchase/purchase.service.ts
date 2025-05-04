@@ -132,6 +132,8 @@ const purchasePackage = async (user: JwtPayload, id: Types.ObjectId) => {
     mentor_id: pkg.mentor_id,
     mentee_id: user.id,
     package_id: pkg._id,
+    totalSessions: pkg.sessions,
+    remaining_sessions: pkg.sessions,
     plan_type: PLAN_TYPE.Package,
     amount: pkg.amount,
     checkout_session_id: '',
@@ -176,6 +178,8 @@ const purchaseSubscription = async (user: JwtPayload, id: Types.ObjectId) => {
     Purchase.findOne({
       mentee_id: user.id,
       plan_type: PLAN_TYPE.Subscription,
+      is_active: true,
+      status: PAYMENT_STATUS.PAID, //payment status is success, means the subscription is active and mentee can access the content for the package or subscriptio
       plan_status: PURCHASE_PLAN_STATUS.ACTIVE,
     }).lean(),
   ]);
@@ -209,7 +213,7 @@ const purchaseSubscription = async (user: JwtPayload, id: Types.ObjectId) => {
     stripeCustomerId!,
     user.id,
     _id!.toString(),
-    subscription.title,
+    `Content Views`,
     PLAN_TYPE.Subscription,
     stripe_account_id as string,
     subscription.amount,
@@ -326,32 +330,40 @@ const getMenteeAvailablePlansAndRemainingQuota = async (
 };
 
 const getAllPackageAndSubscription = async (user: JwtPayload) => {
-  const [isPackageExist, isSubscriptionExist] = await Promise.all([
-    Purchase.find({
-      mentee_id: user.id,
-      plan_type: PLAN_TYPE.Package,
-      plan_status: PURCHASE_PLAN_STATUS.ACTIVE,
-      is_active: true,
-    })
-      .populate({ path: 'mentor_id', select: { _id: 1, name: 1, image: 1 } })
-      .populate<{ package_id: Partial<IPackage> }>({
-        path: 'package_id',
-        select: { _id: 1, title: 1, sessions: 1 },
+  const [isPayPerSessionExist, isPackageExist, isSubscriptionExist] =
+    await Promise.all([
+      Purchase.find({
+        mentee_id: user.id,
+        plan_type: PLAN_TYPE.PayPerSession,
+
+        is_active: true,
+      }),
+      Purchase.find({
+        mentee_id: user.id,
+        plan_type: PLAN_TYPE.Package,
+
+        is_active: true,
       })
-      .lean(),
-    Purchase.find({
-      mentee_id: user.id,
-      plan_type: PLAN_TYPE.Subscription,
-      plan_status: PURCHASE_PLAN_STATUS.ACTIVE,
-      is_active: true,
-    })
-      .populate({ path: 'mentor_id', select: { _id: 1, name: 1, image: 1 } })
-      .populate<{ subscription_id: Partial<ISubscription> }>({
-        path: 'subscription_id',
-        select: { _id: 1, title: 1, sessions: 1 },
+        .populate({ path: 'mentor_id', select: { _id: 1, name: 1, image: 1 } })
+        .populate<{ package_id: Partial<IPackage> }>({
+          path: 'package_id',
+          select: { _id: 1, title: 1, sessions: 1 },
+        })
+        .lean(),
+      Purchase.find({
+        mentee_id: user.id,
+        plan_type: PLAN_TYPE.Subscription,
+
+        is_active: true,
       })
-      .lean(),
-  ]);
+        .populate({ path: 'mentor_id', select: { _id: 1, name: 1, image: 1 } })
+        .populate<{ subscription_id: Partial<ISubscription> }>({
+          path: 'subscription_id',
+          select: { _id: 1, title: 1, sessions: 1 },
+        })
+        .lean(),
+    ]);
+
   return { package: isPackageExist, subscription: isSubscriptionExist };
 };
 

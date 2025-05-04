@@ -24,7 +24,11 @@ const sessionSchema = new Schema<ISession, SessionModal>(
     },
     session_plan_type: {
       type: String,
-      enum: [PLAN_TYPE.Package, PLAN_TYPE.Subscription, PLAN_TYPE.PayPerSession],
+      enum: [
+        PLAN_TYPE.Package,
+        PLAN_TYPE.Subscription,
+        PLAN_TYPE.PayPerSession,
+      ],
       required: true,
     },
     pay_per_session_id: { type: Schema.Types.ObjectId, ref: 'PayPerSession' },
@@ -46,11 +50,15 @@ const sessionSchema = new Schema<ISession, SessionModal>(
     },
     status: {
       type: String,
-      enum: [SESSION_STATUS.PENDING, SESSION_STATUS.ACCEPTED, SESSION_STATUS.CANCELLED, SESSION_STATUS.COMPLETED],
+      enum: [
+        SESSION_STATUS.PENDING,
+        SESSION_STATUS.ACCEPTED,
+        SESSION_STATUS.COMPLETED,
+      ],
       default: SESSION_STATUS.PENDING,
     },
     meeting_token: {
-      type: String
+      type: String,
     },
     purchased_plan: {
       type: Schema.Types.ObjectId,

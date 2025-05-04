@@ -65,7 +65,7 @@ const apiRoutes = [
     route: MenteeFavoriteRoutes,
   },
   {
-    path: '/mentee',
+    path: '/review',
     route: MenteeReviewRoutes,
   },
   {

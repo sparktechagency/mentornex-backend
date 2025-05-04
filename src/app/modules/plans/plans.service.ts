@@ -150,7 +150,7 @@ const createSubscriptionPlan = async (
       mentor_id: user.id,
       status: PLAN_STATUS.ACTIVE,
     }).lean(),
-    User.findOne({ _id: user.id }).select('stripe_account_id').lean(),
+    User.findOne({ _id: user.id }).select('stripe_account_id name').lean(),
   ]);
 
   // Ensure that the mentor doesn't already have 3 plans
@@ -171,8 +171,8 @@ const createSubscriptionPlan = async (
 
   // Create a new product in Stripe
   const product = await StripeService.createProduct({
-    title: `${payload.title}`,
-    description: payload.description,
+    title: `Content Subscription.`,
+    description: `View all the premium contents of ${stripeAccountId.name}.`,
     metadata: {},
     accountId: stripeAccountId.stripe_account_id,
   });
@@ -237,17 +237,17 @@ const updateSubscriptionPlan = async (
     payload.stripe_price_id = price.id;
   }
 
-  if (payload.title || payload.description) {
-    const product = await StripeService.updateProduct({
-      productId: isSubscriptionPlanExist.stripe_product_id,
-      title: payload.title || isSubscriptionPlanExist.title,
-      description: payload.description || isSubscriptionPlanExist.description,
-      metadata: {},
-      accountId: isSubscriptionPlanExist.stripe_account_id,
-    });
-    if (!product)
-      throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to update product');
-  }
+  // if (payload.title || payload.description) {
+  //   const product = await StripeService.updateProduct({
+  //     productId: isSubscriptionPlanExist.stripe_product_id,
+  //     title: payload.title || isSubscriptionPlanExist.title,
+  //     description: payload.description || isSubscriptionPlanExist.description,
+  //     metadata: {},
+  //     accountId: isSubscriptionPlanExist.stripe_account_id,
+  //   });
+  //   if (!product)
+  //     throw new ApiError(StatusCodes.BAD_REQUEST, 'Failed to update product');
+  // }
 
   const result = await Subscription.findByIdAndUpdate(
     id,

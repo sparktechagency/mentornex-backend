@@ -11,14 +11,14 @@ import {
 import { Session } from './session.model';
 import mongoose, { Types } from 'mongoose';
 import {
-  getActivePackageOrSubscription,
-  getRemainingQuotaForPackageOrSubscription,
   handleNotificationAndDataSendForSocket,
   isSlotAvailable,
 } from './session.utils';
 import { IPaginationOptions } from '../../../types/pagination';
 import { sessionSearchableFields } from './session.constants';
 import { paginationHelper } from '../../../helpers/paginationHelper';
+import { Purchase } from '../purchase/purchase.model';
+import { Package } from '../plans/plans.model';
 
 const createSessionRequest = async (
   user: JwtPayload,
@@ -62,27 +62,18 @@ const createSessionRequest = async (
     const mentorId = payload.mentor_id as Types.ObjectId;
     if (!payload.package_id || !payload.subscription_id) {
       if (payload.package_id) {
-        const pkg = await getActivePackageOrSubscription(
-          isUserExist._id,
-          mentorId,
-          payload.package_id,
-          undefined
-        );
+        const pkg = await Purchase.findOne({
+          mentee_id: isUserExist._id,
+          package_id: payload.package_id,
+        }).lean();
 
         if (!pkg)
           throw new ApiError(
             StatusCodes.BAD_REQUEST,
             'Package data not found, please try again.'
           );
-        //check if the quota is over
-        const pkgQuota = await getRemainingQuotaForPackageOrSubscription(
-          isUserExist._id,
-          mentorId,
-          pkg.package_id!._id,
-          undefined
-        );
         //@ts-ignore
-        if (pkgQuota >= pkg?.package_id!.sessions!)
+        if (pkg.remainingSession <= 0 || !pkg.is_active)
           throw new ApiError(
             StatusCodes.BAD_REQUEST,
             'Package quota is over. Please purchase a new package.'
@@ -90,35 +81,35 @@ const createSessionRequest = async (
         payload.package_id = pkg.package_id!._id;
         payload.payment_required = false;
       }
-      if (payload.subscription_id) {
-        const subscription = await getActivePackageOrSubscription(
-          isUserExist._id,
-          mentorId,
-          undefined,
-          payload.subscription_id
-        );
-        if (!subscription)
-          throw new ApiError(
-            StatusCodes.BAD_REQUEST,
-            'Subscription data not found, please try again.'
-          );
-        //check if the quota is over
-        const subscriptionQuota =
-          await getRemainingQuotaForPackageOrSubscription(
-            isUserExist._id,
-            mentorId,
-            undefined,
-            subscription.subscription_id!._id
-          );
-        //@ts-ignore
-        if (subscriptionQuota >= subscription?.subscription_id!.sessions!)
-          throw new ApiError(
-            StatusCodes.BAD_REQUEST,
-            'Subscription quota is over. Please purchase a new subscription.'
-          );
-        payload.subscription_id = subscription.subscription_id!._id;
-        payload.payment_required = false;
-      }
+      // if (payload.subscription_id) {
+      //   const subscription = await getActivePackageOrSubscription(
+      //     isUserExist._id,
+      //     mentorId,
+      //     undefined,
+      //     payload.subscription_id
+      //   );
+      //   if (!subscription)
+      //     throw new ApiError(
+      //       StatusCodes.BAD_REQUEST,
+      //       'Subscription data not found, please try again.'
+      //     );
+      //   //check if the quota is over
+      //   const subscriptionQuota =
+      //     await getRemainingQuotaForPackageOrSubscription(
+      //       isUserExist._id,
+      //       mentorId,
+      //       undefined,
+      //       subscription.subscription_id!._id
+      //     );
+      //   //@ts-ignore
+      //   if (subscriptionQuota >= subscription?.subscription_id!.sessions!)
+      //     throw new ApiError(
+      //       StatusCodes.BAD_REQUEST,
+      //       'Subscription quota is over. Please purchase a new subscription.'
+      //     );
+      //   payload.subscription_id = subscription.subscription_id!._id;
+      //   payload.payment_required = false;
+      // }
     }
 
     const sessionData = {
@@ -134,12 +125,20 @@ const createSessionRequest = async (
       payment_required: payload.payment_required,
       ...(payPerSession && { pay_per_session_id: payload.pay_per_session_id }),
       ...(payload.package_id && { package_id: payload.package_id }),
-      ...(payload.subscription_id && {
-        subscription_id: payload.subscription_id,
-      }),
+      // ...(payload.subscription_id && {
+      //   subscription_id: payload.subscription_id,
+      // }),
     };
 
     const bookedSession = await Session.create([sessionData], { session });
+
+    if (payload.package_id) {
+      await Purchase.findOneAndUpdate(
+        { package_id: payload.package_id },
+        { $inc: { 'purchased_plan.remainingSession': -1 } },
+        { session }
+      );
+    }
 
     if (!bookedSession[0])
       throw new ApiError(
@@ -173,6 +172,8 @@ const updateBookedSession = async (
   payload: ISession & { slot: string; date: string }
 ) => {
   const duration = 45;
+
+  // Validate user first
   const isUserExist = await User.findById(user.id).lean();
   if (!isUserExist || isUserExist.status !== 'active') {
     throw new ApiError(
@@ -181,140 +182,239 @@ const updateBookedSession = async (
     );
   }
 
+  // Fetch session with all required data in a single query
   const session = await Session.findById(sessionId)
     .populate<{
-      mentee_id: { name: string; timeZone: string; _id: Types.ObjectId };
-    }>('mentee_id', 'name timeZone _id')
+      mentee_id: {
+        name: string;
+        timeZone: string;
+        _id: Types.ObjectId;
+        email: string;
+      };
+    }>('mentee_id', 'name timeZone _id email')
     .populate<{
-      mentor_id: { name: string; timeZone: string; _id: Types.ObjectId };
-    }>('mentor_id', 'name timeZone _id');
-  console.log(
-    user.id,
-    session?.mentee_id._id.toString(),
-    session?.mentor_id._id.toString()
-  );
-  if (
-    !session ||
-    (session.mentee_id._id.toString() !== user.id &&
-      session.mentor_id._id.toString() !== user.id)
-  ) {
+      purchased_plan: {
+        _id: Types.ObjectId;
+        totalSession: number;
+        remainingSession: number;
+      };
+    }>('purchased_plan', 'totalSession remainingSession')
+    .populate<{
+      mentor_id: {
+        name: string;
+        timeZone: string;
+        _id: Types.ObjectId;
+        email: string;
+      };
+    }>('mentor_id', 'name timeZone _id email');
+
+  // Validate session and user authorization
+  if (!session) {
+    throw new ApiError(StatusCodes.NOT_FOUND, 'Session not found');
+  }
+
+  const isMentor = user.id === session.mentor_id._id.toString();
+  const isMentee = user.id === session.mentee_id._id.toString();
+
+  if (!isMentor && !isMentee) {
     throw new ApiError(
-      StatusCodes.NOT_FOUND,
+      StatusCodes.FORBIDDEN,
       'You are not authorized to access this session.'
     );
   }
 
-  if (payload.status === SESSION_STATUS.ACCEPTED) {
-    if (user.id !== session.mentor_id._id.toString()) {
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        'Only mentor can accept the session.'
-      );
-    }
+  // Start transaction for critical operations
+  const dbSession = await mongoose.startSession();
+  try {
+    dbSession.startTransaction();
 
-    if (session.status !== SESSION_STATUS.PENDING)
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        'Session can be only booked after mentor accepts the session request.'
-      );
-    session.status = payload.status;
-    await session.save();
+    // Handle different session status updates
+    switch (payload.status) {
+      case SESSION_STATUS.ACCEPTED:
+        // Only mentor can accept sessions
+        if (!isMentor) {
+          throw new ApiError(
+            StatusCodes.FORBIDDEN,
+            'Only mentor can accept the session.'
+          );
+        }
 
-    await handleNotificationAndDataSendForSocket(
-      user.id.toString(),
-      session.mentee_id._id.toString(),
-      SESSION_STATUS.ACCEPTED,
-      session._id.toString(),
-      session
-    );
-  }
+        // Only pending sessions can be accepted
+        if (session.status !== SESSION_STATUS.PENDING) {
+          throw new ApiError(
+            StatusCodes.BAD_REQUEST,
+            'Only pending sessions can be accepted.'
+          );
+        }
 
-  if (payload.status === SESSION_STATUS.CANCELLED) {
-    if (
-      user.id !== session.mentor_id._id.toString() &&
-      session.status !== SESSION_STATUS.PENDING
-    ) {
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        'Only mentor can cancel the session.'
-      );
-    }
-    session.status = payload.status;
-    session.cancel_reason = payload.cancel_reason;
-    await session.save();
-    const receiver =
-      user.id === session.mentor_id._id.toString()
-        ? session.mentee_id._id.toString()
-        : session.mentor_id._id.toString();
-    await handleNotificationAndDataSendForSocket(
-      user.id.toString(),
-      receiver,
-      SESSION_STATUS.CANCELLED,
-      session._id.toString(),
-      session
-    );
-  }
+        session.status = SESSION_STATUS.ACCEPTED;
+        await session.save({ session: dbSession });
 
-  if (
-    payload.status === SESSION_STATUS.RESCHEDULED &&
-    !(
-      session.status === SESSION_STATUS.CANCELLED ||
-      session.status === SESSION_STATUS.ACCEPTED
-    )
-  ) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      'Only cancelled or accepted sessions can be rescheduled.'
-    );
-  }
+        await handleNotificationAndDataSendForSocket(
+          user.id,
+          session.mentee_id._id.toString(),
+          SESSION_STATUS.ACCEPTED,
+          session._id.toString(),
+          session
+        );
+        break;
 
-  if (
-    payload.status === SESSION_STATUS.RESCHEDULED &&
-    (session.status === SESSION_STATUS.CANCELLED ||
-      session.status === SESSION_STATUS.ACCEPTED)
-  ) {
-    if (
-      user.id !== session.mentee_id.toString() &&
-      user.id !== session.mentor_id.toString()
-    ) {
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        'You are not authorized to reschedule this session.'
-      );
-    }
-    if (payload.date && payload.slot) {
-      session.status = payload.status;
-      const convertedSlot = convertSessionTimeToUTC(
-        payload.slot,
-        isUserExist.timeZone,
-        payload.date
-      );
-      const convertedDate = new Date(convertedSlot.isoString);
+      case SESSION_STATUS.CANCELLED:
+        // Validate cancellation permissions
+        if (!isMentor && session.status !== SESSION_STATUS.PENDING) {
+          throw new ApiError(
+            StatusCodes.FORBIDDEN,
+            'Only mentor can cancel non-pending sessions.'
+          );
+        }
 
-      const endTime = calculateEndTime(convertedDate, duration);
-      session.scheduled_time = convertedDate;
-      session.end_time = endTime;
-      await session.save();
-      const receiver =
-        user.id === session.mentor_id._id.toString()
+        // Require cancellation reason
+        if (!payload.cancel_reason) {
+          throw new ApiError(
+            StatusCodes.BAD_REQUEST,
+            'Cancellation reason is required.'
+          );
+        }
+
+        session.status = SESSION_STATUS.CANCELLED;
+        session.cancel_reason = payload.cancel_reason;
+        await session.save({ session: dbSession });
+
+        if (session.package_id) {
+          await Purchase.findOneAndUpdate(
+            { package_id: session.package_id },
+            { $inc: { 'purchased_plan.remainingSession': 1 } },
+            { session: dbSession }
+          );
+        }
+
+        const receiver = isMentor
           ? session.mentee_id._id.toString()
           : session.mentor_id._id.toString();
-      await handleNotificationAndDataSendForSocket(
-        user.id.toString(),
-        receiver,
-        SESSION_STATUS.RESCHEDULED,
-        session._id.toString(),
-        session
-      );
-    } else {
-      throw new ApiError(
-        StatusCodes.BAD_REQUEST,
-        'Date and slot are required to reschedule the session.'
-      );
-    }
-  }
 
-  return session;
+        await handleNotificationAndDataSendForSocket(
+          user.id,
+          receiver,
+          SESSION_STATUS.CANCELLED,
+          session._id.toString(),
+          session
+        );
+        break;
+
+      case SESSION_STATUS.RESCHEDULED:
+        // Validate rescheduling permissions
+        if (
+          !(
+            session.status === SESSION_STATUS.CANCELLED ||
+            session.status === SESSION_STATUS.ACCEPTED
+          )
+        ) {
+          throw new ApiError(
+            StatusCodes.BAD_REQUEST,
+            'Only cancelled or accepted sessions can be rescheduled.'
+          );
+        }
+
+      // Fall through to handle rescheduling
+
+      default:
+        // Handle rescheduling (either explicit or from ACCEPTED status)
+        if (
+          payload.status === SESSION_STATUS.RESCHEDULED ||
+          session.status === SESSION_STATUS.ACCEPTED
+        ) {
+          // Validate date and slot are provided
+          if (!payload.date || !payload.slot) {
+            throw new ApiError(
+              StatusCodes.BAD_REQUEST,
+              'Date and slot are required to reschedule the session.'
+            );
+          }
+
+          // Convert time to UTC
+          const convertedSlot = convertSessionTimeToUTC(
+            payload.slot,
+            isUserExist.timeZone,
+            payload.date
+          );
+          const convertedDate = new Date(convertedSlot.isoString);
+          const endTime = calculateEndTime(convertedDate, duration);
+
+          // Check if the new slot is available
+          const isAvailableSlot = await isSlotAvailable(
+            session.mentor_id._id,
+            convertedDate,
+            endTime,
+            duration // Exclude current session from availability check
+          );
+
+          if (!isAvailableSlot) {
+            throw new ApiError(
+              StatusCodes.BAD_REQUEST,
+              'The requested slot is not available.'
+            );
+          }
+
+          // Update session times
+          session.status = payload.status || session.status;
+          session.scheduled_time = convertedDate;
+          session.end_time = endTime;
+          await session.save({ session: dbSession });
+
+          // Handle package or pay-per-session updates
+          const isPackageSession = !!session.package_id;
+
+          if (!isPackageSession && session.pay_per_session_id) {
+            await Purchase.findOneAndUpdate(
+              { pay_per_session_id: session.pay_per_session_id },
+              { $set: { is_active: false } },
+              { session: dbSession }
+            );
+          } else if (isPackageSession) {
+            const { remainingSession } = session.purchased_plan || {
+              remainingSession: 0,
+            };
+
+            await Purchase.findOneAndUpdate(
+              { package_id: session.package_id },
+              { $inc: { 'purchased_plan.remainingSession': -1 } },
+              { session: dbSession }
+            );
+
+            // Deactivate package if no sessions remain
+            if (remainingSession <= 1) {
+              await Purchase.findOneAndUpdate(
+                { package_id: session.package_id },
+                { $set: { is_active: false } },
+                { session: dbSession }
+              );
+            }
+          }
+
+          // Send notification
+          const notificationReceiver = isMentor
+            ? session.mentee_id._id.toString()
+            : session.mentor_id._id.toString();
+
+          await handleNotificationAndDataSendForSocket(
+            user.id,
+            notificationReceiver,
+            SESSION_STATUS.RESCHEDULED,
+            session._id.toString(),
+            session
+          );
+        }
+    }
+
+    await dbSession.commitTransaction();
+    return session;
+  } catch (error) {
+    await dbSession.abortTransaction();
+    console.error('Error updating session:', error);
+    throw error;
+  } finally {
+    dbSession.endSession();
+  }
 };
 
 const getSession = async (user: JwtPayload, sessionId: Types.ObjectId) => {

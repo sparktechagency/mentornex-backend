@@ -23,6 +23,8 @@ import { Package, PayPerSession, Subscription } from '../plans/plans.model';
 import { Session } from '../sessionBooking/session.model';
 import { Types } from 'mongoose';
 import { Content } from '../content/content.model';
+import { PLAN_STATUS } from '../plans/plans.interface';
+import { PAYMENT_STATUS, PLAN_TYPE } from '../purchase/purchase.interface';
 
 const getAllMentorsFromDB = async (
   paginationOptions: IPaginationOptions,
@@ -152,9 +154,9 @@ const getAllActiveMentorsFromDB = async (
   };
 };
 
-const getSingleMentor = async (id: string) => {
+const getSingleMentor = async (id: string, mentee: string) => {
   // Check if the mentor exists
-  const isExist = await User.findById(id)
+  const isExist = await User.findById(new Types.ObjectId(id))
     .populate({
       path: 'industry',
       select: { name: 1, image: 1 },
@@ -162,6 +164,25 @@ const getSingleMentor = async (id: string) => {
     .lean();
   if (!isExist) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Mentor not found');
+  }
+
+  let isSubscribed = false;
+  let packages: any[] = [];
+  if (mentee) {
+    const purchaseExist = await Purchase.find({
+      mentee_id: mentee,
+      mentor_id: id,
+      status: PAYMENT_STATUS.PAID,
+      is_active: true,
+    });
+    if (purchaseExist.length) {
+      isSubscribed = purchaseExist.some(
+        purchase => purchase.plan_type === PLAN_TYPE.Subscription
+      );
+      packages = purchaseExist.filter(
+        purchase => purchase.plan_type === PLAN_TYPE.Package
+      );
+    }
   }
 
   // Count total repeated user sessions
@@ -218,10 +239,12 @@ const getSingleMentor = async (id: string) => {
   rest.isConnected = !!stripe_account_id;
   return {
     ...rest,
-    content: content[0].url,
+    content: content[0]?.url,
     totalSessionCount,
     repeatedUserCount,
     goalAchievingRate: goalAchievingRate[0]?.goalAchievingRate || 0,
+    packages,
+    isSubscribed,
   };
 };
 

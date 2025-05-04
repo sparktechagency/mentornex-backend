@@ -74,7 +74,8 @@ const getContentForValidMentees = async (
 ) => {
   //find if the user has any subscription, package active or not
   const isValid = await Purchase.findOne({
-    mentee: user.id,
+    mentee_id: user.id,
+    mentor_id: mentorId,
     status: 'active',
     plan_type: { $in: ['Package', 'Subscription'] },
   }).lean();
@@ -85,7 +86,7 @@ const getContentForValidMentees = async (
     );
 
   const content = await Content.find({
-    mentor: user.id,
+    mentor: mentorId,
     type: 'tutorial',
   }).lean();
   return content;

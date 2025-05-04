@@ -83,10 +83,10 @@ const subscriptionSchema = new Schema<ISubscription, ISubscriptionModel>({
     ref: 'User',
     required: true,
   },
-  title: {
-    type: String,
-    required: true,
-  },
+  // title: {
+  //   type: String,
+  //   required: true,
+  // },
   amount: {
     type: Number,
     required: true,
@@ -107,23 +107,23 @@ const subscriptionSchema = new Schema<ISubscription, ISubscriptionModel>({
   payment_link: {
     type: String,
   },
-  description: {
-    type: String,
-  },
-  features: {
-    type: [String],
-    required: true,
-  },
+  // description: {
+  //   type: String,
+  // },
+  // features: {
+  //   type: [String],
+  //   required: true,
+  // },
   status: {
     type: String,
     enum: [PLAN_STATUS.ACTIVE, PLAN_STATUS.INACTIVE],
     default: PLAN_STATUS.ACTIVE,
   },
-  type: {
-    type: String,
-    default: 'content',
-    required: true,
-  },
+  // type: {
+  //   type: String,
+  //   default: 'content',
+  //   required: true,
+  // },
 });
 
 export const PayPerSession = model<IPayPerSession, IPayPerSessionModel>(

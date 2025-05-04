@@ -34,18 +34,18 @@ export type IPackage = {
 export type ISubscription = {
   _id: Types.ObjectId;
   mentor_id: Types.ObjectId;
-  title: string;
+  // title: string;
   amount: number;
   // isContent?:boolean;
   stripe_account_id: string;
   stripe_product_id: string;
   stripe_price_id: string;
   payment_link?: string;
-  description: string;
-  features: string[];
+  // description: string;
+  // features: string[];
   // sessions?:number;
   status: PLAN_STATUS;
-  type: 'content';
+  // type: 'content';
   created_at: Date;
   updated_at: Date;
 };
