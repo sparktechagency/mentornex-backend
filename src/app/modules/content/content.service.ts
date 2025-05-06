@@ -76,7 +76,7 @@ const getContentForValidMentees = async (
   const isValid = await Purchase.findOne({
     mentee_id: user.id,
     mentor_id: mentorId,
-    status: 'active',
+    is_active: true,
     plan_type: { $in: ['Package', 'Subscription'] },
   }).lean();
   if (!isValid)

@@ -5,7 +5,7 @@ const createPayPerSessionSchema = z.object({
     title: z.string({ required_error: 'Title is required' }),
     description: z.string({ required_error: 'Description is required' }),
     amount: z.number({ required_error: 'Amount is required' }),
-    duration: z.string({ required_error: 'Duration is required' }),
+    duration: z.string({ required_error: 'Duration is required' }).optional(),
   }),
 });
 

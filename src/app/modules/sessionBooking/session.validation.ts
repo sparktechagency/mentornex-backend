@@ -44,7 +44,7 @@ import { SESSION_STATUS } from './session.interface';
 
 const createSessionZodSchema = z.object({
   body: z.object({
-    topic: z.string({ required_error: 'Topic is required' }),
+    topic: z.string({ required_error: 'Topic is required' }).optional(),
     // duration: z.string({ required_error: 'Type is required' }),
     expected_outcome: z.string({
       required_error: 'Expected outcome is required',

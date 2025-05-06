@@ -22,6 +22,8 @@ router
     ReviewController.getMyReviews
   );
 
+router.get('/:mentor_id', ReviewController.getMentorReviews);
+
 router
   .route('/review/delete')
   .delete(

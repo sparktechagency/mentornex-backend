@@ -116,10 +116,18 @@ const getAvailableContent = async (user: JwtPayload, mentorId: string) => {
   return contents;
 };
 
+const getMentorReviews = async (mentorId: string) => {
+  const reviews = await ReviewMentor.find({ mentor_id: mentorId })
+    .populate('mentee_id', '_id name image')
+    .lean();
+  return reviews;
+};
+
 export const ReviewService = {
   addReviewToDB,
   getMyReviews,
   deleteReviewByMenteeFromDB,
   getAllMentorForMentee,
   getAvailableContent,
+  getMentorReviews,
 };

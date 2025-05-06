@@ -37,7 +37,7 @@ const sessionSchema = new Schema<ISession, SessionModal>(
     cancel_reason: { type: String },
     topic: {
       type: String,
-      required: true,
+      // required: true,
     },
     payment_required: { type: Boolean, default: true },
     duration: {

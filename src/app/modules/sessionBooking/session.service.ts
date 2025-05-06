@@ -18,12 +18,15 @@ import { IPaginationOptions } from '../../../types/pagination';
 import { sessionSearchableFields } from './session.constants';
 import { paginationHelper } from '../../../helpers/paginationHelper';
 import { Purchase } from '../purchase/purchase.model';
-import { Package } from '../plans/plans.model';
+import { Package, PayPerSession } from '../plans/plans.model';
+import { IUser } from '../user/user.interface';
+import { StripeService } from '../purchase/stripe.service';
+import { PLAN_TYPE } from '../purchase/purchase.interface';
 
 const createSessionRequest = async (
   user: JwtPayload,
   payload: ISession & { slot: string; date: string },
-  payPerSession?: boolean
+  isPayPerSession?: boolean
 ) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -60,56 +63,26 @@ const createSessionRequest = async (
     }
 
     const mentorId = payload.mentor_id as Types.ObjectId;
-    if (!payload.package_id || !payload.subscription_id) {
-      if (payload.package_id) {
-        const pkg = await Purchase.findOne({
-          mentee_id: isUserExist._id,
-          package_id: payload.package_id,
-        }).lean();
 
-        if (!pkg)
-          throw new ApiError(
-            StatusCodes.BAD_REQUEST,
-            'Package data not found, please try again.'
-          );
-        //@ts-ignore
-        if (pkg.remainingSession <= 0 || !pkg.is_active)
-          throw new ApiError(
-            StatusCodes.BAD_REQUEST,
-            'Package quota is over. Please purchase a new package.'
-          );
-        payload.package_id = pkg.package_id!._id;
-        payload.payment_required = false;
-      }
-      // if (payload.subscription_id) {
-      //   const subscription = await getActivePackageOrSubscription(
-      //     isUserExist._id,
-      //     mentorId,
-      //     undefined,
-      //     payload.subscription_id
-      //   );
-      //   if (!subscription)
-      //     throw new ApiError(
-      //       StatusCodes.BAD_REQUEST,
-      //       'Subscription data not found, please try again.'
-      //     );
-      //   //check if the quota is over
-      //   const subscriptionQuota =
-      //     await getRemainingQuotaForPackageOrSubscription(
-      //       isUserExist._id,
-      //       mentorId,
-      //       undefined,
-      //       subscription.subscription_id!._id
-      //     );
-      //   //@ts-ignore
-      //   if (subscriptionQuota >= subscription?.subscription_id!.sessions!)
-      //     throw new ApiError(
-      //       StatusCodes.BAD_REQUEST,
-      //       'Subscription quota is over. Please purchase a new subscription.'
-      //     );
-      //   payload.subscription_id = subscription.subscription_id!._id;
-      //   payload.payment_required = false;
-      // }
+    if (payload.package_id) {
+      const pkg = await Purchase.findOne({
+        mentee_id: isUserExist._id,
+        package_id: payload.package_id,
+      }).lean();
+
+      if (!pkg)
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Package data not found, please try again.'
+        );
+      //@ts-ignore
+      if (pkg.remainingSession <= 0 || !pkg.is_active)
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Package quota is over. Please purchase a new package.'
+        );
+      payload.package_id = pkg.package_id!._id;
+      payload.payment_required = false;
     }
 
     const sessionData = {
@@ -118,12 +91,14 @@ const createSessionRequest = async (
       scheduled_time: convertedDate,
       end_time: endTime,
       topic: payload.topic,
-      duration: payload.duration,
+      duration: duration,
       expected_outcome: payload.expected_outcome,
       session_plan_type: payload.session_plan_type,
       status: SESSION_STATUS.PENDING,
       payment_required: payload.payment_required,
-      ...(payPerSession && { pay_per_session_id: payload.pay_per_session_id }),
+      ...(isPayPerSession && {
+        pay_per_session_id: payload.pay_per_session_id,
+      }),
       ...(payload.package_id && { package_id: payload.package_id }),
       // ...(payload.subscription_id && {
       //   subscription_id: payload.subscription_id,
@@ -131,6 +106,51 @@ const createSessionRequest = async (
     };
 
     const bookedSession = await Session.create([sessionData], { session });
+
+    let paymentUrl;
+    //if pay per session create checkout
+    if (isPayPerSession) {
+      const payPerSession = await PayPerSession.findById(
+        new Types.ObjectId(payload.pay_per_session_id)
+      )
+        .populate<{ mentor_id: Partial<IUser> }>({
+          path: 'mentor_id',
+          select: { stripeCustomerId: 1, stripe_account_id: 1, _id: 1 },
+        })
+        .lean();
+
+      console.log(payload.pay_per_session_id, payPerSession);
+      if (!payPerSession)
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Pay per session data not found, please try again.'
+        );
+      sessionData.payment_required = true;
+
+      const { _id, stripeCustomerId, stripe_account_id } =
+        payPerSession.mentor_id;
+
+      if (!stripeCustomerId || !stripe_account_id)
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'Stripe data not found, please try again.'
+        );
+
+      const payment = await StripeService.createCheckoutSession(
+        stripeCustomerId!,
+        user.id,
+        payPerSession!.mentor_id?._id!.toString(),
+        payPerSession.title,
+        PLAN_TYPE.PayPerSession,
+        stripe_account_id,
+        payPerSession.amount,
+        undefined,
+        payPerSession._id.toString(),
+        bookedSession[0]._id.toString()
+      );
+
+      paymentUrl = payment.url;
+    }
 
     if (payload.package_id) {
       await Purchase.findOneAndUpdate(
@@ -155,7 +175,13 @@ const createSessionRequest = async (
       bookedSession[0]._id.toString()
     );
 
-    return bookedSession;
+    if (paymentUrl) {
+      return {
+        paymentUrl,
+      };
+    } else {
+      return bookedSession;
+    }
   } catch (error) {
     console.error('Error creating session request:', error);
     await session.abortTransaction();

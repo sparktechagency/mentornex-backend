@@ -88,10 +88,21 @@ const getAvailableContent = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getMentorReviews = catchAsync(async (req: Request, res: Response) => {
+  const result = await ReviewService.getMentorReviews(req.params.mentor_id);
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Mentor review fetched successfully',
+    data: result,
+  });
+});
+
 export const ReviewController = {
   addReviewMentorbyMentee,
   getMyReviews,
   deleteReviewByMentee,
   getAllMentorForMentee,
   getAvailableContent,
+  getMentorReviews,
 };

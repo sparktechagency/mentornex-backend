@@ -17,6 +17,7 @@ const createPayPerSession = async (
   user: JwtPayload
 ) => {
   payload.mentor_id = user.id;
+  payload.duration = '45';
   const result = await PayPerSession.create(payload);
   if (!result)
     throw new ApiError(

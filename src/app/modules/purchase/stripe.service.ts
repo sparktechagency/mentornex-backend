@@ -6,8 +6,6 @@ import { StatusCodes } from 'http-status-codes';
 import { IPlanType } from '../../../types/plan';
 import { PLAN_TYPE } from './purchase.interface';
 
-
-
 interface ProductCreateParams {
   title: string;
   description?: string;
@@ -58,25 +56,36 @@ export const StripeService = {
   },
 
   async createProduct(params: ProductCreateParams) {
-    return await stripe.products.create({
-      name: params.title,
-      description: params.description,
-      metadata: params.metadata,
-    }, {
-      stripeAccount: params.accountId,
-    });
+    return await stripe.products.create(
+      {
+        name: params.title,
+        description: params.description,
+        metadata: params.metadata,
+      },
+      {
+        stripeAccount: params.accountId,
+      }
+    );
   },
 
-  async updateProduct(params: {productId: string, title: string, description?: string, metadata?: {sessions?: number;}, accountId: string}) {
-    return await stripe.products.update(params.productId, {
-      name: params.title,
-      description: params.description,
-      metadata: params.metadata,
-    }, {
-      stripeAccount: params.accountId,
-    });
-
-
+  async updateProduct(params: {
+    productId: string;
+    title: string;
+    description?: string;
+    metadata?: { sessions?: number };
+    accountId: string;
+  }) {
+    return await stripe.products.update(
+      params.productId,
+      {
+        name: params.title,
+        description: params.description,
+        metadata: params.metadata,
+      },
+      {
+        stripeAccount: params.accountId,
+      }
+    );
   },
 
   async removePrice(priceId: string, accountId: string) {
@@ -87,50 +96,67 @@ export const StripeService = {
     );
   },
 
-
   async deactivateAllPricesForProduct(productId: string, accountId: string) {
     // Retrieve all prices associated with the product
     const prices = await stripe.prices.list(
       { product: productId },
       { stripeAccount: accountId }
     );
-  
+
     // Delete all prices
-    const deletePromises = prices.data.map((price) =>
+    const deletePromises = prices.data.map(price =>
       this.removePrice(price.id, accountId)
     );
-  
+
     await Promise.all(deletePromises);
   },
-  
+
   async deleteProduct(productId: string, accountId: string) {
-    return await stripe.products.update(productId, {
-      active: false
-    },{stripeAccount:accountId});
+    return await stripe.products.update(
+      productId,
+      {
+        active: false,
+      },
+      { stripeAccount: accountId }
+    );
   },
 
   async createPrice(params: PriceCreateParams) {
-    return await stripe.prices.create({
-      product: params.productId,
-      unit_amount: params.amount * 100,
-      currency: 'usd',
-      recurring: params.recurring,
-    }, {
-      stripeAccount: params.accountId,
-    });
+    return await stripe.prices.create(
+      {
+        product: params.productId,
+        unit_amount: params.amount * 100,
+        currency: 'usd',
+        recurring: params.recurring,
+      },
+      {
+        stripeAccount: params.accountId,
+      }
+    );
   },
 
-
-  async createInvoice(params: {customerId: string, amount: number,accountId: string, metadata: { purchaseId: string, checkout_session_id: string, planType: IPlanType}}) {
-    return await stripe.invoices.create({
-      customer: params.customerId,
-      description:`Thank you for purchasing the ${params.metadata.planType} plan`,
-      application_fee_amount: Math.round(Number(params.amount) * 0.1),
-      metadata: params.metadata,
-      footer: 'Thank you for using Mentornex!'
-    }, {
-      stripeAccount: params.accountId,
-    });
+  async createInvoice(params: {
+    customerId: string;
+    amount: number;
+    accountId: string;
+    metadata: {
+      purchaseId: string;
+      checkout_session_id: string;
+      planType: IPlanType;
+    };
+  }) {
+    return await stripe.invoices.create(
+      {
+        customer: params.customerId,
+        description: `Thank you for purchasing the ${params.metadata.planType} plan`,
+        application_fee_amount: Math.round(Number(params.amount) * 0.1),
+        metadata: params.metadata,
+        footer: 'Thank you for using Mentornex!',
+      },
+      {
+        stripeAccount: params.accountId,
+      }
+    );
   },
 
   async createPaymentLink(params: PaymentLinkCreateParams) {
@@ -164,16 +190,12 @@ export const StripeService = {
       paymentLinkConfig.application_fee_amount = Math.round(amount * 10); // 10% in cents
     }
 
-    const paymentLink = await stripe.paymentLinks.create(
-      paymentLinkConfig,
-      {
-        stripeAccount: params.accountId,
-      }
-    );
+    const paymentLink = await stripe.paymentLinks.create(paymentLinkConfig, {
+      stripeAccount: params.accountId,
+    });
 
     return paymentLink;
   },
-
 
   async cancelSubscription(subscriptionId: string) {
     return await stripe.subscriptions.cancel(subscriptionId);
@@ -183,7 +205,7 @@ export const StripeService = {
     try {
       // First, retrieve the customer from the platform account
       const globalCustomer = await stripe.customers.retrieve(customerId);
-      
+
       // Check if customer is deleted
       if (globalCustomer.deleted) {
         throw new Error('Customer has been deleted');
@@ -199,10 +221,10 @@ export const StripeService = {
       const existingCustomers = await stripe.customers.list(
         {
           email: customerEmail,
-          limit: 1
+          limit: 1,
         },
         {
-          stripeAccount: accountId
+          stripeAccount: accountId,
         }
       );
 
@@ -216,11 +238,11 @@ export const StripeService = {
           email: customerEmail,
           name: globalCustomer.name ?? undefined,
           metadata: {
-            global_customer_id: customerId
-          }
+            global_customer_id: customerId,
+          },
         },
         {
-          stripeAccount: accountId
+          stripeAccount: accountId,
         }
       );
 
@@ -239,7 +261,9 @@ export const StripeService = {
       return price;
     } catch (error) {
       console.error('Error verifying price:', error);
-      throw new Error(`Price ${priceId} not found in connected account ${accountId}`);
+      throw new Error(
+        `Price ${priceId} not found in connected account ${accountId}`
+      );
     }
   },
 
@@ -252,42 +276,49 @@ export const StripeService = {
     accountId: string,
     amount: number,
     priceId?: string,
-    planId?: string
+    planId?: string,
+    sessionID?: string
   ) {
     try {
       // Get or create customer on connected account
-      const connectCustomerId = await this.getOrCreateConnectCustomer(customerId, accountId);
+      const connectCustomerId = await this.getOrCreateConnectCustomer(
+        customerId,
+        accountId
+      );
 
-      
       if (planType === PLAN_TYPE.Subscription && !priceId) {
-        throw new ApiError(StatusCodes.BAD_REQUEST, 'priceId required for subscriptions');
+        throw new ApiError(
+          StatusCodes.BAD_REQUEST,
+          'priceId required for subscriptions'
+        );
       }
       // Validate price for non-subscription plans
       if (planType === PLAN_TYPE.Subscription && priceId) {
         await this.verifyPrice(priceId, accountId);
       }
-  
+
       // Determine mode and line items based on plan type
       const isSubscription = planType === PLAN_TYPE.Subscription;
       const isPayPerSession = planType === PLAN_TYPE.PayPerSession;
       const isPackage = planType === PLAN_TYPE.Package;
       const mode = isSubscription ? 'subscription' : 'payment';
-  
-      const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = isSubscription
-        ? [{ price: priceId, quantity: 1 }]
-        : [
-            {
-              price_data: {
-                currency: 'usd',
-                product_data: { name: title },
-                unit_amount: Number((amount * 100).toFixed(2)), // Convert to cents
+
+      const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] =
+        isSubscription
+          ? [{ price: priceId, quantity: 1 }]
+          : [
+              {
+                price_data: {
+                  currency: 'usd',
+                  product_data: { name: title },
+                  unit_amount: Number((amount * 100).toFixed(2)), // Convert to cents
+                },
+                quantity: 1,
               },
-              quantity: 1,
-            },
-          ];
-  
+            ];
+
       // Create the checkout session
-      const session =  await stripe.checkout.sessions.create(
+      const session = await stripe.checkout.sessions.create(
         {
           payment_method_types: ['card'],
           mode,
@@ -305,12 +336,17 @@ export const StripeService = {
               application_fee_amount: Math.round(amount * 0.1), // Deducts 10% fee for packages
             },
           }),
+          ...(isPayPerSession && {
+            payment_intent_data: {
+              application_fee_amount: Math.round(amount * 0.1), // Deducts 10% fee for packages
+            },
+          }),
           metadata: {
             mentee_id: menteeId,
             mentor_id: mentorId,
             plan_type: planType,
             stripe_account_id: accountId,
-            ...(isPayPerSession && { session_id: planId }),
+            ...(isPayPerSession && { session_id: sessionID }),
             ...(isPackage && { package_id: planId }),
             ...(isSubscription && { subscription_id: planId }),
             amount,
@@ -321,14 +357,14 @@ export const StripeService = {
         }
       );
 
-      return { sessionId: session.id , url: session.url as string};
+      return { sessionId: session.id, url: session.url as string };
     } catch (error) {
       console.error('Error in createCheckoutSession:', error);
       //@ts-ignore
       throw new Error(`Failed to create checkout session: ${error.message}`);
     }
   },
-  
+
   async handleWebhook(
     signature: string,
     payload: Buffer,
@@ -338,21 +374,21 @@ export const StripeService = {
       if (!webhookSecret) {
         throw new Error('Webhook secret is not configured');
       }
-      
+
       if (!signature) {
         throw new Error('No signature found in request');
       }
-  
+
       const event = stripe.webhooks.constructEvent(
         payload,
         signature,
         webhookSecret
       );
-      
+
       return event;
     } catch (err) {
-      console.error("Webhook signature verification failed:", err);
+      console.error('Webhook signature verification failed:', err);
       throw new Error('Webhook signature verification failed');
     }
-  }
+  },
 };

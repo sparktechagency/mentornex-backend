@@ -2,13 +2,16 @@ import express from 'express';
 import { PurchaseController } from './purchase.controller';
 import auth from '../../middlewares/auth';
 import { USER_ROLES } from '../../../enums/user';
+import validateRequest from '../../middlewares/validateRequest';
+import { PurchaseValidations } from './purchase.validation';
 
 const router = express.Router();
-router.post(
-  '/pay-per-session/:id',
-  auth(USER_ROLES.MENTEE),
-  PurchaseController.purchasePayPerSession
-);
+// router.post(
+//   '/pay-per-session/:id',
+//   auth(USER_ROLES.MENTEE),
+//   validateRequest(PurchaseValidations.purchasePayPerSession),
+//   PurchaseController.purchasePayPerSession
+// );
 router.post(
   '/package/:id',
   auth(USER_ROLES.MENTEE),

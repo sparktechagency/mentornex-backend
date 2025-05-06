@@ -15,88 +15,110 @@ import {
   IPackage,
   IPayPerSession,
   ISubscription,
+  PLAN_STATUS,
 } from '../plans/plans.interface';
 import { User } from '../user/user.model';
 import { Session } from '../sessionBooking/session.model';
 import { SESSION_STATUS } from '../sessionBooking/session.interface';
 import { getRemainingQuotaForPackageOrSubscription } from '../sessionBooking/session.utils';
+import { SessionService } from '../sessionBooking/session.service';
 
-const purchasePayPerSession = async (user: JwtPayload, id: Types.ObjectId) => {
-  const [session, isUserExist] = await Promise.all([
-    Session.findById(id)
-      .populate<{
-        pay_per_session_id: IPayPerSession;
-        mentor_id: Partial<IUser>;
-      }>({
-        path: 'pay_per_session_id',
-        select: {
-          stripe_price_id: 1,
-          amount: 1,
-          duration: 1,
-          title: 1,
-          _id: 1,
-        },
-      })
-      .populate<{ mentor_id: Partial<IUser> }>({
-        path: 'mentor_id',
-        select: {
-          stripeCustomerId: 1,
-          stripe_account_id: 1,
-          _id: 1,
-          timeZone: 1,
-        },
-      })
-      .lean(),
-    User.findById(user.id).select('timeZone status').lean(),
-  ]);
+// const purchasePayPerSession = async (
+//   user: JwtPayload,
+//   id: Types.ObjectId,
+//   payload: { date: string; slot: string }
+// ) => {
+//   const [payPerSession, isUserExist] = await Promise.all([
+//     PayPerSession.findById(id)
+//       .populate<{
+//         mentor_id: {
+//           _id: Types.ObjectId;
+//           stripeCustomerId: string;
+//           stripe_account_id: string;
+//           timezone: string;
+//         };
+//       }>({
+//         path: 'mentor_id',
+//         select: {
+//           _id: 1,
+//           stripeCustomerId: 1,
+//           stripe_account_id: 1,
 
-  if (!session) {
-    throw new ApiError(
-      StatusCodes.NOT_FOUND,
-      'Requested session does not exist.'
-    );
-  }
+//           timeZone: 1,
+//         },
+//       })
+//       .lean(),
+//     User.findById(user.id).select('timeZone status').lean(),
+//   ]);
 
-  if (!session.mentor_id.stripe_account_id)
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      'Mentor is not eligible to sell this session.'
-    );
+//   console.log(payPerSession);
+//   if (!payPerSession) {
+//     throw new ApiError(StatusCodes.NOT_FOUND, 'Requested plan does not exist.');
+//   }
+//   if (!payPerSession.mentor_id.stripe_account_id)
+//     throw new ApiError(
+//       StatusCodes.BAD_REQUEST,
+//       'Mentor is not eligible to sell this session.'
+//     );
+//   if (!isUserExist || isUserExist.status !== 'active')
+//     throw new ApiError(
+//       StatusCodes.BAD_REQUEST,
+//       'You are not authorized to purchase this session.'
+//     );
+//   if (payPerSession.status !== PLAN_STATUS.ACTIVE)
+//     throw new ApiError(
+//       StatusCodes.BAD_REQUEST,
+//       'Session is not active. Please contact with the mentor.'
+//     );
+//   const { stripeCustomerId, stripe_account_id, _id } = payPerSession.mentor_id;
+//   const payment = await StripeService.createCheckoutSession(
+//     stripeCustomerId!,
+//     user.id,
+//     _id!.toString(),
+//     payPerSession.title,
+//     PLAN_TYPE.PayPerSession,
+//     stripe_account_id as string,
+//     payPerSession.amount,
+//     undefined,
+//     payPerSession._id.toString()
+//   );
+//   if (!payment) {
+//     throw new ApiError(
+//       StatusCodes.BAD_REQUEST,
+//       'Failed to create checkout session.'
+//     );
+//   }
 
-  if (!isUserExist || isUserExist.status !== 'active')
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      'You are not authorized to purchase this session.'
-    );
-  if (session.status !== SESSION_STATUS.ACCEPTED)
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      'Session can be only booked after mentor accepts the session request.'
-    );
+//   const sessionRequestPayload = {
+//     // mentee_id: user.id,
+//     mentor_id: payPerSession.mentor_id,
+//     topic: payPerSession.title,
+//     session_plan_type: PLAN_TYPE.PayPerSession,
+//     pay_per_session_id: payPerSession._id,
+//     plan_type: PLAN_TYPE.PayPerSession,
+//     date: payload.date,
+//     slot: payload.slot,
+//   };
 
-  const { stripeCustomerId, stripe_account_id, _id } = session.mentor_id;
+//   await SessionService.createSessionRequest(
+//     user,
+//     {
+//       mentee_id: user.id,
+//       mentor_id: payPerSession.mentor_id._id,
+//       topic: payPerSession.title,
+//       session_plan_type: PLAN_TYPE.PayPerSession,
+//       pay_per_session_id: payPerSession._id,
+//       date: payload.date,
+//       slot: payload.slot,
+//       scheduled_time: new Date(),
+//       end_time: new Date(),
+//       status: SESSION_STATUS.PENDING,
+//     },
+//     user.timeZone
+//   );
 
-  const payment = await StripeService.createCheckoutSession(
-    stripeCustomerId!,
-    user.id,
-    _id!.toString(),
-    session.topic,
-    PLAN_TYPE.PayPerSession,
-    stripe_account_id as string,
-    session.pay_per_session_id.amount,
-    undefined,
-    session._id.toString()
-  );
-
-  if (!payment) {
-    throw new ApiError(
-      StatusCodes.BAD_REQUEST,
-      'Failed to create checkout session.'
-    );
-  }
-
-  return payment.url;
-};
+//   return payment.url;
+// };
 
 const purchasePackage = async (user: JwtPayload, id: Types.ObjectId) => {
   //check whether the requested user already have a package.
@@ -368,7 +390,7 @@ const getAllPackageAndSubscription = async (user: JwtPayload) => {
 };
 
 export const PurchaseServices = {
-  purchasePayPerSession,
+  // purchasePayPerSession,
   purchasePackage,
   purchaseSubscription,
   cancelSubscription,
