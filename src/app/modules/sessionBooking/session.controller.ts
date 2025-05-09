@@ -5,23 +5,25 @@
 // import { StatusCodes } from 'http-status-codes';
 // import { paginationHelper } from '../../../helpers/paginationHelper';
 
-import { Request, Response } from "express"
-import catchAsync from "../../../shared/catchAsync"
-import { SessionService } from "./session.service";
-import sendResponse from "../../../shared/sendResponse";
-import { StatusCodes } from "http-status-codes";
-import { PLAN_TYPE } from "../purchase/purchase.interface";
-import { Types } from "mongoose";
-import pick from "../../../shared/pick";
-import { paginationConstants } from "../../../types/pagination";
-import { sessionFilterOptions, sessionSearchableFields } from "./session.constants";
-
+import { Request, Response } from 'express';
+import catchAsync from '../../../shared/catchAsync';
+import { SessionService } from './session.service';
+import sendResponse from '../../../shared/sendResponse';
+import { StatusCodes } from 'http-status-codes';
+import { PLAN_TYPE } from '../purchase/purchase.interface';
+import { Types } from 'mongoose';
+import pick from '../../../shared/pick';
+import { paginationConstants } from '../../../types/pagination';
+import {
+  sessionFilterOptions,
+  sessionSearchableFields,
+} from './session.constants';
 
 // const createSessionPaymentIntent = catchAsync(async (req: Request, res: Response) => {
 //   const mentee_id = req.user.id;
 //   const mentor_id = req.params.mentor_id;
 //   const sessionData = { mentee_id, mentor_id, ...req.body };
-  
+
 //   // Create payment intent for the session
 //   const result = await SessionService.createPaymentIntent(sessionData);
 
@@ -164,61 +166,75 @@ import { sessionFilterOptions, sessionSearchableFields } from "./session.constan
 //   MenteeCompletedSession
 // };
 
-
 const createSessionRequest = catchAsync(async (req: Request, res: Response) => {
-    const { ...payload } = req.body;
-    const mentorId = new Types.ObjectId(req.params.mentorId);
-    payload.mentor_id = mentorId;
-    const result = await SessionService.createSessionRequest(req.user, payload, payload.session_plan_type === PLAN_TYPE.PayPerSession);
-    sendResponse(res, {
-        success: true,
-        statusCode: StatusCodes.OK,
-        message: 'Session created successfully',
-        data: result,
-    });
-})
+  const { ...payload } = req.body;
+  const mentorId = new Types.ObjectId(req.params.mentorId);
+  payload.mentor_id = mentorId;
+  const result = await SessionService.createSessionRequest(
+    req.user,
+    payload,
+    payload.session_plan_type === PLAN_TYPE.PayPerSession
+  );
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Session created successfully',
+    data: result,
+  });
+});
 
 const getSession = catchAsync(async (req: Request, res: Response) => {
-    const { sessionId } = req.params;
-    const result = await SessionService.getSession(req.user, new Types.ObjectId(sessionId));
-    sendResponse(res, {
-        success: true,
-        statusCode: StatusCodes.OK,
-        message: 'Session retrieved successfully',
-        data: result,
-    });
-})
+  const { sessionId } = req.params;
+  const result = await SessionService.getSession(
+    req.user,
+    new Types.ObjectId(sessionId)
+  );
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Session retrieved successfully',
+    data: result,
+  });
+});
 
 const updateSession = catchAsync(async (req: Request, res: Response) => {
-    const { sessionId } = req.params;
-    const { ...payload } = req.body;
-    const result = await SessionService.updateBookedSession(req.user, new Types.ObjectId(sessionId), payload);
-    sendResponse(res, {
-        success: true,
-        statusCode: StatusCodes.OK,
-        message: 'Session updated successfully',
-        data: result,
-    });
-})
+  const { sessionId } = req.params;
+  const { ...payload } = req.body;
+  const result = await SessionService.updateBookedSession(
+    req.user,
+    new Types.ObjectId(sessionId),
+    payload
+  );
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Session updated successfully',
+    data: result,
+  });
+});
 
-const getSessionBookingsByUser = catchAsync(async (req: Request, res: Response) => {
-
+const getSessionBookingsByUser = catchAsync(
+  async (req: Request, res: Response) => {
     const paginationOptions = pick(req.query, paginationConstants);
     const filterableFields = pick(req.query, sessionFilterOptions);
 
-    const result = await SessionService.getSessionBookingsByUser(req.user, paginationOptions, filterableFields);
+    const result = await SessionService.getSessionBookingsByUser(
+      req.user,
+      paginationOptions,
+      filterableFields
+    );
     sendResponse(res, {
-        success: true,
-        statusCode: StatusCodes.OK,
-        message: 'Session bookings retrieved successfully',
-        data: result,
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Session bookings retrieved successfully',
+      data: result,
     });
-})
+  }
+);
 
 export const SessionController = {
-    createSessionRequest,
-    getSession,
-    updateSession,
-    getSessionBookingsByUser
-    
-}
+  createSessionRequest,
+  getSession,
+  updateSession,
+  getSessionBookingsByUser,
+};

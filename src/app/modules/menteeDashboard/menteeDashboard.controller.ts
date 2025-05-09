@@ -33,7 +33,34 @@ const getPremiumContent = catchAsync(async (req: Request, res: Response) => {
     data: results,
   });
 });
+
+const getMenteesMentorList = catchAsync(async (req: Request, res: Response) => {
+  const results = await MenteeDashboardService.getMenteesMentorList(req.user!);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Received active mentors list successfully',
+    data: results,
+  });
+});
+
+const generalMenteeDahsboardStatistics = catchAsync(
+  async (req: Request, res: Response) => {
+    const result = await MenteeDashboardService.getGeneralMenteeStat(req.user!);
+
+    sendResponse(res, {
+      success: true,
+      statusCode: StatusCodes.OK,
+      message: 'Received general mentee dashboard statistics successfully',
+      data: result,
+    });
+  }
+);
+
 export const MenteeDashboardController = {
   totalCount,
   getPremiumContent,
+  getMenteesMentorList,
+  generalMenteeDahsboardStatistics,
 };

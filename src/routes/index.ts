@@ -26,6 +26,8 @@ import { PurchaseRoutes } from '../app/modules/purchase/purchase.route';
 import { SessionRoutes } from '../app/modules/sessionBooking/session.route';
 import { TodoRoutes } from '../app/modules/todo/todo.route';
 import { CommunityRoutes } from '../app/modules/community/community.route';
+import { PaymentRoutes } from '../app/modules/payment-record/payment.route';
+import { NotificationRoutes } from '../app/modules/notification/notification.route';
 
 const router = express.Router();
 
@@ -59,6 +61,10 @@ const apiRoutes = [
   {
     path: '/message',
     route: MessageRoutes,
+  },
+  {
+    path: '/notification',
+    route: NotificationRoutes,
   },
   {
     path: '/mentee',
@@ -100,6 +106,10 @@ const apiRoutes = [
   {
     path: '/session',
     route: SessionRoutes,
+  },
+  {
+    path: '/payment',
+    route: PaymentRoutes,
   },
   {
     path: '/schedule',

@@ -11,6 +11,7 @@ import mongoose, { Types, startSession } from 'mongoose';
 import sendNotification, {
   sendDataWithSocket,
 } from '../../../helpers/sendNotificationHelper';
+import { USER_ROLES } from '../../../enums/user';
 
 const createCommunityPost = async (
   user: JwtPayload,
@@ -27,21 +28,28 @@ const createCommunityPost = async (
 };
 
 const toggleApprovalForPost = async (user: JwtPayload, id: string) => {
-  const post = await Post.findById(id).populate('postedBy', 'name image');
+  const post = await Post.findById(id).populate<{
+    postedBy: { _id: Types.ObjectId; name: string; image: string };
+  }>('postedBy', 'name image');
+  console.log(post);
   if (!post) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Post not found');
   }
   post.isApproved = !post.isApproved;
   await post.save();
 
-  sendNotification('getNotification', {
-    senderId: user.id,
-    receiverId: post.postedBy.toString(),
-    title: post.title,
-    message: post.isApproved
-      ? `Hello ${name}, your post with ${post.title} has been approved.`
-      : `Hello ${name}, your post with ${post.title} has been rejected.`,
-  });
+  try {
+    sendNotification('getNotification', {
+      senderId: user.id,
+      receiverId: post.postedBy.toString(),
+      title: post.title,
+      message: post.isApproved
+        ? `Hello ${post.postedBy.name}, your post with ${post.title} has been approved.`
+        : `Hello ${post.postedBy.name}, your post with ${post.title} has been rejected.`,
+    });
+  } catch (error) {
+    console.log(error);
+  }
 
   sendDataWithSocket('newPost', 'newPost', post);
 
@@ -577,6 +585,7 @@ const populateReplies = (depth: number) => {
 };
 
 const getAllPosts = async (
+  user: JwtPayload,
   filters: IPostFilters,
   paginationOptions: IPaginationOptions
 ) => {
@@ -604,9 +613,11 @@ const getAllPosts = async (
     });
   }
 
-  andConditions.push({
-    isApproved: true,
-  });
+  if (user.role !== USER_ROLES.ADMIN && user.role !== USER_ROLES.SUPER_ADMIN) {
+    andConditions.push({
+      isApproved: true,
+    });
+  }
 
   const whereConditions =
     andConditions.length > 0 ? { $and: andConditions } : {};

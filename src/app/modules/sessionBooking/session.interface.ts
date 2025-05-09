@@ -1,4 +1,4 @@
-import { Model, Types} from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { PLAN_TYPE } from '../purchase/purchase.interface';
 import { IUser } from '../user/user.interface';
 
@@ -7,14 +7,13 @@ export enum SESSION_STATUS {
   ACCEPTED = 'accepted',
   CANCELLED = 'cancelled',
   COMPLETED = 'completed',
-  RESCHEDULED = 'rescheduled'
-  
+  RESCHEDULED = 'rescheduled',
 }
 
 export type ISession = {
   _id: Types.ObjectId;
   mentor_id: Types.ObjectId | IUser;
-  mentee_id: Types.ObjectId |IUser;
+  mentee_id: Types.ObjectId | IUser;
   scheduled_time: Date;
   end_time: Date;
   session_plan_type: PLAN_TYPE;
@@ -33,14 +32,12 @@ export type ISession = {
   updated_at: Date;
 };
 
-
 export type ISessionFilter = {
- searchTerm?: string;
- status?: SESSION_STATUS;
- 
- mentee_id?: Types.ObjectId;
- mentor_id?: Types.ObjectId;
+  searchTerm?: string;
+  status?: 'upcoming' | 'history';
 
-}
+  mentee_id?: Types.ObjectId;
+  mentor_id?: Types.ObjectId;
+};
 
 export type SessionModal = Model<ISession>;

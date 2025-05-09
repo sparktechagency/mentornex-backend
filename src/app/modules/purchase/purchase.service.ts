@@ -11,17 +11,9 @@ import { StatusCodes } from 'http-status-codes';
 import { StripeService } from './stripe.service';
 import { Purchase } from './purchase.model';
 import { IUser } from '../user/user.interface';
-import {
-  IPackage,
-  IPayPerSession,
-  ISubscription,
-  PLAN_STATUS,
-} from '../plans/plans.interface';
-import { User } from '../user/user.model';
-import { Session } from '../sessionBooking/session.model';
-import { SESSION_STATUS } from '../sessionBooking/session.interface';
+import { IPackage, ISubscription } from '../plans/plans.interface';
+
 import { getRemainingQuotaForPackageOrSubscription } from '../sessionBooking/session.utils';
-import { SessionService } from '../sessionBooking/session.service';
 
 // const purchasePayPerSession = async (
 //   user: JwtPayload,
@@ -154,7 +146,7 @@ const purchasePackage = async (user: JwtPayload, id: Types.ObjectId) => {
     mentor_id: pkg.mentor_id,
     mentee_id: user.id,
     package_id: pkg._id,
-    totalSessions: pkg.sessions,
+    total_session: pkg.sessions,
     remaining_sessions: pkg.sessions,
     plan_type: PLAN_TYPE.Package,
     amount: pkg.amount,

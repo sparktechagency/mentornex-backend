@@ -59,12 +59,12 @@ const deleteReviewByMentee = catchAsync(async (req: Request, res: Response) => {
 
 const getAllMentorForMentee = catchAsync(
   async (req: Request, res: Response) => {
-    const pagination = pick(req.query, paginationConstants);
-    const filters = pick(req.query, ['searchTerm']);
+    // const pagination = pick(req.query, paginationConstants);
+    // const filters = pick(req.query, ['searchTerm']);
     const result = await ReviewService.getAllMentorForMentee(
-      req.user,
-      filters,
-      pagination
+      req.user
+      // filters,
+      // pagination
     );
     sendResponse(res, {
       success: true,

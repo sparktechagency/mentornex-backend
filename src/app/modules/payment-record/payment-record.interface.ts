@@ -1,5 +1,5 @@
-import { Model, Types } from "mongoose";
-import { PLAN_TYPE } from "../purchase/purchase.interface";
+import { Model, Types } from 'mongoose';
+import { PLAN_TYPE } from '../purchase/purchase.interface';
 
 export type IPaymentRecord = {
   _id?: Types.ObjectId;
@@ -13,6 +13,6 @@ export type IPaymentRecord = {
   amount: number;
   type: PLAN_TYPE;
   application_fee: number;
-}
-  
-  export type PaymentRecordModel = Model<IPaymentRecord>;
+};
+
+export type PaymentRecordModel = Model<IPaymentRecord>;

@@ -21,7 +21,8 @@ import { Purchase } from '../purchase/purchase.model';
 import { Package, PayPerSession } from '../plans/plans.model';
 import { IUser } from '../user/user.interface';
 import { StripeService } from '../purchase/stripe.service';
-import { PLAN_TYPE } from '../purchase/purchase.interface';
+import { PAYMENT_STATUS, PLAN_TYPE } from '../purchase/purchase.interface';
+import { USER_ROLES } from '../../../enums/user';
 
 const createSessionRequest = async (
   user: JwtPayload,
@@ -119,7 +120,6 @@ const createSessionRequest = async (
         })
         .lean();
 
-      console.log(payload.pay_per_session_id, payPerSession);
       if (!payPerSession)
         throw new ApiError(
           StatusCodes.BAD_REQUEST,
@@ -148,6 +148,19 @@ const createSessionRequest = async (
         payPerSession._id.toString(),
         bookedSession[0]._id.toString()
       );
+
+      const purchasePayload = {
+        mentor_id: payPerSession!.mentor_id?._id!.toString(),
+        mentee_id: user.id,
+        pay_per_session_id: payload.pay_per_session_id,
+        plan_type: PLAN_TYPE.PayPerSession,
+        amount: payPerSession.amount,
+        status: PAYMENT_STATUS.PENDING,
+        checkout_session_id: payment.sessionId,
+        application_fee: payPerSession.amount * 0.1,
+      };
+
+      await Purchase.create([purchasePayload], { session });
 
       paymentUrl = payment.url;
     }
@@ -295,12 +308,12 @@ const updateBookedSession = async (
         }
 
         // Require cancellation reason
-        if (!payload.cancel_reason) {
-          throw new ApiError(
-            StatusCodes.BAD_REQUEST,
-            'Cancellation reason is required.'
-          );
-        }
+        // if (!payload.cancel_reason) {
+        //   throw new ApiError(
+        //     StatusCodes.BAD_REQUEST,
+        //     'Cancellation reason is required.'
+        //   );
+        // }
 
         session.status = SESSION_STATUS.CANCELLED;
         session.cancel_reason = payload.cancel_reason;
@@ -478,7 +491,7 @@ const getSessionBookingsByUser = async (
   paginationOptions: IPaginationOptions,
   filters: ISessionFilter
 ) => {
-  const { searchTerm, ...filterableFields } = filters;
+  const { searchTerm, status, ...filterableFields } = filters;
   const anyCondition: any[] = [];
 
   const { page, limit, skip, sortBy, sortOrder } =
@@ -488,6 +501,41 @@ const getSessionBookingsByUser = async (
     sessionSearchableFields.map(field => {
       anyCondition.push({ [field]: { $regex: searchTerm, $options: 'i' } });
     });
+  }
+
+  const query =
+    user.role === USER_ROLES.MENTOR
+      ? {
+          status: {
+            $nin: [
+              SESSION_STATUS.CANCELLED,
+              SESSION_STATUS.COMPLETED,
+              SESSION_STATUS.PENDING,
+            ],
+          },
+        }
+      : {
+          status: {
+            $nin: [SESSION_STATUS.CANCELLED, SESSION_STATUS.COMPLETED],
+          },
+        };
+
+  if (status) {
+    if (status === 'upcoming') {
+      anyCondition.push(query);
+    } else if (status === 'history') {
+      anyCondition.push({
+        status: {
+          $in: [SESSION_STATUS.CANCELLED, SESSION_STATUS.COMPLETED],
+        },
+      });
+    } else if (status === 'pending') {
+      anyCondition.push({
+        status: {
+          $in: [SESSION_STATUS.PENDING],
+        },
+      });
+    }
   }
 
   if (Object.entries(filterableFields).length > 0) {

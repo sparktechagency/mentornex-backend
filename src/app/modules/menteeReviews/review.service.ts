@@ -50,21 +50,25 @@ const deleteReviewByMenteeFromDB = async (
 };
 
 const getAllMentorForMentee = async (
-  user: JwtPayload,
-  filterOptions: { searchTerm?: string },
-  paginationOptions: IPaginationOptions
+  user: JwtPayload
+  // filterOptions: { searchTerm?: string },
+  // paginationOptions: IPaginationOptions
 ) => {
-  const { page, limit, skip, sortBy, sortOrder } =
-    paginationHelper.calculatePagination(paginationOptions);
-  const { searchTerm } = filterOptions;
-  const anyCondition = [];
-  if (searchTerm) {
-    anyCondition.push({
-      mentee_id: { mentee_id: { name: { $regex: searchTerm, $options: 'i' } } },
-    });
-  }
-  const whereCondition = { mentee_id: user.id, ...anyCondition };
-  const mentors = await PaymentRecord.find(whereCondition)
+  // const { page, limit, skip, sortBy, sortOrder } =
+  //   paginationHelper.calculatePagination(paginationOptions);
+  // const { searchTerm } = filterOptions;
+  // const anyCondition = [];
+  // if (searchTerm) {
+  //   anyCondition.push({
+  //     mentee_id: { mentee_id: { name: { $regex: searchTerm, $options: 'i' } } },
+  //   });
+  // }
+  // const whereCondition = { mentee_id: user.id, ...anyCondition };
+  const mentors = await Purchase.find({
+    mentee_id: user.id,
+    status: PAYMENT_STATUS.PAID,
+    is_active: true,
+  })
     .populate<{
       mentor_id: { _id: Types.ObjectId; name: string; image: string };
     }>({ path: 'mentor_id', select: { _id: 1, name: 1, image: 1 } })
@@ -76,16 +80,8 @@ const getAllMentorForMentee = async (
       image: mentor.mentor_id.image,
     };
   });
-  const total = await PaymentRecord.countDocuments(whereCondition);
-  return {
-    meta: {
-      page,
-      limit,
-      total,
-      totalPage: Math.ceil(total / limit),
-    },
-    data: returnable,
-  };
+
+  return returnable;
 };
 
 const getAvailableContent = async (user: JwtPayload, mentorId: string) => {

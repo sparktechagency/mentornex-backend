@@ -27,10 +27,10 @@ const purchaseSchema = new Schema<IPurchase, PurchaseModel>(
       type: Number,
       required: true,
     },
-    totalSession: {
+    total_session: {
       type: Number,
     },
-    remainingSession: {
+    remaining_sessions: {
       type: Number,
     },
     application_fee: {

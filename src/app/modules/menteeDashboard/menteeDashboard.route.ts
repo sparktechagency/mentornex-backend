@@ -14,4 +14,16 @@ router.get(
   auth(USER_ROLES.MENTEE),
   MenteeDashboardController.getPremiumContent
 );
+
+router.get(
+  '/mentors',
+  auth(USER_ROLES.MENTEE),
+  MenteeDashboardController.getMenteesMentorList
+);
+
+router.get(
+  '/general-stat',
+  auth(USER_ROLES.MENTEE),
+  MenteeDashboardController.generalMenteeDahsboardStatistics
+);
 export const MenteeDashboardRoutes = router;

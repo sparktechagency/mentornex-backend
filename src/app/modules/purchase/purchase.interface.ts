@@ -26,8 +26,8 @@ export type IPurchase = {
   plan_type: PLAN_TYPE;
   amount: number;
   application_fee: number;
-  totalSession: number;
-  remainingSession: number;
+  total_session: number;
+  remaining_sessions: number;
   status: PAYMENT_STATUS;
   plan_status: PURCHASE_PLAN_STATUS;
   subscription_cancelled?: boolean;

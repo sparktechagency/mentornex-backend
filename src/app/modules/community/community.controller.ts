@@ -145,7 +145,11 @@ const toggleApprovalForPost = catchAsync(
 const getAllPosts = catchAsync(async (req: Request, res: Response) => {
   const pagination = pick(req.query, paginationConstants);
   const filters = pick(req.query, communityPostFilterableFields);
-  const result = await CommunityServices.getAllPosts(filters, pagination);
+  const result = await CommunityServices.getAllPosts(
+    req.user,
+    filters,
+    pagination
+  );
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,

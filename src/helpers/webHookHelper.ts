@@ -23,6 +23,7 @@ import { emailTemplate } from '../shared/emailTemplate';
  * @param planType - Type of plan (Subscription, Package, PayPerSession)
  * @param referenceId - ID of the related entity (subscription, package, session)
  * @param invoiceId - Stripe invoice ID
+ * @param application_fee - Stripe invoice ID
  */
 const createPaymentRecord = async (
   menteeId: Types.ObjectId,
@@ -30,7 +31,8 @@ const createPaymentRecord = async (
   amount: number,
   planType: PLAN_TYPE,
   referenceId: Types.ObjectId,
-  invoiceId: string
+  invoiceId: string,
+  application_fee: number
 ) => {
   try {
     // Create payment record
@@ -39,8 +41,13 @@ const createPaymentRecord = async (
       mentor_id: mentorId,
       amount,
       plan_type: planType,
-      reference_id: referenceId,
+      ...(planType === PLAN_TYPE.PayPerSession
+        ? { pay_per_session_id: referenceId }
+        : PLAN_TYPE.Subscription
+        ? { subscription_id: referenceId }
+        : { package_id: referenceId }),
       invoice_id: invoiceId,
+      application_fee: application_fee,
     });
 
     // Get user details for email notification
@@ -179,7 +186,6 @@ const handleWebhook = async (req: Request, res: Response) => {
 const handleCheckoutSessionCompleted = async (
   session: Stripe.Checkout.Session
 ) => {
-  console.log('Checkout session completed:', session.id);
   const metadata = session.metadata || {};
   const { plan_type } = metadata;
 
@@ -221,33 +227,49 @@ const handleCheckoutSessionCompleted = async (
         updatedPurchase.amount,
         PLAN_TYPE.Subscription,
         updatedPurchase.subscription_id || updatedPurchase._id,
-        session.invoice as string
+        session.invoice as string,
+        Number(updatedPurchase.application_fee || 0)
       );
     }
   } else if (plan_type === PLAN_TYPE.PayPerSession && metadata.session_id) {
     // Handle pay-per-session checkout completion
 
-    const updatedSession = await Session.findByIdAndUpdate(
-      metadata.session_id,
-      {
-        $set: {
-          payment_required: false,
+    const [updatedSession, updatedPurchase] = await Promise.all([
+      Session.findByIdAndUpdate(
+        metadata.session_id,
+        {
+          $set: {
+            payment_required: false,
+          },
         },
-      },
-      { new: true }
-    );
-
-    console.log('Updated session:', updatedSession);
+        { new: true }
+      ),
+      Purchase.findOneAndUpdate(
+        {
+          checkout_session_id: session.id,
+        },
+        {
+          $set: {
+            status: PAYMENT_STATUS.PAID,
+            is_active: true,
+            plan_status: PURCHASE_PLAN_STATUS.ACTIVE,
+          },
+        }
+      ),
+    ]);
 
     // Create payment record
-    await createPaymentRecord(
-      new Types.ObjectId(metadata.mentee_id),
-      new Types.ObjectId(metadata.mentor_id),
-      Number(metadata.amount),
-      PLAN_TYPE.PayPerSession,
-      new Types.ObjectId(metadata.session_id),
-      session.invoice as string
-    );
+    if (updatedPurchase) {
+      await createPaymentRecord(
+        new Types.ObjectId(metadata.mentee_id),
+        new Types.ObjectId(metadata.mentor_id),
+        Number(metadata.amount),
+        PLAN_TYPE.PayPerSession,
+        new Types.ObjectId(metadata.session_id),
+        session.invoice as string,
+        Number(updatedPurchase.application_fee || 0)
+      );
+    }
   } else {
     // Handle package checkout completion
     const updatedPurchase = await Purchase.findOneAndUpdate(
@@ -274,7 +296,8 @@ const handleCheckoutSessionCompleted = async (
         updatedPurchase.amount,
         PLAN_TYPE.Package,
         updatedPurchase.package_id || updatedPurchase._id,
-        session.invoice as string
+        session.invoice as string,
+        Number(updatedPurchase.application_fee || 0)
       );
     }
   }
@@ -349,7 +372,8 @@ const handleInvoicePaymentSucceeded = async (invoice: Stripe.Invoice) => {
         updatedPurchase.amount,
         PLAN_TYPE.Subscription,
         updatedPurchase._id,
-        invoice.id
+        invoice.id,
+        Number(updatedPurchase.application_fee || 0)
       );
     }
   }

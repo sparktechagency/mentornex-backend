@@ -73,12 +73,7 @@ router.delete(
 
 router.post(
   '/toggle-approval/:id',
-  auth(
-    USER_ROLES.ADMIN,
-    USER_ROLES.SUPER_ADMIN,
-    USER_ROLES.MENTEE,
-    USER_ROLES.MENTOR
-  ),
+  auth(USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN),
   CommunityController.toggleApprovalForPost
 );
 
