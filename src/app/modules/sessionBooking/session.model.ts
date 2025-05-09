@@ -55,6 +55,7 @@ const sessionSchema = new Schema<ISession, SessionModal>(
         SESSION_STATUS.ACCEPTED,
         SESSION_STATUS.COMPLETED,
         SESSION_STATUS.CANCELLED,
+        SESSION_STATUS.RESCHEDULED,
       ],
       default: SESSION_STATUS.PENDING,
     },

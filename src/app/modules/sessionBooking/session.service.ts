@@ -345,7 +345,8 @@ const updateBookedSession = async (
         if (
           !(
             session.status === SESSION_STATUS.CANCELLED ||
-            session.status === SESSION_STATUS.ACCEPTED
+            session.status === SESSION_STATUS.ACCEPTED ||
+            session.status === SESSION_STATUS.PENDING
           )
         ) {
           throw new ApiError(
@@ -398,6 +399,7 @@ const updateBookedSession = async (
           session.status = payload.status || session.status;
           session.scheduled_time = convertedDate;
           session.end_time = endTime;
+          console.log(session);
           await session.save({ session: dbSession });
 
           // Handle package or pay-per-session updates
