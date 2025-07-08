@@ -11,18 +11,10 @@ router
   .post(
     auth(USER_ROLES.MENTEE),
     fileUploadHandler(),
-    SubmitController.createSubmit
+    SubmitController.createOrUpdateSubmit
   );
 
-router.route('/submitted-task/:taskId').get(
-  auth(USER_ROLES.MENTOR),
-  SubmitController.getSubmitByMentor
-);
-
-router.route('/mentee-task/:taskId').get(
-  auth(USER_ROLES.MENTEE),
-  SubmitController.getSubmitByMentee
-);
+router.get('/submit/:taskId',auth(USER_ROLES.MENTEE, USER_ROLES.MENTOR), SubmitController.getSubmissionByTask);
 
 router.route('/feedback/:taskId').patch(
   auth(USER_ROLES.MENTOR),

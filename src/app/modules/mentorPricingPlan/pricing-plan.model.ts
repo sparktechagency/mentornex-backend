@@ -24,14 +24,18 @@ const payPerSessionSchema = new Schema({
 const pricingPlanSchema = new Schema<IPricingPlan, PricingPlanModal>(
   {
     mentor_id: {
-      type: String,
+      type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
       unique: true,
     },
-    stripe_account_id: {
+    stripeCustomerId: {
       type: String,
       required: true,
+    },
+    features:{
+      type:[String],
+      required:true
     },
     subscriptions: subscriptionSchema,
     pay_per_sessions: [payPerSessionSchema],

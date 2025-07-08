@@ -1,30 +1,15 @@
+
 import { StatusCodes } from 'http-status-codes';
 import ApiError from '../../../errors/ApiError';
 import { PayPerSession, Subscription } from './pricing-plan.interface';
 import { PricingPlan } from './pricing-plan.model';
-import { StripeService } from '../subscription/stripe.service';
+import { StripeService } from '../purchase/stripe.service';
 import { User } from '../user/user.model';
-import { PlanType } from '../../../types/subscription.types';
+import { Types } from 'mongoose';
+import { IPlanType } from '../../../types/plan';
 
-const setupMentorStripeAccount = async (mentorId: string, email: string) => {
-  const { accountId, onboardingUrl } = await StripeService.createConnectAccount(email);
-  
-  // Create or update pricing plan with Stripe account ID
-  await PricingPlan.findOneAndUpdate(
-    { mentor_id: mentorId },
-    { 
-      mentor_id: mentorId,
-      stripe_account_id: accountId 
-    },
-    { upsert: true }
-  );
 
-  await User.findByIdAndUpdate(mentorId, {
-    stripe_account_id: accountId
-  });
 
-  return { accountId, onboardingUrl };
-};
 
 const createSubscriptionPlan = async (planData: { 
   mentor_id: string, 
@@ -60,7 +45,7 @@ const createSubscriptionPlan = async (planData: {
     title: `${planData.subscriptions.title} Plan`,
     description: planData.subscriptions.description,
     metadata: {
-      total_sessions: Number(planData.subscriptions.total_sessions)
+      sessions: Number(planData.subscriptions.total_sessions)
     },
     accountId: stripeAccountId.stripe_account_id
   });
@@ -80,8 +65,8 @@ const createSubscriptionPlan = async (planData: {
     accountId: stripeAccountId.stripe_account_id,
     metadata: {
       mentorId: planData.mentor_id,
-      planType: 'Subscription' as PlanType,
-      total_sessions: String(planData.subscriptions.total_sessions),
+      planType: 'Subscription' as IPlanType,
+      sessions: String(planData.subscriptions.total_sessions),
       amount: String(planData.subscriptions.amount),
       accountId: stripeAccountId.stripe_account_id
     }
@@ -143,7 +128,7 @@ const createPayPerSessionPlan = async (planData: {
     title: `${planData.pay_per_sessions.title} Session`,
     description: planData.pay_per_sessions.description,
     metadata: {
-      duration: planData.pay_per_sessions.duration
+      duration: Number(planData.pay_per_sessions.duration)
     },
     accountId: stripeAccountId.stripe_account_id
   });
@@ -160,7 +145,7 @@ const createPayPerSessionPlan = async (planData: {
     accountId: stripeAccountId.stripe_account_id,
     metadata: {
       mentorId: planData.mentor_id,
-      planType: 'PayPerSession' as PlanType,
+      planType: 'PayPerSession' as IPlanType,
       duration: planData.pay_per_sessions.duration,
       amount: String(planData.pay_per_sessions.amount),
       accountId: stripeAccountId.stripe_account_id
@@ -184,7 +169,7 @@ const createPayPerSessionPlan = async (planData: {
 };
 
 const getMentorPricingPlan = async (mentor_id: string) => {
-  const plan = await PricingPlan.findOne({ mentor_id });
+  const plan = await PricingPlan.find({ mentor_id: new Types.ObjectId(mentor_id) });
   if (!plan) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Pricing plan not found');
   }
@@ -192,7 +177,7 @@ const getMentorPricingPlan = async (mentor_id: string) => {
 };
 
 export const PricingPlanService = {
-  setupMentorStripeAccount,
+
   createSubscriptionPlan,
   createPayPerSessionPlan,
   getMentorPricingPlan,

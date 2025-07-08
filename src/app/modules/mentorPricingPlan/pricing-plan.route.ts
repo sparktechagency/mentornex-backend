@@ -5,11 +5,6 @@ import auth from '../../middlewares/auth';
 
 const router = express.Router();
 
-router.post(
-  '/setup-stripe',
-  auth(USER_ROLES.MENTOR),
-  PricingPlanController.setupStripeAccount
-);
 
 router.post(
   '/subscription',

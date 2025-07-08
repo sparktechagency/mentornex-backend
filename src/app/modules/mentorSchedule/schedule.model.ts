@@ -6,6 +6,10 @@ const TimeSlotSchema = new Schema({
     type: String,
     required: true,
   },
+  timeCode: {
+    type: Number,
+    required: true,
+  },
   status: {
     type: Boolean,
     default: false,
@@ -24,7 +28,7 @@ const DayScheduleSchema = new Schema({
 const ScheduleSchema = new Schema<ISchedule, ScheduleModel>(
   {
     mentor_id: {
-      type: String,
+      type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },

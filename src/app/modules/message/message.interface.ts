@@ -1,13 +1,14 @@
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 
 export type IMessage = {
-  sender_id: string;
-  receiver_id: string;
-  content: string;
-  isMessageRequest: boolean;
-  file?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
+  chatId:Types.ObjectId;
+  receiver:Types.ObjectId;
+  message:string;
+  files:string[];
+  type:'text' | 'file' | 'both';
+  isRead:boolean;
+  createdAt:Date;
+  updatedAt:Date;
 }
 
 export type IMessageFilters = {

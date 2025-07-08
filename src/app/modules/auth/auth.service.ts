@@ -253,10 +253,26 @@ const changePasswordToDB = async (
   await User.findOneAndUpdate({ _id: user.id }, updateData, { new: true });
 };
 
+
+const deleteAccount = async(user: JwtPayload, password:string) => {
+  const isExistUser = await User.findById(user.id).select('+password');
+  if (!isExistUser) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, "User doesn't exist!");
+  }
+
+  //current password match
+  if (!await bcrypt.compare(password, isExistUser.password)) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'You are not authorized to delete this account');
+  }
+
+  await User.findOneAndUpdate({ _id: user.id }, { $set: { status: 'delete' } });
+};
+
 export const AuthService = {
   verifyEmailToDB,
   loginUserFromDB,
   forgetPasswordToDB,
   resetPasswordToDB,
   changePasswordToDB,
+  deleteAccount
 };

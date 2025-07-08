@@ -1,257 +1,118 @@
-import { IMessage } from './message.interface';
-import { Message } from './message.model';
-import ApiError from '../../../errors/ApiError';
-import { StatusCodes } from 'http-status-codes';
-import { User } from '../user/user.model';
-import { onlineUsers } from '../../../server';
-import unlinkFile from '../../../shared/unlinkFile';
+import { JwtPayload } from "jsonwebtoken";
+import mongoose, { Types } from "mongoose";
+import { IMessage } from "./message.interface";
+import { Chat } from "../chat/chat.model";
+import { Message } from "./message.model";
+import ApiError from "../../../errors/ApiError";
+import { StatusCodes } from "http-status-codes";
+import { messageSocketHelper } from "./message.utils";
+import { IPaginationOptions } from "../../../types/pagination";
+import { paginationHelper } from "../../../helpers/paginationHelper";
 
-const sendMessage = async (payload: IMessage): Promise<IMessage> => {
-  const isSenderExist = await User.isExistUserById(payload.sender_id);
-  if (!isSenderExist) {
-    if (payload.file) {
-      unlinkFile(payload.file);
+
+
+const sendMessage = async(user:JwtPayload,chatId:Types.ObjectId,payload:Partial<IMessage>) =>{
+
+
+    const session = await mongoose.startSession();
+
+    try{
+      session.startTransaction();
+      
+      const requestedUserId = user.id;
+    const chat = await Chat.findById(chatId);
+    if(!chat){
+        throw new ApiError(StatusCodes.BAD_REQUEST,'Requested chat not found.');
     }
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Sender not found');
-  }
-  const isReceiverExist = await User.isExistUserById(payload.receiver_id);
-  if (!isReceiverExist) {
-    if (payload.file) {
-      unlinkFile(payload.file);
-    }
-    throw new ApiError(StatusCodes.NOT_FOUND, 'Receiver not found');
-  }
-
-  // Check if receiver has ever sent a message in this conversation
-  const receiverHasResponded = await Message.findOne({
-    sender_id: payload.receiver_id,
-    receiver_id: payload.sender_id,
-  });
-
-  // Set isMessageRequest based on whether receiver has responded
-  payload.isMessageRequest = !receiverHasResponded;
-
-  try {
-    const message = await Message.create(payload);
-    const populatedMessage = await Message.findById(message._id)
-      .populate('sender_id', 'name image')
-      .populate('receiver_id', 'name image');
-
-    if (!populatedMessage) {
-      if (payload.file) {
-        unlinkFile(payload.file);
-      }
-      throw new ApiError(
-        StatusCodes.INTERNAL_SERVER_ERROR,
-        'Failed to create message'
-      );
+    const stringParticipantIds = chat.participants.map((participant: any) => participant._id.toString());
+    if(!stringParticipantIds.includes(requestedUserId.toString())){
+        throw new ApiError(StatusCodes.BAD_REQUEST,'You are not authorized to send message in this chat.');
     }
 
-    // When receiver responds, update all messages in the conversation
-    if (payload.sender_id === payload.receiver_id) {
-      await Message.updateMany(
-        {
-          $or: [
-            { sender_id: payload.sender_id, receiver_id: payload.receiver_id },
-            { sender_id: payload.receiver_id, receiver_id: payload.sender_id }
-          ]
-        },
-        { isMessageRequest: false }
-      );
-    }
+    const messageType = payload.message
+    ? payload.files && payload.files.length > 0
+      ? 'both'  
+      : 'text'  
+    : 'file';   
+    payload.type = messageType;
 
-    const receiverSocketId = onlineUsers[payload.receiver_id];
+    const otherUser = chat?.participants.find((participant: any) => participant._id.toString() !== requestedUserId);
+    const message = await Message.create({
+        chatId,
+        receiver: otherUser,
+        message: payload.message,
+        files: payload.files,
+        type: messageType
+    })  
+
+    chat.latestMessage = message._id;
+    chat.latestMessageTime = new Date();
+    if(requestedUserId !== chat.participants[0].toString()){ // Chat creator id is in the first position
+        chat.isRequested = false;
+    }
+    await chat.save({session});
+
+    if(!message) throw new ApiError(StatusCodes.BAD_REQUEST,'Failed to send message');
+
+    const populatedMessage = await message.populate({
+        path: 'receiver',
+        select: {name: 1, image: 1, _id: 1}
+    });
+
+    messageSocketHelper(populatedMessage);
+
+    await session.commitTransaction();
+    return message;
+    }catch(error){
+     await session.abortTransaction();
+      throw new ApiError(StatusCodes.BAD_REQUEST,'Failed to send message');
+    }finally{
+        session.endSession();
+    }
+   
+}
+
+
+
+const getMessagesByChatId = async(user:JwtPayload,chatId:Types.ObjectId, pagination:IPaginationOptions) =>{
+
+    const {page, limit, skip, sortBy, sortOrder} = paginationHelper.calculatePagination(pagination);
+    const requestedUserId = user.id;
+
+    const chatExist = await Chat.findById(chatId).lean();
+    if(!chatExist){
+        throw new ApiError(StatusCodes.BAD_REQUEST,'Requested chat not found.');
+    }
     
-    if (receiverSocketId) {
-      (global as any).io
-        .to(receiverSocketId)
-        .emit('newMessage', populatedMessage);
+    const stringParticipantIds = chatExist.participants.map((participant: any) => participant._id.toString());
+
+
+    if(!stringParticipantIds.includes(requestedUserId)){
+        throw new ApiError(StatusCodes.BAD_REQUEST,'You are not authorized to access this chat messages.');
     }
-    return populatedMessage;
-  } catch (error) {
-    // If message creation fails, delete uploaded file
-    if (payload.file) {
-      unlinkFile(payload.file);
-    }
-    throw error;
-  }
-};
-const getRegularConversations = async (userId: string): Promise<IMessage[]> => {
-  // Find users with whom the current user has had two-way conversations
-  // (both have sent messages to each other)
-  const userSentTo = await Message.distinct('receiver_id', {
-    sender_id: userId,
-  });
 
-  const usersWhoSentToUser = await Message.distinct('sender_id', {
-    receiver_id: userId,
-  });
+    //update all the messages isRead to true
+    await Message.updateMany({chatId, receiver: requestedUserId}, {isRead: true}, { new: true });
 
-  // Find users who both sent to and received from the current user
-  const mutualConversationUsers = userSentTo.filter(id =>
-    usersWhoSentToUser.includes(id)
-  );
+    const messages = await Message.find({chatId}).populate({
+        path: 'receiver',
+        select: {name: 1, image: 1, _id: 1}
+    }).skip(skip).limit(1000).sort({createdAt:'asc'});
 
-  // Get the latest message from each conversation
-  const latestMessages = await Message.aggregate([
-    {
-      $match: {
-        $or: [
-          {
-            sender_id: userId,
-            receiver_id: { $in: mutualConversationUsers },
-          },
-          {
-            receiver_id: userId,
-            sender_id: { $in: mutualConversationUsers },
-          },
-        ],
-      },
-    },
-    {
-      $sort: { createdAt: -1 },
-    },
-    {
-      $group: {
-        _id: {
-          $cond: [
-            { $eq: ['$sender_id', userId] },
-            '$receiver_id',
-            '$sender_id',
-          ],
+    const total = await Message.countDocuments({chatId});
+    return {
+        meta: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit)
         },
-        latestMessage: { $first: '$$ROOT' },
-      },
-    },
-  ]);
+        data: messages
+    };
+}
 
-  // Populate user details for the conversations
-  const populatedConversations = await Message.populate(
-    latestMessages.map(item => item.latestMessage),
-    [
-      { path: 'sender_id', select: 'name image' },
-      { path: 'receiver_id', select: 'name image' },
-    ]
-  );
 
-  return populatedConversations;
-};
-
-const getOneRegularMessage = async (
-  userId: string,
-  otherUserId: string
-): Promise<IMessage[]> => {
-  // For sender: show all messages
-  // For receiver: show messages only if they've responded or are the sender
-  const hasResponded = await Message.findOne({
-    sender_id: userId,
-    receiver_id: otherUserId,
-  });
-
-  const query = {
-    $or: [
-      { sender_id: userId, receiver_id: otherUserId },
-      { sender_id: otherUserId, receiver_id: userId },
-    ],
-  };
-
-  // If user hasn't responded and they're the receiver, don't show in regular chat
-  if (
-    !hasResponded &&
-    (await Message.findOne({ sender_id: otherUserId, receiver_id: userId }))
-  ) {
-    return [];
-  }
-
-  const messages = await Message.find(query)
-    .populate('sender_id', 'name image')
-    .populate('receiver_id', 'name image')
-    .sort({ createdAt: 1 });
-
-  return messages;
-};
-
-const getSenderMessagesFromDB = async (
-  userId: string,
-  senderId: string
-): Promise<IMessage[]> => {
-  // Get all messages where:
-  // senderId is the sender and userId is the receiver
-  const messages = await Message.find({
-    sender_id: senderId,
-    receiver_id: userId,
-  })
-    .populate('sender_id', 'name image')
-    .populate('receiver_id', 'name image')
-    .sort({ createdAt: 1 });
-
-  return messages;
-};
-
-const getMessageRequests = async (userId: string): Promise<IMessage[]> => {
-  // Find conversations where:
-  // 1. User is the receiver
-  // 2. User has never sent a message to the sender
-  const userSentMessages = await Message.distinct('receiver_id', {
-    sender_id: userId,
-  });
-
-  const requests = await Message.find({
-    receiver_id: userId,
-    sender_id: { $nin: userSentMessages },
-  })
-    .populate('sender_id', 'name image')
-    .populate('receiver_id', 'name image')
-    .sort({ createdAt: -1 });
-
-  // Group by sender to show only latest message from each sender
-  const uniqueRequests = requests.reduce((acc: IMessage[], curr) => {
-    const existingRequest = acc.find(
-      msg => msg.sender_id.toString() === curr.sender_id.toString()
-    );
-    if (!existingRequest) {
-      acc.push(curr);
-    }
-    return acc;
-  }, []);
-
-  return uniqueRequests;
-};
-
-export const MessageService = {
-  sendMessage,
-  getRegularConversations,
-  getOneRegularMessage,
-  getSenderMessagesFromDB,
-  getMessageRequests,
-};
-
-/*const getAllConversations = async (userId: string) => {
-  // Get all unique conversations for the user
-  const messages = await Message.find({
-    $or: [{ sender_id: userId }, { receiver_id: userId }]
-  })
-    .populate('sender_id', 'name email image')
-    .populate('receiver_id', 'name email image')
-    .sort({ createdAt: -1 });
-
-  // Get unique conversations
-  const conversations = messages.reduce((acc: any[], message) => {
-    const otherUser = message.sender_id.toString() === userId 
-      ? message.receiver_id 
-      : message.sender_id;
-    
-    if (!acc.find(conv => 
-      conv.otherUser._id.toString() === otherUser._id.toString()
-    )) {
-      acc.push({
-        otherUser,
-        lastMessage: message,
-        timestamp: message.createdAt
-      });
-    }
-    return acc;
-  }, []);
-
-  return conversations;
-};*/
+export const messageService = {
+    sendMessage,
+    getMessagesByChatId
+}

@@ -1,18 +1,115 @@
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import stripe from '../config/stripe';
+import { Purchase } from '../app/modules/purchase/purchase.model';
+
+import {
+  PAYMENT_STATUS,
+  PLAN_TYPE,
+  PURCHASE_PLAN_STATUS,
+} from '../app/modules/purchase/purchase.interface';
 import { Session } from '../app/modules/sessionBooking/session.model';
-import { Subscription } from '../app/modules/subscription/subscription.model';
-import { SubscriptionService } from '../app/modules/subscription/subscription.service';
+import { Types } from 'mongoose';
 import { PaymentRecord } from '../app/modules/payment-record/payment-record.model';
 import { User } from '../app/modules/user/user.model';
-import { PricingPlan } from '../app/modules/mentorPricingPlan/pricing-plan.model';
+import { emailHelper } from './emailHelper';
+import { emailTemplate } from '../shared/emailTemplate';
 
+/**
+ * Creates a payment record in the database
+ * @param menteeId - ID of the mentee
+ * @param mentorId - ID of the mentor
+ * @param amount - Payment amount
+ * @param planType - Type of plan (Subscription, Package, PayPerSession)
+ * @param referenceId - ID of the related entity (subscription, package, session)
+ * @param invoiceId - Stripe invoice ID
+ * @param application_fee - Stripe invoice ID
+ */
+const createPaymentRecord = async (
+  menteeId: Types.ObjectId,
+  mentorId: Types.ObjectId,
+  amount: number,
+  planType: PLAN_TYPE,
+  referenceId: Types.ObjectId,
+  invoiceId: string,
+  application_fee: number
+) => {
+  try {
+    // Create payment record
+    await PaymentRecord.create({
+      mentee_id: menteeId,
+      mentor_id: mentorId,
+      amount,
+      plan_type: planType,
+      ...(planType === PLAN_TYPE.PayPerSession
+        ? { pay_per_session_id: referenceId }
+        : PLAN_TYPE.Subscription
+        ? { subscription_id: referenceId }
+        : { package_id: referenceId }),
+      invoice_id: invoiceId,
+      application_fee: application_fee,
+    });
+
+    // Get user details for email notification
+    const [mentee, mentor] = await Promise.all([
+      User.findById(menteeId).select('email name'),
+      User.findById(mentorId).select('email name'),
+    ]);
+
+    if (mentee?.email) {
+      // Send payment confirmation email to mentee
+      await sendPaymentConfirmationEmail(
+        mentee.email,
+        mentee.name || 'Mentee',
+        mentor?.name || 'Mentor',
+        amount,
+        planType,
+        invoiceId
+      );
+    }
+  } catch (error) {
+    console.error('Error creating payment record:', error);
+  }
+};
+
+/**
+ * Sends payment confirmation email to user
+ */
+const sendPaymentConfirmationEmail = async (
+  email: string,
+  userName: string,
+  mentorName: string,
+  amount: number,
+  planType: PLAN_TYPE,
+  invoiceId: string
+) => {
+  const emailData = emailTemplate.paymentConfirmation(
+    email,
+    userName,
+    'success',
+    amount,
+    planType,
+    invoiceId
+  );
+
+  try {
+    await emailHelper.sendEmail(emailData);
+  } catch (error) {
+    console.error('Error sending payment confirmation email:', error);
+  }
+};
+
+/**
+ * Handles Stripe webhook events
+ * @param req - Express request object
+ * @param res - Express response object
+ */
 const handleWebhook = async (req: Request, res: Response) => {
   const signature = req.headers['stripe-signature'] as string;
 
   try {
-    const event = await stripe.webhooks.constructEvent(
+    // Verify webhook signature
+    const event = stripe.webhooks.constructEvent(
       req.body,
       signature,
       process.env.STRIPE_WEBHOOK_SECRET as string
@@ -20,143 +117,53 @@ const handleWebhook = async (req: Request, res: Response) => {
 
     console.log(`Processing webhook event: ${event.type}`);
 
+    // Handle different webhook events
     switch (event.type) {
       case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session;
-        const metadata = session.metadata || {};
-        
-        console.log('Checkout session completed with metadata:', metadata);
-        
-        // Handle subscription checkout
-        if (metadata.planType && metadata.mentorId) {
-          await handleSubscriptionCheckout(session);
-        }
-        else {
-          console.log('Unrecognized checkout session type, missing required metadata');
-        }
+        await handleCheckoutSessionCompleted(
+          event.data.object as Stripe.Checkout.Session
+        );
         break;
       }
-
-      case 'payment_intent.canceled': {
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        console.log(`Payment intent canceled: ${paymentIntent.id}`);
-
-        // Handle cancellation for both subscriptions and sessions
-        const sessionRecord = await Session.findOne({
-          stripe_payment_intent_id: paymentIntent.id,
-        });
-
-        if (sessionRecord) {
-          sessionRecord.status = 'cancelled';
-          sessionRecord.payment_status = 'cancelled';
-          await sessionRecord.save();
-          console.log(`Session ${sessionRecord._id} marked as cancelled`);
-        }
-        
-        // Also check subscriptions
-        const subscription = await Subscription.findOne({
-          stripe_payment_intent_id: paymentIntent.id,
-        });
-        
-        if (subscription) {
-          await SubscriptionService.updateSubscriptionStatus(
-            subscription.stripe_subscription_id,
-            'cancelled'
-          );
-          console.log(`Subscription ${subscription._id} marked as cancelled`);
-        }
-        break;
-      }
-      
-      case 'invoice.payment_succeeded': {
+      case 'invoice.created': {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId = invoice.subscription as string;
-
-        if (subscriptionId) {
-          console.log(`Invoice payment succeeded for subscription: ${subscriptionId}`);
-          const existingSubscription = await Subscription.findOne({
-            stripe_subscription_id: subscriptionId,
-          });
-
-          if (existingSubscription) {
-            const subscription = await SubscriptionService.updateSubscriptionStatus(
-              subscriptionId,
-              'active'
-            );
-
-            if (subscription && invoice.payment_intent) {
-              await PaymentRecord.create({
-                subscribed_plan_id: subscription.stripe_subscription_id,
-                payment_intent_id: invoice.payment_intent as string,
-                mentee_id: existingSubscription.mentee_id,
-                mentor_id: existingSubscription.mentor_id,
-                amount: invoice.amount_paid / 100,
-                status: 'succeeded',
-              });
-              console.log(`Payment record created for subscription renewal`);
-            }
-          } else {
-            console.log(`No subscription found with ID: ${subscriptionId}`);
-          }
-        }
+        console.log(`Invoice created: ${invoice.id}`);
+        // Optionally send invoice to customer
+        // await stripe.invoices.sendInvoice(invoice.id);
         break;
       }
-
-      case 'payment_intent.succeeded': {
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        
-        // Find the session associated with this payment intent
-        const sessionRecord = await Session.findOne({
-          stripe_payment_intent_id: paymentIntent.id
-        }).populate('mentor_id', 'name email').populate('mentee_id', 'name email');
-
-        if (sessionRecord) {
-          try {
-            /*const mentorEmail = sessionRecord.mentor_id.email;
-            const mentorName = sessionRecord.mentor_id.name;
-            const menteeEmail = sessionRecord.mentee_id.email;
-            const menteeName = sessionRecord.mentee_id.name;
-            
-            const meetingTitle = `Mentoring Session with ${mentorName}`;
-            
-            const videoMeeting = await setupZoomVideoMeeting(
-              mentorEmail,
-              menteeEmail,
-              meetingTitle
-            );*/
-            
-            //sessionRecord.meeting_id = videoMeeting.sessionId;
-            sessionRecord.payment_status = 'held';
-            sessionRecord.status = 'accepted';
-            //sessionRecord.meeting_url = videoMeeting.meeting_url;
-
-            await sessionRecord.save();
-          } catch (error) {
-            console.error('Error creating Zoom meeting:', error);
-            // Still mark payment as successful but log the Zoom creation error
-            sessionRecord.payment_status = 'held';
-            sessionRecord.status = 'accepted';
-            await sessionRecord.save();
-          }
-        }
+      case 'payment_intent.canceled': {
+        await handlePaymentIntentCanceled(
+          event.data.object as Stripe.PaymentIntent
+        );
         break;
       }
-      
+      case 'invoice.payment_succeeded': {
+        await handleInvoicePaymentSucceeded(
+          event.data.object as Stripe.Invoice
+        );
+        break;
+      }
+      case 'invoice.payment_failed': {
+        await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
+        break;
+      }
       case 'payment_intent.payment_failed': {
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        console.log(`Payment intent failed: ${paymentIntent.id}`);
-        
-        // Find the session associated with this payment intent
-        const sessionRecord = await Session.findOne({
-          stripe_payment_intent_id: paymentIntent.id
-        });
-        
-        if (sessionRecord) {
-          // Update session status
-          sessionRecord.payment_status = 'failed';
-          await sessionRecord.save();
-          console.log(`Session ${sessionRecord._id} payment marked as failed`);
-        }
+        await handlePaymentIntentFailed(
+          event.data.object as Stripe.PaymentIntent
+        );
+        break;
+      }
+      case 'customer.subscription.deleted': {
+        await handleSubscriptionDeleted(
+          event.data.object as Stripe.Subscription
+        );
+        break;
+      }
+      case 'customer.subscription.updated': {
+        await handleSubscriptionUpdated(
+          event.data.object as Stripe.Subscription
+        );
         break;
       }
     }
@@ -172,152 +179,404 @@ const handleWebhook = async (req: Request, res: Response) => {
   }
 };
 
-// Helper function to handle subscription checkouts - unchanged
-const handleSubscriptionCheckout = async (checkoutSession: Stripe.Checkout.Session) => {
-  try {
-    const metadata = checkoutSession.metadata || {};
-    const { mentorId, planType, accountId } = metadata;
-    
-    console.log(`Processing subscription checkout for mentor: ${mentorId}, plan type: ${planType}`);
-    
-    if (!mentorId || !planType || !accountId) {
-      console.error('Missing required metadata:', metadata);
-      return;
-    }
+/**
+ * Handles checkout.session.completed event
+ * @param session - Stripe Checkout Session
+ */
+const handleCheckoutSessionCompleted = async (
+  session: Stripe.Checkout.Session
+) => {
+  const metadata = session.metadata || {};
+  const { plan_type } = metadata;
 
-    // Get customer email from the checkout session
-    // First, try to get it from the prefilled_email parameter which should be passed
-    // from frontend as a query parameter to the payment link
-    const customerEmail = checkoutSession.customer_email || 
-                         metadata.prefilled_email || 
-                         (checkoutSession.customer_details ? checkoutSession.customer_details.email : null);
-    
-    if (!customerEmail) {
-      console.error('No customer email found in checkout session');
-      return;
-    }
-    
-    console.log(`Looking up mentee with email: ${customerEmail}`);
-    
-    // Find mentee using the email
-    const mentee = await User.findOne({ email: customerEmail });
-    
-    if (!mentee) {
-      console.error(`No mentee found with email: ${customerEmail}`);
-      return;
-    }
-    
-    const menteeIdStr = mentee._id.toString();
-    console.log(`Found mentee with ID: ${menteeIdStr} and stripeCustomerId: ${mentee.stripeCustomerId}`);
-    
-    // Get line item details from the connected account
-    const lineItems = await stripe.checkout.sessions.listLineItems(
-      checkoutSession.id,
-      { limit: 1 },
-      { stripeAccount: accountId }
+  if (plan_type === PLAN_TYPE.Subscription) {
+    // Handle subscription checkout completion
+    const subscription = await stripe.subscriptions.retrieve(
+      session.subscription as string
     );
-    
-    const lineItem = lineItems.data[0];
-    if (!lineItem) {
-      console.error('No line items found in session');
-      return;
-    }
-    
-    // Get price and subscription details
-    const priceId = lineItem.price?.id;
-    if (!priceId) {
-      console.error('No price ID found in line item');
-      return;
-    }
-    
-    console.log(`Line item with price ID: ${priceId}`);
-    
-    // If this is a subscription checkout, get the subscription ID
-    let subscriptionId = null;
-    if (planType === 'Subscription' && checkoutSession.subscription) {
-      subscriptionId = checkoutSession.subscription as string;
-      console.log(`Subscription ID: ${subscriptionId}`);
-    }
-    
-    // Get pricing plan from database to extract necessary details
-    const pricingPlan = await PricingPlan.findOne({
-      mentor_id: mentorId,
-      $or: [
-        { 'subscriptions.stripe_price_id': priceId },
-        { 'pay_per_sessions.stripe_price_id': priceId }
-      ]
-    });
-    
-    if (!pricingPlan) {
-      console.error('Pricing plan not found for price:', priceId);
-      return;
-    }
-    
-    // Determine if this is a subscription or pay-per-session
-    let planDetails;
-    if (planType === 'Subscription') {
-      planDetails = pricingPlan.subscriptions?.stripe_price_id === priceId 
-        ? pricingPlan.subscriptions 
-        : null;
-    } else {
-      planDetails = pricingPlan.pay_per_sessions?.find(
-        session => session.stripe_price_id === priceId
+
+    // Calculate subscription period dates
+    const starting_date = new Date(subscription.current_period_start * 1000);
+    const ending_date = new Date(subscription.current_period_end * 1000);
+
+    // Update purchase record
+    const updatedPurchase = await Purchase.findOneAndUpdate(
+      {
+        checkout_session_id: session.id,
+      },
+      {
+        $set: {
+          stripe_subscription_id: session.subscription as string,
+          status: PAYMENT_STATUS.PAID,
+          starting_date,
+          ending_date,
+          is_active: true,
+          plan_status: PURCHASE_PLAN_STATUS.ACTIVE,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+
+    // Create payment record if purchase was updated
+    if (updatedPurchase) {
+      await createPaymentRecord(
+        updatedPurchase.mentee_id,
+        updatedPurchase.mentor_id,
+        updatedPurchase.amount,
+        PLAN_TYPE.Subscription,
+        updatedPurchase.subscription_id || updatedPurchase._id,
+        session.invoice as string,
+        Number(updatedPurchase.application_fee || 0)
       );
     }
-    
-    if (!planDetails) {
-      console.error('Plan details not found for price:', priceId);
-      return;
-    }
-    
-    console.log(`Found plan details:`, planDetails);
-    
-    // Check if there's already a subscription with the same stripe_subscription_id
-    const existingSubscription = await Subscription.findOne({
-      stripe_subscription_id: subscriptionId || `one-time-${checkoutSession.id}`,
-    });
-    
-    if (existingSubscription) {
-      console.log('Subscription already exists in database, skipping creation');
-      return;
-    }
-    
-    // Create subscription in our database
-    const amount = lineItem.amount_total / 100;
-    const dbSubscription = await SubscriptionService.createSubscription({
-      menteeId: menteeIdStr,
-      mentorId,
-      priceId,
-      planType: planType as any,
-      stripePriceId: priceId,
-      stripeSubscriptionId: subscriptionId || `one-time-${checkoutSession.id}`,
-      amount,
-      planDetails,
-      stripeConnectedAccountId: accountId,
-      stripeConnectedCustomerId: mentee.stripeCustomerId || checkoutSession.customer as string
-    });
+  } else if (plan_type === PLAN_TYPE.PayPerSession && metadata.session_id) {
+    // Handle pay-per-session checkout completion
 
-    console.log(`Created subscription in database with ID: ${dbSubscription._id}`);
+    const [updatedSession, updatedPurchase] = await Promise.all([
+      Session.findByIdAndUpdate(
+        metadata.session_id,
+        {
+          $set: {
+            payment_required: false,
+          },
+        },
+        { new: true }
+      ),
+      Purchase.findOneAndUpdate(
+        {
+          checkout_session_id: session.id,
+        },
+        {
+          $set: {
+            status: PAYMENT_STATUS.PAID,
+            is_active: true,
+            plan_status: PURCHASE_PLAN_STATUS.ACTIVE,
+          },
+        }
+      ),
+    ]);
 
     // Create payment record
-    if (dbSubscription && checkoutSession.payment_intent) {
-      const paymentRecord = await PaymentRecord.create({
-        subscribed_plan_id: dbSubscription.stripe_subscription_id,
-        payment_intent_id: checkoutSession.payment_intent as string,
-        mentee_id: menteeIdStr,
-        mentor_id: mentorId,
-        amount: amount,
-        status: 'succeeded',
-        stripe_connected_account_id: accountId
-      });
-      
-      console.log(`Created payment record with ID: ${paymentRecord._id}`);
+    if (updatedPurchase) {
+      await createPaymentRecord(
+        new Types.ObjectId(metadata.mentee_id),
+        new Types.ObjectId(metadata.mentor_id),
+        Number(metadata.amount),
+        PLAN_TYPE.PayPerSession,
+        new Types.ObjectId(metadata.session_id),
+        session.invoice as string,
+        Number(updatedPurchase.application_fee || 0)
+      );
     }
-  } catch (error) {
-    console.error('Error in handleSubscriptionCheckout:', error);
+  } else {
+    // Handle package checkout completion
+    const updatedPurchase = await Purchase.findOneAndUpdate(
+      {
+        checkout_session_id: session.id,
+      },
+      {
+        $set: {
+          status: PAYMENT_STATUS.PAID,
+          is_active: true,
+          plan_status: PURCHASE_PLAN_STATUS.ACTIVE,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+
+    // Create payment record if purchase was updated
+    if (updatedPurchase) {
+      await createPaymentRecord(
+        updatedPurchase.mentee_id,
+        updatedPurchase.mentor_id,
+        updatedPurchase.amount,
+        PLAN_TYPE.Package,
+        updatedPurchase.package_id || updatedPurchase._id,
+        session.invoice as string,
+        Number(updatedPurchase.application_fee || 0)
+      );
+    }
+  }
+
+  console.log('Checkout session completed with metadata:', metadata);
+};
+
+/**
+ * Handles payment_intent.canceled event
+ * @param paymentIntent - Stripe Payment Intent
+ */
+const handlePaymentIntentCanceled = async (
+  paymentIntent: Stripe.PaymentIntent
+) => {
+  console.log(`Payment intent canceled: ${paymentIntent.id}`);
+
+  // Update purchase status to canceled
+  await Purchase.findOneAndUpdate(
+    {
+      checkout_session_id: paymentIntent.id,
+    },
+    {
+      $set: {
+        status: PAYMENT_STATUS.CANCELLED,
+        is_active: false,
+      },
+    },
+    {
+      new: true,
+    }
+  );
+};
+
+/**
+ * Handles invoice.payment_succeeded event
+ * @param invoice - Stripe Invoice
+ */
+const handleInvoicePaymentSucceeded = async (invoice: Stripe.Invoice) => {
+  console.log(`Invoice payment succeeded: ${invoice.id}`);
+  const subscriptionId = invoice.subscription as string;
+
+  // Check if payment record already exists to avoid duplicates
+  const paymentRecord = await PaymentRecord.findOne({
+    invoice_id: invoice.id,
+  });
+
+  if (subscriptionId && !paymentRecord) {
+    // Update purchase record for subscription renewal
+    const updatedPurchase = await Purchase.findOneAndUpdate(
+      {
+        stripe_subscription_id: subscriptionId,
+      },
+      {
+        $set: {
+          status: PAYMENT_STATUS.PAID,
+          is_active: true,
+          starting_date: new Date(invoice.period_start * 1000),
+          ending_date: new Date(invoice.period_end * 1000),
+          plan_status: PURCHASE_PLAN_STATUS.ACTIVE,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+
+    // Create payment record for the renewal
+    if (updatedPurchase) {
+      await createPaymentRecord(
+        updatedPurchase.mentee_id,
+        updatedPurchase.mentor_id,
+        updatedPurchase.amount,
+        PLAN_TYPE.Subscription,
+        updatedPurchase._id,
+        invoice.id,
+        Number(updatedPurchase.application_fee || 0)
+      );
+    }
   }
 };
 
-export const WebhookHelper = {
-  handleWebhook,
+/**
+ * Handles invoice.payment_failed event
+ * @param invoice - Stripe Invoice
+ */
+const handleInvoicePaymentFailed = async (invoice: Stripe.Invoice) => {
+  console.log(`Invoice payment failed: ${invoice.id}`);
+  const subscriptionId = invoice.subscription as string;
+
+  if (subscriptionId) {
+    // Update purchase status to failed
+    await Purchase.findOneAndUpdate(
+      {
+        stripe_subscription_id: subscriptionId,
+      },
+      {
+        $set: {
+          is_active: false,
+          plan_status: PURCHASE_PLAN_STATUS.EXPIRED,
+          status: PAYMENT_STATUS.FAILED,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+
+    // Notify user about payment failure
+    const purchase = await Purchase.findOne({
+      stripe_subscription_id: subscriptionId,
+    });
+
+    if (purchase) {
+      const user = await User.findById(purchase.mentee_id).select('email name');
+
+      try {
+        const paymentFailedTemplate = emailTemplate.payment(
+          user?.email || '',
+          user?.name || '',
+          'failed'
+        );
+        await emailHelper.sendEmail(paymentFailedTemplate);
+      } catch (error) {
+        console.error('Error sending payment failure email:', error);
+      }
+    }
+  }
 };
+
+/**
+ * Handles payment_intent.payment_failed event
+ * @param paymentIntent - Stripe Payment Intent
+ */
+const handlePaymentIntentFailed = async (
+  paymentIntent: Stripe.PaymentIntent
+) => {
+  console.log(`Payment intent failed: ${paymentIntent.id}`);
+
+  // Update purchase status to failed
+  await Purchase.findOneAndUpdate(
+    {
+      checkout_session_id: paymentIntent.id,
+    },
+    {
+      $set: {
+        status: PAYMENT_STATUS.FAILED,
+        is_active: false,
+      },
+    },
+    {
+      new: true,
+    }
+  );
+};
+
+/**
+ * Handles customer.subscription.deleted event
+ * This occurs when a subscription is fully canceled (after the billing period ends)
+ * @param subscription - Stripe Subscription
+ */
+const handleSubscriptionDeleted = async (subscription: Stripe.Subscription) => {
+  console.log(`Subscription deleted: ${subscription.id}`);
+
+  // Update purchase record to reflect cancellation
+  const purchase = await Purchase.findOneAndUpdate(
+    {
+      stripe_subscription_id: subscription.id,
+    },
+    {
+      $set: {
+        plan_status: PURCHASE_PLAN_STATUS.CANCELLED,
+        subscription_cancelled: true,
+        is_active: false,
+      },
+    },
+    {
+      new: true,
+    }
+  );
+
+  // Notify user about subscription end
+  if (purchase) {
+    const user = await User.findById(purchase.mentee_id).select('email name');
+    if (user?.email) {
+      const emailData = emailTemplate.subscription(
+        user.email,
+        user.name || '',
+        'ended'
+      );
+
+      try {
+        await emailHelper.sendEmail(emailData);
+      } catch (error) {
+        console.error('Error sending subscription ended email:', error);
+      }
+    }
+  }
+};
+
+/**
+ * Handles customer.subscription.updated event
+ * This occurs when a subscription is updated (including when it's marked for cancellation)
+ * @param subscription - Stripe Subscription
+ */
+const handleSubscriptionUpdated = async (subscription: Stripe.Subscription) => {
+  console.log(`Subscription updated: ${subscription.id}`);
+
+  // Check if subscription is marked to be canceled at period end
+  if (subscription.cancel_at_period_end) {
+    // Subscription is marked for cancellation but still active until period end
+    await Purchase.findOneAndUpdate(
+      {
+        stripe_subscription_id: subscription.id,
+      },
+      {
+        $set: {
+          subscription_cancelled: true,
+          // Keep plan_status as ACTIVE until the period actually ends
+          plan_status: PURCHASE_PLAN_STATUS.ACTIVE,
+          ending_date: new Date(subscription.current_period_end * 1000),
+        },
+      },
+      {
+        new: true,
+      }
+    );
+
+    // Notify user about upcoming cancellation
+    const purchase = await Purchase.findOne({
+      stripe_subscription_id: subscription.id,
+    });
+
+    if (purchase) {
+      const user = await User.findById(purchase.mentee_id).select('email name');
+      if (user?.email) {
+        const endDate = new Date(subscription.current_period_end * 1000);
+        const formattedDate = endDate.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+
+        const cancelTemplate = emailTemplate.subscription(
+          user.email,
+          user.name || '',
+          'ended',
+          formattedDate
+        );
+
+        try {
+          await emailHelper.sendEmail(cancelTemplate);
+        } catch (error) {
+          console.error(
+            'Error sending cancellation confirmation email:',
+            error
+          );
+        }
+      }
+    }
+  } else {
+    // Regular subscription update (not cancellation)
+    await Purchase.findOneAndUpdate(
+      {
+        stripe_subscription_id: subscription.id,
+      },
+      {
+        $set: {
+          plan_status: PURCHASE_PLAN_STATUS.ACTIVE,
+          is_active: true,
+          subscription_cancelled: false,
+          starting_date: new Date(subscription.current_period_start * 1000),
+          ending_date: new Date(subscription.current_period_end * 1000),
+        },
+      },
+      {
+        new: true,
+      }
+    );
+  }
+};
+
+export { handleWebhook };

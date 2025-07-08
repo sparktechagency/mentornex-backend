@@ -5,12 +5,12 @@ import { FavoriteModal, IFavorite } from "./favorite.interface";
 const favoriteSchema = new Schema<IFavorite, FavoriteModal>(
     {
         mentee_id: {
-            type: String,
+            type: Schema.Types.ObjectId,
             ref: 'User',
             required: true,
           },
         mentor: {
-            type: [String],
+            type: [Schema.Types.ObjectId],
             ref: 'User',
             required: true,
       }

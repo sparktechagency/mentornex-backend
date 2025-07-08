@@ -1,15 +1,12 @@
 import { z } from 'zod';
 
 const taskZodSchema = z.object({
-  body: z.object({
-    mentee_id: z.string().optional(),
-    mentor_id: z.string().optional(),
+
+    mentee_id: z.string(),
     title: z.string({ required_error: 'Title is required' }),
-    description: z.string().optional(),
-    status: z.string().optional(),
-    assigned_date: z.string().optional(),
-    deadline: z.string().optional(),
-  }),
+    description: z.string({ required_error: 'Description is required' }),
+    deadline: z.string({ required_error: 'Deadline is required' }),
+
 });
 
 export const TaskValidation = {

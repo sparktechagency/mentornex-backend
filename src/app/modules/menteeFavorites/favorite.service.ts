@@ -1,41 +1,33 @@
-import { StatusCodes } from "http-status-codes";
-import ApiError from "../../../errors/ApiError";
-import { User } from "../user/user.model";
-import { IFavorite } from "./favorite.interface";
-import { FavoriteMentor } from "./favorite.model";
+import { getMentorsWithReviewsAndPrices } from './../../../util/mentorStat';
+import { StatusCodes } from 'http-status-codes';
+import ApiError from '../../../errors/ApiError';
+import { User } from '../user/user.model';
+import { IFavorite } from './favorite.interface';
+import { FavoriteMentor } from './favorite.model';
+import { JwtPayload } from 'jsonwebtoken';
+import e from 'cors';
 
-const addOrRemoveFavoriteToDB = async (payload: IFavorite): Promise<IFavorite> => {
-  const { mentee_id, mentor } = payload;
-  const existingFavorite = await FavoriteMentor.findOne({ mentee_id });
+const addOrRemoveFavoriteToDB = async (user: JwtPayload, mentorId: string) => {
+  const existingFavorite = await FavoriteMentor.findOne({
+    mentee_id: user.id,
+    mentor: mentorId,
+  });
 
   if (existingFavorite) {
-    mentor.forEach((mentorId) => {
-      if (existingFavorite.mentor.includes(mentorId)) {
-        
-        existingFavorite.mentor = existingFavorite.mentor.filter(
-          (id) => id !== mentorId
-        );
-      } else {
-        
-        existingFavorite.mentor.push(mentorId);
-      }
-    });
-
-    await existingFavorite.save();
-    return existingFavorite;
+    await FavoriteMentor.findOneAndUpdate(
+      { mentee_id: user.id, mentor: mentorId },
+      { $pull: { mentor: mentorId } }
+    );
   } else {
-    
-    const newFavorite = await FavoriteMentor.create({
-      mentee_id,
-      mentor,
-    });
-
-    return newFavorite;
+    await FavoriteMentor.findOneAndUpdate(
+      { mentee_id: user.id },
+      { $push: { mentor: mentorId } },
+      { upsert: true }
+    );
   }
 };
 
 const getFavoriteMentors = async (menteeId: string) => {
- 
   const favorite = await FavoriteMentor.findOne({ mentee_id: menteeId });
 
   if (!favorite) {
@@ -47,13 +39,14 @@ const getFavoriteMentors = async (menteeId: string) => {
 
   const mentorIds = favorite.mentor;
 
-  const mentors = await User.find({ _id: { $in: mentorIds } });
+  const mentors = await User.find({ _id: { $in: mentorIds } }).lean();
 
-  return mentors;
+  const mentorsWithDetails = await getMentorsWithReviewsAndPrices(mentors);
+
+  return mentorsWithDetails;
 };
 
-
 export const FavoriteService = {
-    addOrRemoveFavoriteToDB,
-    getFavoriteMentors
+  addOrRemoveFavoriteToDB,
+  getFavoriteMentors,
 };

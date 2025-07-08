@@ -5,20 +5,22 @@ import { getSingleFilePath } from '../../../shared/getFilePath';
 import sendResponse from '../../../shared/sendResponse';
 import { AdminService } from './admin.service';
 import ApiError from '../../../errors/ApiError';
+import pick from '../../../shared/pick';
+import { paginationConstants } from '../../../types/pagination';
+import { USER_FILTERABLE_FIELDS } from '../user/user.constants';
+import { USER_ROLES } from '../../../enums/user';
 
-const createAdmin = catchAsync(
-  async (req: Request, res: Response) => {
-    const { ...adminData } = req.body;
-    const result = await AdminService.createAdminToDB(adminData);
+const createAdmin = catchAsync(async (req: Request, res: Response) => {
+  const { ...adminData } = req.body;
+  const result = await AdminService.createAdminToDB(adminData);
 
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Admin created successfully',
-      data: result,
-    });
-  }
-);
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Admin created successfully',
+    data: result,
+  });
+});
 
 const getAllAdmin = catchAsync(async (req: Request, res: Response) => {
   const result = await AdminService.getAllAdminFromDB();
@@ -67,44 +69,6 @@ const deleteAdminBySuperAdmin = catchAsync(
   }
 );
 
-const getTotalMentor = catchAsync(async (req: Request, res: Response) => {
-  const [totalMentors, totalActiveMentors, totalInactiveMentors] =
-    await Promise.all([
-      AdminService.getTotalMentorFromDB(),
-      AdminService.getTotalActiveMentorFromDB(),
-      AdminService.getTotalInactiveMentorFromDB(),
-    ]);
-  sendResponse(res, {
-    success: true,
-    statusCode: StatusCodes.OK,
-    message: 'Total Mentor retrieved successfully',
-    data: {
-      totalMentors,
-      totalActiveMentors,
-      totalInactiveMentors,
-    },
-  });
-});
-const getTotalMentee = catchAsync(async (req: Request, res: Response) => {
-  const [totalMentees, totalActiveMentees, totalInactiveMentees] =
-    await Promise.all([
-      AdminService.getTotalMenteeFromDB(),
-      AdminService.getTotalActiveMenteeFromDB(),
-      AdminService.getTotalInactiveMenteeFromDB(),
-    ]);
-
-  sendResponse(res, {
-    success: true,
-    statusCode: StatusCodes.OK,
-    message: 'Total Mentee retrieved successfully',
-    data: {
-      totalMentees,
-      totalActiveMentees,
-      totalInactiveMentees,
-    },
-  });
-});
-
 const getUserProfile = catchAsync(async (req: Request, res: Response) => {
   const user = req.user;
   const result = await AdminService.getUserProfileFromDB(user);
@@ -120,61 +84,86 @@ const getUserProfile = catchAsync(async (req: Request, res: Response) => {
 });
 
 //update profile
-const updateProfile = catchAsync(
+const updateProfile = catchAsync(async (req: Request, res: Response) => {
+  const user = req.user;
+  const image = getSingleFilePath(req.files, 'image');
+
+  const data = {
+    image,
+    ...req.body,
+  };
+  const result = await AdminService.updateProfileToDB(user, data);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Profile updated successfully',
+    data: result,
+  });
+});
+
+const getMentorAndMenteeCountStats = catchAsync(
   async (req: Request, res: Response) => {
-    const user = req.user;
-    const image = getSingleFilePath(req.files, 'image');
-
-    const data = {
-      image,
-      ...req.body,
-    };
-    const result = await AdminService.updateProfileToDB(user, data);
-
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Profile updated successfully',
-      data: result,
-    });
-  }
-);
-
-const getAllTransactionForMentor = catchAsync(
-  async (req: Request, res: Response) => {
-    const mentorId = req.user.id;
-    const result = await AdminService.getAllTransactionForMentorFromDB(
-      mentorId
+    const result = await AdminService.getMentorAndMenteeCountStats(
+      Number(req.query.year)
     );
-    if (!result) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Transaction not found');
-    }
+
     sendResponse(res, {
       success: true,
       statusCode: StatusCodes.OK,
-      message: 'Transaction retrieved successfully',
+      message: 'Mentor and mentee count retrieved successfully',
       data: result,
     });
   }
 );
 
-const getAllTransactionForMentee = catchAsync(
-  async (req: Request, res: Response) => {
-    const menteeId = req.user.id;
-    const result = await AdminService.getAllTransactionForMenteeFromDB(
-      menteeId
-    );
-    if (!result) {
-      throw new ApiError(StatusCodes.NOT_FOUND, 'Transaction not found');
-    }
-    sendResponse(res, {
-      success: true,
-      statusCode: StatusCodes.OK,
-      message: 'Transaction retrieved successfully',
-      data: result,
-    });
-  }
-);
+const getEarningStats = catchAsync(async (req: Request, res: Response) => {
+  const result = await AdminService.getEarningStats(Number(req.query.year));
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Earning stats retrieved successfully',
+    data: result,
+  });
+});
+const getDashboardStats = catchAsync(async (req: Request, res: Response) => {
+  const result = await AdminService.getDashboardStats(Number(req.query.year));
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Dashboard stats retrieved successfully',
+    data: result,
+  });
+});
+
+const getMentorOrMentee = catchAsync(async (req: Request, res: Response) => {
+  const pagination = pick(req.query, paginationConstants);
+  const filters = pick(req.query, USER_FILTERABLE_FIELDS);
+  const result = await AdminService.getMentorOrMentee(filters, pagination);
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'Mentor and mentee count retrieved successfully',
+    data: result,
+  });
+});
+
+const getUserStats = catchAsync(async (req: Request, res: Response) => {
+  const result = await AdminService.getUserStats(
+    req.query.role as USER_ROLES,
+    Number(req.query.year)
+  );
+
+  sendResponse(res, {
+    success: true,
+    statusCode: StatusCodes.OK,
+    message: 'User stats retrieved successfully',
+    data: result,
+  });
+});
 
 export const AdminController = {
   createAdmin,
@@ -183,8 +172,10 @@ export const AdminController = {
   getUserProfile,
   updateProfile,
   deleteAdminBySuperAdmin,
-  getTotalMentor,
-  getTotalMentee,
-  getAllTransactionForMentor,
-  getAllTransactionForMentee
+  //ADMIN DASHBOARD API'S
+  getMentorAndMenteeCountStats,
+  getEarningStats,
+  getDashboardStats,
+  getMentorOrMentee,
+  getUserStats,
 };

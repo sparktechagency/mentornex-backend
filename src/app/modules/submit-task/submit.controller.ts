@@ -4,8 +4,9 @@ import sendResponse from '../../../shared/sendResponse';
 import { StatusCodes } from 'http-status-codes';
 import { getSingleFilePath } from '../../../shared/getFilePath';
 import { SubmitService } from './submit.service';
+import { Types } from 'mongoose';
 
-const createSubmit = catchAsync(async (req: Request, res: Response) => {
+const createOrUpdateSubmit = catchAsync(async (req: Request, res: Response) => {
   const menteeId = req.user.id;
   const taskId = req.params.taskId;
   const file = req.files
@@ -14,7 +15,7 @@ const createSubmit = catchAsync(async (req: Request, res: Response) => {
         getSingleFilePath(req.files, 'media')
       : undefined;
   const data = { menteeId, taskId, file, ...req.body };
-  const result = await SubmitService.createSubmitToDB(data);
+  const result = await SubmitService.createOrUpdateSubmit(req.user, data);
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
@@ -22,28 +23,7 @@ const createSubmit = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
-const getSubmitByMentee = catchAsync(async (req: Request, res: Response) => {
-  const menteeId = req.user.id;
-  const taskId = req.params.taskId;
-  const result = await SubmitService.getSubmitByMenteeFromDB(menteeId,taskId);
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: 'Task fetched successfully',
-    data: result,
-  });
-});
 
-const getSubmitByMentor = catchAsync(async (req: Request, res: Response) => {
-  const taskId = req.params.taskId;
-  const result = await SubmitService.getSubmitByMentorFromDB(taskId);
-  sendResponse(res, {
-    statusCode: StatusCodes.OK,
-    success: true,
-    message: 'Task fetched successfully',
-    data: result,
-  });
-});
 
 const createFeedback = catchAsync(async (req: Request, res: Response) => {
   const taskId = req.params.taskId;
@@ -57,9 +37,19 @@ const createFeedback = catchAsync(async (req: Request, res: Response) => {
   });
 })
 
+const getSubmissionByTask = catchAsync(async (req: Request, res: Response) => {
+  const taskId = req.params.taskId;
+  const result = await SubmitService.getSubmissionByTask(req.user, new Types.ObjectId(taskId));
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: 'Task fetched successfully',
+    data: result
+  });
+})
+
 export const SubmitController = {
-  createSubmit,
-  getSubmitByMentee,
-  getSubmitByMentor,
-  createFeedback
+  createOrUpdateSubmit,
+  createFeedback,
+  getSubmissionByTask
 };

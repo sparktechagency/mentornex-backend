@@ -1,69 +1,19 @@
-import express from 'express';
-import { MessageController } from './message.controller';
+import express, { NextFunction, Request, Response } from 'express';
 import auth from '../../middlewares/auth';
 import { USER_ROLES } from '../../../enums/user';
+import { MessageController } from './message.controller';
+import { MessageValidation } from './message.validation';
 import fileUploadHandler from '../../middlewares/fileUploadHandler';
 
 const router = express.Router();
 
-router
-  .route('/send/:receiver_id')
-  .post(
-    auth(
-      USER_ROLES.MENTOR,
-      USER_ROLES.MENTEE,
-      USER_ROLES.ADMIN,
-      USER_ROLES.SUPER_ADMIN
-    ),
-    fileUploadHandler(),
-    MessageController.sendMessage
-  );
+router.get('/:chatId', auth(USER_ROLES.MENTEE, USER_ROLES.MENTOR), MessageController.getMessages);
 
-router
-  .route('/requests')
-  .get(
-    auth(
-      USER_ROLES.MENTOR,
-      USER_ROLES.MENTEE,
-      USER_ROLES.ADMIN,
-      USER_ROLES.SUPER_ADMIN
-    ),
-    MessageController.getMessageRequests
-  );
-router
-  .route('/requests/:sender_id')
-  .get(
-    auth(
-      USER_ROLES.MENTOR,
-      USER_ROLES.MENTEE,
-      USER_ROLES.ADMIN,
-      USER_ROLES.SUPER_ADMIN
-    ),
-    MessageController.getSenderMessages
-  );
-
-router
-  .route('/conversations')
-  .get(
-    auth(
-      USER_ROLES.MENTOR,
-      USER_ROLES.MENTEE,
-      USER_ROLES.ADMIN,
-      USER_ROLES.SUPER_ADMIN
-    ),
-    MessageController.getRegularConversations
-  );
-
-router
-  .route('/conversations/:receiver_id')
-  .get(
-    auth(
-      USER_ROLES.MENTOR,
-      USER_ROLES.MENTEE,
-      USER_ROLES.ADMIN,
-      USER_ROLES.SUPER_ADMIN
-    ),
-    MessageController.getOneRegularMessage
-  );
+router.post('/:chatId',auth(USER_ROLES.MENTEE, USER_ROLES.MENTOR),fileUploadHandler(), (req:Request, res:Response, next:NextFunction) => {
+  if(req.body.data){
+    req.body = MessageValidation.createMessageZodSchema.parse(JSON.parse(req.body.data));
+  }
+  return MessageController.sendMessage(req, res, next);
+});
 
 export const MessageRoutes = router;
