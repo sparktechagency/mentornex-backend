@@ -4,6 +4,10 @@
 // import { User } from "../user/user.model";
 // import stripe from "../../../config/stripe";
 
+import { JwtPayload } from 'jsonwebtoken';
+import { Purchase } from '../purchase/purchase.model';
+import { Session } from '../sessionBooking/session.model';
+
 // import { IPaginationOptions } from "../../../types/pagination";
 // import { paginationHelper } from "../../../helpers/paginationHelper";
 
@@ -30,17 +34,17 @@
 //       mentor_id: mentor_id,
 //       status: 'active' // Only consider active subscriptions
 //     });
-    
+
 //     // Step 2: Extract all mentee IDs from these subscriptions
 //     const menteeIds = subscriptions.map(sub => sub.mentee_id);
-    
+
 //     // Step 3: Find total active mentees count
 //     const total = await User.countDocuments({
 //       _id: { $in: menteeIds },
 //       role: 'MENTEE',
 //       status: 'active'
 //     });
-    
+
 //     // Step 4: Find active mentees with pagination
 //     const activeMentees = await User.find({
 //       _id: { $in: menteeIds },
@@ -50,10 +54,10 @@
 //     .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
 //     .skip(skip)
 //     .limit(limit);
-    
+
 //     // Calculate total pages
 //     const totalPages = Math.ceil(total / limit);
-    
+
 //     // Step 5: Return the count, list, and pagination metadata
 //     return {
 //       count: total,
@@ -87,7 +91,7 @@
 //         $count: 'totalSessionCompleted',
 //       },
 //     ]);
-  
+
 //     return result[0]?.totalSessionCompleted || 0;
 //   };
 
@@ -95,31 +99,31 @@
 //     try {
 //       // Find the mentor and get their Stripe account ID
 //       const mentor = await User.findById(mentorId);
-      
+
 //       if (!mentor) {
 //         throw new ApiError(StatusCodes.NOT_FOUND, 'Mentor not found');
 //       }
-      
+
 //       if (!mentor.stripe_account_id) {
 //         throw new ApiError(StatusCodes.BAD_REQUEST, 'Mentor does not have a connected Stripe account');
 //       }
-      
+
 //       // Retrieve the balance from Stripe for the connected account
 //       const balance = await stripe.balance.retrieve({
 //         stripeAccount: mentor.stripe_account_id,
 //       });
-      
+
 //       // Format the balance information
 //       const availableBalance = balance.available.reduce(
 //         (sum, fund) => sum + fund.amount,
 //         0
 //       ) / 100; // Convert cents to dollars
-      
+
 //       const pendingBalance = balance.pending.reduce(
 //         (sum, fund) => sum + fund.amount,
 //         0
 //       ) / 100; // Convert cents to dollars
-      
+
 //       return {
 //         mentorId,
 //         stripeAccountId: mentor.stripe_account_id,
@@ -157,7 +161,7 @@
 //           $sort: { _id: 1 },
 //         },
 //       ]);
-      
+
 //       return results.map(item => ({ month: item._id, count: item.count }));
 //     } catch (error) {
 //       if (error instanceof Error) {
@@ -166,7 +170,7 @@
 //         throw new Error('Error fetching completed sessions by month: Unknown error');
 //       }
 //     }
-//   };  
+//   };
 
 // export const MentorDashboardService = {
 //     getActiveMenteeService,
@@ -174,3 +178,36 @@
 //     getMentorBalance,
 //     getCompletedPayPerSessionsByMonth
 // }
+
+const getMentorGeneralStats = async (user: JwtPayload) => {
+  const [totalSession, totalMentee, totalEarning] = await Promise.all([
+    Session.countDocuments({ mentor_id: user.id }),
+    Purchase.countDocuments({ mentor_id: user.id }).distinct('mentee_id'),
+    Purchase.aggregate([
+      {
+        $match: {
+          mentor_id: user.id,
+          status: 'completed',
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalEarning: {
+            $sum: '$amount',
+          },
+        },
+      },
+    ]),
+  ]);
+
+  return {
+    totalSession,
+    totalMentee: totalMentee.length || 0,
+    totalEarning: totalEarning[0]?.totalEarning * 0.1 || 0,
+  };
+};
+
+export const MentorDashboardService = {
+  getMentorGeneralStats,
+};

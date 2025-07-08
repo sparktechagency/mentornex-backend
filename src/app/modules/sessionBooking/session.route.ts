@@ -28,5 +28,4 @@ router.patch(
   validateRequest(SessionValidation.updateSessionZodSchema),
   SessionController.updateSession
 );
-
 export const SessionRoutes = router;

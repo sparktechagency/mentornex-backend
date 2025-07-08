@@ -20,6 +20,7 @@ import {
   convertSessionTimeToUTC,
   convertSlotTimeToLocal,
 } from '../../../helpers/date.helper';
+import { USER_ROLES } from '../../../enums/user';
 
 const createScheduleInDB = async (user: JwtPayload, payload: ISchedule) => {
   // Fetch the user's time zone
@@ -94,9 +95,15 @@ const getAvailableSlots = async (
   mentorId: string,
   date: string
 ) => {
-  const schedule = await Schedule.findOne({ mentor_id: mentorId }).lean();
+  const [schedule, isUserExist] = await Promise.all([
+    Schedule.findOne({ mentor_id: mentorId }).lean(),
+    User.findById(user.id).select('timeZone').lean(),
+  ]);
   if (!schedule) {
     throw new ApiError(StatusCodes.NOT_FOUND, 'Schedule not found');
+  }
+  if (!isUserExist) {
+    throw new ApiError(StatusCodes.BAD_REQUEST, 'Required user not found.');
   }
 
   const today = DateTime.now();
@@ -126,6 +133,9 @@ const getAvailableSlots = async (
     })
     .lean();
 
+  // Define requestedUserTimeZone here so it's available for both cases
+  const requestedUserTimeZone = isUserExist.timeZone;
+
   // Handle case when there are no sessions
   if (sessions.length === 0) {
     return slotCount.map(bookings => {
@@ -138,10 +148,13 @@ const getAvailableSlots = async (
                 scheduleDay.day.toLowerCase() === bookings.day.toLowerCase()
             )
             ?.times.map(timeSlot => {
-              console.log(timeSlot, '🦥🦥🦥🦥🦥🦥🦥🦥🦥🦥🦥🦥');
+              const { time } = convertSlotTimeToLocal(
+                timeSlot.timeCode.toString(),
+                requestedUserTimeZone
+              );
               return {
-                time: timeSlot.time.toString(), // or any default time format you prefer
-                timeCode: timeSlot.timeCode.toString(), // or any default time format you prefer
+                time: time,
+                timeCode: timeSlot.timeCode.toString(),
                 isAvailable: true, // all slots are available when there are no sessions
               };
             }) || [],
@@ -161,44 +174,55 @@ const getAvailableSlots = async (
     };
   });
 
-  //now get the slot availability based on the schedule time check for over lapping time first convert the schedule time to mentor timezone and get the slot value like 8.00 AM or 10.00 AM count for all three day
-
-  const menteeTimeZone = sessions[0].mentee_id?.timeZone;
-  const mentorTimeZone = schedule.timeZone;
-
-  const { startTimeCode, endTimeCode } = getTimeCodes(
-    sessions[0].scheduled_time,
-    sessions[0].end_time,
-    mentorTimeZone
-  );
-
-  const slotAvailability = totalBookings.map(bookings => {
+  // Process all sessions to get booked time slots for each day
+  const bookedSlots = sessions.map(session => {
+    const { startTimeCode, endTimeCode } = getTimeCodes(
+      session.scheduled_time,
+      session.end_time,
+      requestedUserTimeZone
+    );
     return {
-      ...bookings,
-      slots: schedule.schedule
-        .find(
-          scheduleDay =>
-            scheduleDay.day.toLowerCase() === bookings.day.toLowerCase()
-        )
-        ?.times.map(timeSlot => {
-          console.log(timeSlot, '💕💕💕💕');
-          const { time } = convertSlotTimeToLocal(
-            timeSlot.timeCode.toString(),
-            menteeTimeZone
-          );
-          console.log(time, '👍👍👍');
-          return {
-            time: time,
-            isAvailable: !(
-              timeSlot.timeCode >= startTimeCode &&
-              timeSlot.timeCode <= endTimeCode
-            ),
-          };
-        }),
+      date: DateTime.fromJSDate(session.scheduled_time).toFormat('dd-MM-yyyy'),
+      startTimeCode,
+      endTimeCode,
     };
   });
 
-  //return each day slots also
+  const slotAvailability = totalBookings.map(bookings => {
+    // Get all sessions for this specific day
+    const dayBookedSlots = bookedSlots.filter(
+      slot => slot.date === bookings.date
+    );
+
+    return {
+      ...bookings,
+      slots:
+        schedule.schedule
+          .find(
+            scheduleDay =>
+              scheduleDay.day.toLowerCase() === bookings.day.toLowerCase()
+          )
+          ?.times.map(timeSlot => {
+            const { time } = convertSlotTimeToLocal(
+              timeSlot.timeCode.toString(),
+              requestedUserTimeZone
+            );
+
+            // Check if this slot is booked in any session for this day
+            const isSlotBooked = dayBookedSlots.some(
+              slot =>
+                timeSlot.timeCode >= slot.startTimeCode &&
+                timeSlot.timeCode <= slot.endTimeCode
+            );
+
+            return {
+              time: time,
+              timeCode: timeSlot.timeCode.toString(),
+              isAvailable: !isSlotBooked,
+            };
+          }) || [],
+    };
+  });
 
   return slotAvailability;
 };

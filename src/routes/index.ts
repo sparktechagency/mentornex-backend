@@ -28,6 +28,7 @@ import { TodoRoutes } from '../app/modules/todo/todo.route';
 import { CommunityRoutes } from '../app/modules/community/community.route';
 import { PaymentRoutes } from '../app/modules/payment-record/payment.route';
 import { NotificationRoutes } from '../app/modules/notification/notification.route';
+import { MentorDashboardRoutes } from '../app/modules/mentorDashboard/mentorDashboard.route.';
 
 const router = express.Router();
 
@@ -77,6 +78,10 @@ const apiRoutes = [
   {
     path: '/mentee',
     route: MenteeDashboardRoutes,
+  },
+  {
+    path: '/mentor-dashboard',
+    route: MentorDashboardRoutes,
   },
   {
     path: '/mentor',

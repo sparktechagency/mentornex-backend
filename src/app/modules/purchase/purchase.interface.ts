@@ -40,8 +40,8 @@ export type IPurchase = {
   starting_date?: Date;
   ending_date?: Date;
   is_active?: boolean;
-  created_at: Date;
-  updated_at: Date;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export type PurchaseModel = Model<IPurchase>;
