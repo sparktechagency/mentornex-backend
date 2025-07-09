@@ -40,7 +40,6 @@ const userSchema = new Schema<IUser, UserModal>(
     industry: {
       type: Schema.Types.ObjectId,
       ref: 'Industry',
-      required: true,
     },
     timeZone: {
       type: String,
