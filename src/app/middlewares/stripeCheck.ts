@@ -27,21 +27,16 @@ export const handleStripeCheck = async (req: Request, res: Response, next: NextF
   
       // Check if the Stripe account is enabled
       if (account.requirements?.disabled_reason) {
-        throw new ApiError(
-          StatusCodes.BAD_REQUEST,
-          `Your Stripe account is not enabled: ${account.requirements.disabled_reason}. Please update your account and try again.`
-        );
+        return next(new ApiError(StatusCodes.BAD_REQUEST, `Your Stripe account is not enabled: ${account.requirements.disabled_reason}. Please update your account and try again.`));
       }
   
       // Validate external accounts (bank accounts)
       if (!externalAccounts.data.length) {
-        throw new ApiError(
-          StatusCodes.BAD_REQUEST,
-          'Before creating any services that require payment, you need to add a bank account.'
-        );
+        return next(new ApiError(StatusCodes.BAD_REQUEST, 'Before creating any services that require payment, you need to add a bank account.'));
       }
   
       const verifiedAccount = externalAccounts.data.find(acc => acc.status === 'verified');
+      console.log(externalAccounts);
       if (!verifiedAccount) {
        return next(new ApiError(StatusCodes.BAD_REQUEST, 'Your bank account is not verified. Please verify your bank account to proceed.'));
       }
