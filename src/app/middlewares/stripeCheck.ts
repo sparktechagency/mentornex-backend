@@ -37,6 +37,8 @@ export const handleStripeCheck = async (req: Request, res: Response, next: NextF
         return next(new ApiError(StatusCodes.BAD_REQUEST, 'Before creating any services that require payment, you need to add a bank account.'));
       }
   
+
+
       const verifiedAccount = externalAccounts.data.find(acc => external_status_values.includes(acc.status!));
 
       if (!verifiedAccount) {
