@@ -4,6 +4,8 @@ import ApiError from "../../errors/ApiError";
 import { StatusCodes } from "http-status-codes";
 import stripe from "../../config/stripe";
 
+const external_status_values = ['verified', 'new', 'validated'];
+
 export const handleStripeCheck = async (req: Request, res: Response, next: NextFunction) => {
     const user = req.user;
   
@@ -35,8 +37,8 @@ export const handleStripeCheck = async (req: Request, res: Response, next: NextF
         return next(new ApiError(StatusCodes.BAD_REQUEST, 'Before creating any services that require payment, you need to add a bank account.'));
       }
   
-      const verifiedAccount = externalAccounts.data.find(acc => acc.status === 'verified');
-      console.log(externalAccounts);
+      const verifiedAccount = externalAccounts.data.find(acc => external_status_values.includes(acc.status!));
+
       if (!verifiedAccount) {
        return next(new ApiError(StatusCodes.BAD_REQUEST, 'Your bank account is not verified. Please verify your bank account to proceed.'));
       }
