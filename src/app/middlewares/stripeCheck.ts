@@ -43,16 +43,13 @@ export const handleStripeCheck = async (req: Request, res: Response, next: NextF
   
       const verifiedAccount = externalAccounts.data.find(acc => acc.status === 'verified');
       if (!verifiedAccount) {
-        throw new ApiError(
-          StatusCodes.BAD_REQUEST,
-          'Your bank account is not verified. Please verify your bank account to proceed.'
-        );
+       return next(new ApiError(StatusCodes.BAD_REQUEST, 'Your bank account is not verified. Please verify your bank account to proceed.'));
       }
   
       // If all checks pass, proceed to the next middleware
       next();
     } catch (error) {
       console.error('Error in handleStripeCheck:', error);
-      next(new ApiError(StatusCodes.INTERNAL_SERVER_ERROR, 'An error occurred while verifying your Stripe account.'));
+      next(new ApiError(StatusCodes.BAD_REQUEST, 'An error occurred while verifying your Stripe account.'));
     }
   };
